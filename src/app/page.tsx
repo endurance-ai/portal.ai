@@ -1,65 +1,119 @@
-import Image from "next/image";
+"use client"
+
+import { useState, useCallback } from "react"
+import { motion, AnimatePresence } from "framer-motion"
+import { Header } from "@/components/layout/header"
+import { Footer } from "@/components/layout/footer"
+import { UploadZone } from "@/components/upload/upload-zone"
+import { MoodChips } from "@/components/upload/mood-chips"
+import { AnalyzingView } from "@/components/analysis/analyzing-view"
+import { LookBreakdown } from "@/components/result/look-breakdown"
+import {
+  MOCK_MOOD_TAGS,
+  MOCK_PALETTE,
+  MOCK_ITEMS,
+  MOCK_OUTFIT_IMAGE,
+} from "@/lib/mock-data"
+
+type AppState = "upload" | "analyzing" | "result"
 
 export default function Home() {
+  const [state, setState] = useState<AppState>("upload")
+  const [imageUrl, setImageUrl] = useState<string>("")
+
+  const handleFileSelect = useCallback((file: File) => {
+    const url = URL.createObjectURL(file)
+    setImageUrl(url)
+    setState("analyzing")
+
+    // Simulate AI analysis (replace with real API call later)
+    setTimeout(() => {
+      setState("result")
+    }, 3000)
+  }, [])
+
+  const handleTryAnother = useCallback(() => {
+    if (imageUrl) URL.revokeObjectURL(imageUrl)
+    setImageUrl("")
+    setState("upload")
+  }, [imageUrl])
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <>
+      <Header />
+
+      <main className="flex-grow flex flex-col items-center justify-center px-6 pt-24 pb-12 relative overflow-hidden">
+        {/* Background gradients */}
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-moodfit-primary-container/20 rounded-full blur-[120px] pointer-events-none" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-moodfit-secondary-container/20 rounded-full blur-[120px] pointer-events-none" />
+
+        <AnimatePresence mode="wait">
+          {state === "upload" && (
+            <motion.div
+              key="upload"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="w-full max-w-2xl text-center space-y-12 z-10"
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+              {/* Hero text */}
+              <motion.div
+                className="space-y-4"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6 }}
+              >
+                <h1 className="text-4xl md:text-6xl font-black text-moodfit-on-surface tracking-[-0.02em] leading-tight">
+                  Drop your fit.
+                  <br />
+                  <span className="bg-clip-text text-transparent bg-gradient-to-r from-moodfit-primary to-moodfit-primary-dim">
+                    We&apos;ll read the vibe.
+                  </span>
+                </h1>
+                <p className="text-moodfit-on-surface-variant text-lg md:text-xl max-w-md mx-auto font-medium leading-relaxed">
+                  Upload one outfit photo and our AI extracts the mood, palette,
+                  and style DNA.
+                </p>
+              </motion.div>
+
+              <UploadZone onFileSelect={handleFileSelect} />
+              <MoodChips />
+            </motion.div>
+          )}
+
+          {state === "analyzing" && (
+            <motion.div
+              key="analyzing"
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.02 }}
+              className="w-full z-10"
             >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+              <AnalyzingView imageUrl={imageUrl} />
+            </motion.div>
+          )}
+
+          {state === "result" && (
+            <motion.div
+              key="result"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="w-full z-10 pt-4"
+            >
+              <LookBreakdown
+                imageUrl={imageUrl || MOCK_OUTFIT_IMAGE}
+                moodTags={MOCK_MOOD_TAGS}
+                palette={MOCK_PALETTE}
+                items={MOCK_ITEMS}
+                onTryAnother={handleTryAnother}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
-    </div>
-  );
+
+      <Footer />
+    </>
+  )
 }
