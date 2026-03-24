@@ -70,3 +70,10 @@ pnpm lint         # ESLint
 | `docs/26-03-23-fashion-ai-service-analysis.md` | 시장분석, 파이프라인, 비용, 경쟁분석 |
 | `docs/patterns.md` | API/코드 패턴 |
 | `AGENTS.md` | Next.js 에이전트 규칙 |
+
+## docs 파일명 컨벤션
+
+`yy-mm-dd-{설명}.md` — 예: `26-03-03-system-architecture.md`
+- 설명은 다른 문서와 구분될 정도로 구체적으로 작명
+- `docs/plans/` 하위도 동일 컨벤션 적용
+- 단, `docs/ARCHITECTURE.md`는 제외하며 업데이트 시에도 네이밍을 그대로 유지
