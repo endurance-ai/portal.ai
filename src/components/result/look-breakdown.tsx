@@ -1,10 +1,10 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
-import { motion, AnimatePresence } from "framer-motion"
+import {useRef, useState} from "react"
+import {AnimatePresence, motion} from "framer-motion"
 import Image from "next/image"
-import { ArrowUpRight } from "lucide-react"
-import { cn } from "@/lib/utils"
+import {ArrowUpRight, ChevronDown} from "lucide-react"
+import {cn} from "@/lib/utils"
 
 export interface Product {
   brand: string
@@ -23,6 +23,7 @@ export interface LookItem {
   fabric?: string
   color?: string
   fit?: string
+  position?: { top: number; left: number }
   thumbnailUrl: string
   products: Product[]
 }
@@ -44,7 +45,6 @@ interface LookBreakdownProps {
   onTryAnother: () => void
 }
 
-// Vertical positions for hotspots based on clothing type
 const CATEGORY_POSITIONS: Record<string, { top: number; left: number }> = {
   outer: { top: 22, left: 45 },
   top: { top: 38, left: 48 },
@@ -67,422 +67,403 @@ export function LookBreakdown({
   moodMeta,
   onTryAnother,
 }: LookBreakdownProps) {
-  const [activeItem, setActiveItem] = useState<string | null>(null)
-  const imageRef = useRef<HTMLDivElement>(null)
-  const itemRefs = useRef<Record<string, HTMLDivElement | null>>({})
-  const containerRef = useRef<HTMLDivElement>(null)
+  const [expandedIdx, setExpandedIdx] = useState<number | null>(
+    items.length > 0 ? 0 : null
+  )
+  const itemRefs = useRef<Record<number, HTMLDivElement | null>>({})
 
-  const scrollToItem = (id: string) => {
-    setActiveItem(id)
-    const el = itemRefs.current[id]
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "center" })
+  const toggleItem = (idx: number) => {
+    const next = expandedIdx === idx ? null : idx
+    setExpandedIdx(next)
+    if (next !== null) {
+      setTimeout(() => {
+        itemRefs.current[next]?.scrollIntoView({ behavior: "smooth", block: "nearest" })
+      }, 300)
     }
   }
-  const [lines, setLines] = useState<
-    { x1: number; y1: number; x2: number; y2: number; id: string }[]
-  >([])
-
-  // Calculate connector lines based on actual DOM positions
-  useEffect(() => {
-    function updateLines() {
-      if (!imageRef.current || !containerRef.current) return
-
-      const containerRect = containerRef.current.getBoundingClientRect()
-      const imageRect = imageRef.current.getBoundingClientRect()
-
-      const newLines = items
-        .map((item) => {
-          const itemEl = itemRefs.current[item.id]
-          if (!itemEl) return null
-
-          const itemRect = itemEl.getBoundingClientRect()
-          const pos = getHotspotPosition(item.id)
-
-          return {
-            id: item.id,
-            x1: imageRect.left - containerRect.left + imageRect.width * (pos.left / 100),
-            y1: imageRect.top - containerRect.top + imageRect.height * (pos.top / 100),
-            x2: itemRect.left - containerRect.left,
-            y2: itemRect.top - containerRect.top + 24,
-          }
-        })
-        .filter(Boolean) as typeof lines
-
-      setLines(newLines)
-    }
-
-    updateLines()
-    window.addEventListener("resize", updateLines)
-    // Recalculate after images load
-    const timer = setTimeout(updateLines, 500)
-
-    return () => {
-      window.removeEventListener("resize", updateLines)
-      clearTimeout(timer)
-    }
-  }, [items])
 
   return (
-    <div className="w-full max-w-7xl mx-auto space-y-10">
-      {/* Mood bar + palette */}
+    <div className="w-full max-w-7xl mx-auto space-y-6">
+      {/* Top bar: mood tags + palette */}
       <motion.section
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-wrap items-center justify-between gap-6"
+        className="flex flex-wrap items-center gap-3"
       >
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-2">
           {moodTags.map((tag, i) => (
-            <motion.span
+            <span
               key={tag.label}
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: i * 0.1 }}
-              className="px-5 py-2 rounded-full bg-gradient-to-r from-moodfit-primary-container/50 to-moodfit-secondary-container/50 text-moodfit-on-primary-container text-sm font-semibold tracking-wide shadow-sm"
+              className={cn(
+                "px-2.5 py-1 rounded text-[10px] font-mono font-bold tracking-wider",
+                i === 0
+                  ? "bg-primary-container text-primary"
+                  : "bg-border text-muted-foreground"
+              )}
             >
-              {tag.label} {tag.score}%
-            </motion.span>
+              {tag.label.toUpperCase()} {tag.score}%
+            </span>
           ))}
         </div>
-
+        {moodMeta?.style && (
+          <span className="px-2.5 py-1 rounded text-[10px] font-mono font-bold bg-primary/10 text-primary tracking-wider">
+            {moodMeta.style.aesthetic}
+          </span>
+        )}
+        <div className="flex-1" />
         {palette.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
-            className="flex items-center gap-4 p-2 bg-white/70 backdrop-blur-xl border border-moodfit-outline/10 rounded-full px-6"
-          >
-            <div className="flex -space-x-2">
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] font-mono font-bold text-on-surface-variant tracking-widest uppercase">
+              Color Map
+            </span>
+            <div className="flex -space-x-1">
               {palette.map((color) => (
                 <div
                   key={color.hex}
-                  className="w-8 h-8 rounded-full border-2 border-moodfit-surface"
+                  className="w-5 h-5 rounded border border-border"
                   style={{ backgroundColor: color.hex }}
                   title={`${color.label} (${color.hex})`}
                 />
               ))}
             </div>
-            <span className="text-xs font-bold tracking-widest text-moodfit-on-surface-variant uppercase">
-              Extracted Palette
-            </span>
-          </motion.div>
+          </div>
         )}
       </motion.section>
 
-      {/* Vibe summary card */}
-      {moodMeta && (moodMeta.vibe || moodMeta.summary) && (
+      {/* Main layout: image left + accordion right */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left: Sticky image with hotspots */}
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-white/70 backdrop-blur-xl border border-moodfit-outline/10 rounded-2xl p-6 space-y-4"
-        >
-          {moodMeta.vibe && (
-            <p className="text-lg font-bold text-moodfit-on-surface tracking-tight italic">
-              &ldquo;{moodMeta.vibe}&rdquo;
-            </p>
-          )}
-          {moodMeta.summary && (
-            <p className="text-sm text-moodfit-on-surface-variant leading-relaxed">
-              {moodMeta.summary}
-            </p>
-          )}
-          <div className="flex flex-wrap gap-3 pt-1">
-            {moodMeta.style && (
-              <span className="px-3 py-1 rounded-full bg-moodfit-primary/10 text-moodfit-primary text-xs font-bold">
-                {moodMeta.style.aesthetic}
-              </span>
-            )}
-            {moodMeta.style && (
-              <span className="px-3 py-1 rounded-full bg-moodfit-surface-container text-moodfit-on-surface-variant text-xs font-bold">
-                {moodMeta.style.fit}
-              </span>
-            )}
-            {moodMeta.season && (
-              <span className="px-3 py-1 rounded-full bg-moodfit-secondary-container/40 text-moodfit-on-surface-variant text-xs font-bold">
-                {moodMeta.season}
-              </span>
-            )}
-            {moodMeta.occasion && (
-              <span className="px-3 py-1 rounded-full bg-moodfit-tertiary-container/30 text-moodfit-on-surface-variant text-xs font-bold">
-                {moodMeta.occasion}
-              </span>
-            )}
-          </div>
-        </motion.div>
-      )}
-
-      {/* Main grid */}
-      <div
-        ref={containerRef}
-        className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start relative"
-      >
-        {/* SVG connector lines (desktop) */}
-        <svg
-          className="absolute inset-0 pointer-events-none hidden lg:block z-10"
-          width="100%"
-          height="100%"
-          style={{ overflow: "visible" }}
-        >
-          {lines.map((line, i) => {
-            const midX = line.x1 + (line.x2 - line.x1) * 0.6
-            return (
-              <motion.path
-                key={line.id}
-                d={`M ${line.x1} ${line.y1} C ${midX} ${line.y1}, ${midX} ${line.y2}, ${line.x2} ${line.y2}`}
-                stroke={activeItem === line.id ? "#6e3bd8" : "#adb3b6"}
-                strokeWidth={activeItem === line.id ? 1.5 : 1}
-                fill="none"
-                strokeDasharray={activeItem === line.id ? "none" : "6 4"}
-                initial={{ pathLength: 0, opacity: 0 }}
-                animate={{ pathLength: 1, opacity: activeItem === line.id ? 0.9 : 0.35 }}
-                transition={{ duration: 0.8, delay: i * 0.12 }}
-              />
-            )
-          })}
-        </svg>
-
-        {/* Left: outfit image with hotspots */}
-        <motion.div
-          className="lg:col-span-5 lg:sticky lg:top-28"
+          className="lg:col-span-4 lg:sticky lg:top-24"
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6 }}
+          transition={{ duration: 0.5 }}
         >
-          <div
-            ref={imageRef}
-            className="rounded-[2rem] overflow-hidden bg-white shadow-[0_40px_80px_rgba(46,51,54,0.08)] group"
-          >
+          <div className="bg-card border border-border rounded-lg overflow-hidden corner-brackets">
             <div className="relative aspect-[3/4]">
               <Image
                 src={imageUrl}
                 alt="Uploaded outfit"
                 fill
-                sizes="(max-width: 1024px) 100vw, 40vw"
+                sizes="(max-width: 1024px) 100vw, 33vw"
                 className="object-cover"
               />
 
               {/* Hotspot dots */}
-              {items.map((item) => {
-                const pos = getHotspotPosition(item.id)
+              {items.map((item, i) => {
+                const pos = item.position ?? getHotspotPosition(item.id)
+                const isActive = expandedIdx === i
                 return (
-                  <motion.button
-                    key={item.id}
+                  <button
+                    key={`hotspot-${i}`}
                     className="absolute z-20"
                     style={{
                       top: `${pos.top}%`,
                       left: `${pos.left}%`,
                       transform: "translate(-50%, -50%)",
                     }}
-                    onMouseEnter={() => setActiveItem(item.id)}
-                    onMouseLeave={() => setActiveItem(null)}
-                    onClick={() => scrollToItem(item.id)}
-                    whileHover={{ scale: 1.3 }}
-                    whileTap={{ scale: 0.9 }}
+                    onClick={() => toggleItem(i)}
+                    aria-label={`View ${item.category}: ${item.name}`}
+                    aria-expanded={isActive}
                   >
-                    {/* Pulse ring */}
-                    <motion.span
-                      className="absolute inset-0 w-5 h-5 rounded-full bg-white/50"
-                      animate={{ scale: [1, 2.2], opacity: [0.5, 0] }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                    />
-                    {/* Dot */}
                     <span
                       className={cn(
-                        "relative block w-5 h-5 rounded-full shadow-lg border-2 border-white transition-colors duration-200",
-                        activeItem === item.id
-                          ? "bg-moodfit-primary"
-                          : "bg-white"
+                        "relative flex items-center justify-center w-7 h-7 rounded-full text-[9px] font-mono font-bold transition-all duration-200",
+                        isActive
+                          ? "bg-primary text-background shadow-[0_0_12px_rgba(245,158,11,0.5)]"
+                          : "bg-background/90 text-foreground border border-foreground/40 hover:bg-primary hover:text-background hover:border-primary shadow-[0_2px_8px_rgba(0,0,0,0.6)]"
                       )}
-                    />
-                  </motion.button>
+                    >
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                  </button>
                 )
               })}
             </div>
-
-            <div className="p-4 flex items-center justify-between">
-              <h2 className="text-lg font-black tracking-tighter uppercase text-moodfit-on-surface">
+            <div className="px-3 py-2 border-t border-border flex justify-between items-center">
+              <span className="text-[9px] font-mono font-bold text-outline tracking-widest uppercase">
                 The Look
-              </h2>
-              <span className="text-xs font-medium text-moodfit-on-surface-variant tracking-widest uppercase">
-                AI Analysis
+              </span>
+              <span className="text-[9px] font-mono font-bold text-on-surface-variant tracking-widest uppercase">
+                AI Scan
               </span>
             </div>
           </div>
+
+          {/* Vibe card below image */}
+          {moodMeta?.vibe && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+              className="mt-3 p-3 bg-card border border-border rounded-lg"
+            >
+              <div className="text-[9px] font-mono font-bold text-primary tracking-widest uppercase">
+                Vibe Signature
+              </div>
+              <p className="text-xs font-semibold text-foreground italic mt-1">
+                &ldquo;{moodMeta.vibe}&rdquo;
+              </p>
+              {moodMeta.summary && (
+                <p className="text-[10px] text-outline mt-2 leading-relaxed">
+                  {moodMeta.summary}
+                </p>
+              )}
+            </motion.div>
+          )}
         </motion.div>
 
-        {/* Right: item breakdown */}
-        <div className="lg:col-span-7 space-y-8">
-          <AnimatePresence>
-            {items.map((item, itemIndex) => {
-              const hasProducts = item.products.length > 0
+        {/* Right: Accordion */}
+        <div className="lg:col-span-8 space-y-3">
+          {/* Section heading */}
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] font-mono font-bold text-on-surface-variant tracking-[0.2em] uppercase">
+              Garment Index
+            </span>
+            <div className="flex-1 h-px bg-border" />
+          </div>
 
-              return (
-                <motion.div
-                  key={item.id}
-                  ref={(el) => {
-                    itemRefs.current[item.id] = el
-                  }}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: itemIndex * 0.1, duration: 0.5 }}
-                  className={cn(
-                    "space-y-4 rounded-2xl p-5 transition-all duration-300",
-                    activeItem === item.id
-                      ? "bg-moodfit-primary/5 ring-1 ring-moodfit-primary/20"
-                      : "hover:bg-moodfit-surface-container-low/50"
-                  )}
-                  onMouseEnter={() => setActiveItem(item.id)}
-                  onMouseLeave={() => setActiveItem(null)}
+          {items.map((item, itemIndex) => {
+            const isExpanded = expandedIdx === itemIndex
+            const hasProducts = item.products.length > 0
+
+            return (
+              <motion.div
+                key={`item-${itemIndex}`}
+                ref={(el) => { itemRefs.current[itemIndex] = el }}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: itemIndex * 0.08 }}
+                className={cn(
+                  "bg-card border rounded-lg overflow-hidden transition-colors duration-200",
+                  isExpanded
+                    ? "border-outline-focus"
+                    : "border-border hover:border-outline/30"
+                )}
+              >
+                {/* Accordion header */}
+                <button
+                  onClick={() => toggleItem(itemIndex)}
+                  className="w-full flex items-center gap-4 p-4 text-left"
+                  aria-expanded={isExpanded}
+                  aria-controls={`panel-${itemIndex}`}
                 >
-                  {/* Item header */}
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-moodfit-surface-container flex items-center justify-center text-lg shrink-0">
-                      {getCategoryEmoji(item.id)}
+                  <span
+                    className={cn(
+                      "text-lg font-extrabold font-mono tabular-nums w-8 transition-colors",
+                      isExpanded ? "text-primary" : "text-primary-dim"
+                    )}
+                  >
+                    {String(itemIndex + 1).padStart(2, "0")}
+                  </span>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[9px] font-mono font-bold text-on-surface-variant tracking-[0.15em] uppercase">
+                      {item.category}
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-bold text-moodfit-primary uppercase tracking-widest">
-                        {item.category}
-                      </p>
-                      <h3 className="text-sm font-bold text-moodfit-on-surface">
-                        {item.name}
-                      </h3>
-                      {(item.fabric || item.fit || item.color) && (
-                        <div className="flex flex-wrap gap-1.5 mt-1.5">
-                          {item.fit && (
-                            <span className="px-2 py-0.5 rounded-full bg-moodfit-surface-container text-[10px] font-semibold text-moodfit-on-surface-variant">
-                              {item.fit}
-                            </span>
-                          )}
-                          {item.fabric && (
-                            <span className="px-2 py-0.5 rounded-full bg-moodfit-surface-container text-[10px] font-semibold text-moodfit-on-surface-variant">
-                              {item.fabric}
-                            </span>
-                          )}
-                          {item.color && (
-                            <span className="px-2 py-0.5 rounded-full bg-moodfit-surface-container text-[10px] font-semibold text-moodfit-on-surface-variant flex items-center gap-1">
-                              <span
-                                className="w-2.5 h-2.5 rounded-full border border-moodfit-outline/20 inline-block"
-                                style={{ backgroundColor: item.color.toLowerCase().includes("#") ? item.color : undefined }}
-                              />
-                              {item.color}
-                            </span>
-                          )}
-                        </div>
-                      )}
+                    <div className="text-sm font-bold text-foreground truncate">
+                      {item.name}
                     </div>
                   </div>
 
-                  {/* Product grid or skeleton loading */}
-                  {hasProducts ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      {item.products.map((product, pi) => (
-                        <motion.a
-                          key={`${product.brand}-${pi}`}
-                          href={product.link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: pi * 0.08 }}
-                          className="group/card bg-white/70 backdrop-blur-xl border border-moodfit-outline/10 p-3 rounded-2xl transition-all duration-300 hover:shadow-xl hover:-translate-y-1 block"
-                        >
-                          {product.imageUrl ? (
-                            <div className="relative w-full aspect-square rounded-xl overflow-hidden mb-3 bg-moodfit-surface-container-low">
-                              <Image
-                                src={product.imageUrl}
-                                alt={product.title || `${product.brand} product`}
-                                fill
-                                sizes="(max-width: 640px) 100vw, 33vw"
-                                className="object-cover"
-                              />
-                            </div>
-                          ) : (
-                            <div className="w-full aspect-square rounded-xl mb-3 bg-moodfit-surface-container-low" />
-                          )}
-                          <div className="flex justify-between items-start mb-1">
-                            <span className="text-[10px] font-black uppercase text-moodfit-on-surface-variant truncate max-w-[60%]">
-                              {product.brand}
-                            </span>
-                            <span className="text-[10px] font-bold text-moodfit-primary">
-                              {product.price}
-                            </span>
-                          </div>
-                          <span className="text-[11px] font-bold flex items-center gap-1 group-hover/card:text-moodfit-primary transition-colors truncate">
-                            {product.platform}
-                            <ArrowUpRight className="size-3 shrink-0" />
-                          </span>
-                        </motion.a>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      {[0, 1, 2, 3].map((i) => (
-                        <div
-                          key={i}
-                          className="bg-white/70 backdrop-blur-xl border border-moodfit-outline/10 p-3 rounded-2xl"
-                        >
-                          <div className="w-full aspect-square rounded-xl mb-3 bg-moodfit-surface-container-low relative overflow-hidden">
-                            <motion.div
-                              className="absolute inset-0"
-                              style={{
-                                background:
-                                  "linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent)",
-                                backgroundSize: "200% 100%",
-                              }}
-                              animate={{
-                                backgroundPosition: ["200% 0", "-200% 0"],
-                              }}
-                              transition={{
-                                duration: 1.5,
-                                repeat: Infinity,
-                                ease: "linear",
-                                delay: i * 0.2,
-                              }}
-                            />
-                          </div>
-                          <div className="h-3 w-20 bg-moodfit-surface-container rounded-full mb-2" />
-                          <div className="h-3 w-14 bg-moodfit-surface-container rounded-full" />
-                        </div>
-                      ))}
+                  {!isExpanded && (item.fit || item.fabric) && (
+                    <div className="hidden sm:flex gap-1.5">
+                      {item.fit && (
+                        <span className="px-2 py-0.5 rounded bg-border text-[9px] font-mono font-semibold text-outline">
+                          {item.fit}
+                        </span>
+                      )}
+                      {item.fabric && (
+                        <span className="px-2 py-0.5 rounded bg-border text-[9px] font-mono font-semibold text-outline">
+                          {item.fabric}
+                        </span>
+                      )}
                     </div>
                   )}
-                </motion.div>
-              )
-            })}
-          </AnimatePresence>
+
+                  {!isExpanded && hasProducts && (
+                    <div className="hidden sm:flex gap-1">
+                      {item.products.slice(0, 3).map((p, pi) => (
+                        <div
+                          key={pi}
+                          className="w-7 h-7 rounded bg-surface-dim border border-border overflow-hidden relative"
+                        >
+                          {p.imageUrl && (
+                            <Image src={p.imageUrl} alt="" fill sizes="28px" className="object-cover" />
+                          )}
+                        </div>
+                      ))}
+                      {item.products.length > 3 && (
+                        <span className="text-[9px] font-mono text-on-surface-variant self-center ml-1">
+                          +{item.products.length - 3}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  <ChevronDown
+                    className={cn(
+                      "size-4 text-on-surface-variant transition-transform duration-200 shrink-0",
+                      isExpanded && "rotate-180"
+                    )}
+                  />
+                </button>
+
+                {/* Expanded content */}
+                <AnimatePresence>
+                  {isExpanded && (
+                    <motion.div
+                      id={`panel-${itemIndex}`}
+                      role="region"
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.25 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="px-4 pb-4 space-y-4">
+                        {/* Attribute chips */}
+                        {(item.fit || item.fabric || item.color) && (
+                          <div className="flex flex-wrap gap-2">
+                            {item.fit && (
+                              <span className="px-2.5 py-1 rounded bg-border text-[10px] font-mono font-semibold text-muted-foreground">
+                                {item.fit}
+                              </span>
+                            )}
+                            {item.fabric && (
+                              <span className="px-2.5 py-1 rounded bg-border text-[10px] font-mono font-semibold text-muted-foreground">
+                                {item.fabric}
+                              </span>
+                            )}
+                            {item.color && (
+                              <span className="px-2.5 py-1 rounded bg-border text-[10px] font-mono font-semibold text-muted-foreground flex items-center gap-1.5">
+                                <span
+                                  className="w-2.5 h-2.5 rounded-sm border border-border inline-block"
+                                  style={{
+                                    backgroundColor: item.color.toLowerCase().includes("#")
+                                      ? item.color
+                                      : undefined,
+                                  }}
+                                />
+                                {item.color}
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Horizontal scroll product cards */}
+                        {hasProducts ? (
+                          <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent -mx-1 px-1 pb-2">
+                            <div className="flex gap-3" style={{ minWidth: "min-content" }}>
+                              {item.products.slice(0, 5).map((product, pi) => (
+                                <motion.a
+                                  key={`${product.brand}-${pi}`}
+                                  href={product.link}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  initial={{ opacity: 0, x: 12 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  transition={{ delay: pi * 0.06 }}
+                                  className="group/card bg-surface-dim border border-border rounded-lg overflow-hidden transition-all duration-200 hover:border-outline/50 hover:-translate-y-0.5 block shrink-0"
+                                  style={{ width: "calc(33.333% - 8px)", minWidth: "140px" }}
+                                >
+                                  {product.imageUrl ? (
+                                    <div className="relative w-full aspect-square bg-border/30">
+                                      <Image
+                                        src={product.imageUrl}
+                                        alt={product.title || `${product.brand} product`}
+                                        fill
+                                        sizes="200px"
+                                        className="object-cover"
+                                      />
+                                    </div>
+                                  ) : (
+                                    <div className="w-full aspect-square bg-border/30" />
+                                  )}
+                                  <div className="p-3 space-y-1.5">
+                                    <div className="flex justify-between items-start">
+                                      <span className="text-[9px] font-mono font-bold uppercase text-muted-foreground truncate max-w-[55%]">
+                                        {product.brand}
+                                      </span>
+                                      <span className="text-[11px] font-bold text-primary">
+                                        {product.price}
+                                      </span>
+                                    </div>
+                                    {product.title && (
+                                      <p className="text-[10px] text-outline truncate">
+                                        {product.title}
+                                      </p>
+                                    )}
+                                    <span className="text-[10px] font-semibold text-on-surface-variant flex items-center gap-1 group-hover/card:text-primary transition-colors">
+                                      {product.platform}
+                                      <ArrowUpRight className="size-3 shrink-0" />
+                                    </span>
+                                  </div>
+                                </motion.a>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          /* Skeleton loading */
+                          <div className="flex gap-3">
+                            {[0, 1, 2].map((i) => (
+                              <div
+                                key={i}
+                                className="bg-surface-dim border border-border rounded-lg overflow-hidden shrink-0"
+                                style={{ width: "calc(33.333% - 8px)", minWidth: "140px" }}
+                              >
+                                <div className="w-full aspect-square bg-border/20 relative overflow-hidden">
+                                  <motion.div
+                                    className="absolute inset-0"
+                                    style={{
+                                      background:
+                                        "linear-gradient(90deg, transparent, rgba(245,158,11,0.04), transparent)",
+                                      backgroundSize: "200% 100%",
+                                    }}
+                                    animate={{ backgroundPosition: ["200% 0", "-200% 0"] }}
+                                    transition={{
+                                      duration: 1.5,
+                                      repeat: Infinity,
+                                      ease: "linear",
+                                      delay: i * 0.2,
+                                    }}
+                                  />
+                                </div>
+                                <div className="p-3 space-y-2">
+                                  <div className="h-2.5 w-16 bg-border rounded" />
+                                  <div className="h-2.5 w-12 bg-border rounded" />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            )
+          })}
         </div>
       </div>
 
-      {/* Action buttons */}
+      {/* Actions */}
       <motion.section
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.6 }}
-        className="flex flex-col sm:flex-row items-center justify-center gap-6 pt-8"
+        transition={{ delay: 0.4 }}
+        className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-6"
       >
         <button
           onClick={onTryAnother}
-          className="w-full sm:w-auto px-10 py-4 rounded-full border border-moodfit-primary text-moodfit-primary font-bold text-sm tracking-widest uppercase hover:bg-moodfit-primary/5 transition-colors"
+          className="w-full sm:w-auto px-8 py-3 rounded-lg border border-primary text-primary font-bold text-xs tracking-widest uppercase hover:bg-primary/5 transition-colors"
         >
           Try Another Look
         </button>
-        <button className="w-full sm:w-auto px-10 py-4 rounded-full bg-gradient-to-r from-moodfit-primary to-moodfit-primary-dim text-white font-bold text-sm tracking-widest uppercase shadow-lg shadow-moodfit-primary/20 hover:shadow-xl hover:scale-105 transition-all">
+        <button className="w-full sm:w-auto px-8 py-3 rounded-lg bg-primary text-background font-bold text-xs tracking-widest uppercase hover:bg-primary/90 transition-colors">
           Save This Look
         </button>
       </motion.section>
     </div>
   )
-}
-
-function getCategoryEmoji(id: string): string {
-  const map: Record<string, string> = {
-    outer: "🧥",
-    top: "👕",
-    bottom: "👖",
-    shoes: "👟",
-    accessory: "👜",
-    hat: "🧢",
-  }
-  return map[id.toLowerCase()] ?? "👔"
 }
