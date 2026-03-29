@@ -1,6 +1,6 @@
 "use client"
 
-import { motion } from "framer-motion"
+import {motion} from "framer-motion"
 
 const SAMPLE_MOODS = ["Street", "Minimal", "Avant-garde"]
 
@@ -19,7 +19,7 @@ export function MoodChips() {
             hidden: { opacity: 0, scale: 0.8 },
             show: { opacity: 1, scale: 1 },
           }}
-          className="px-5 py-2.5 bg-gradient-to-r from-moodfit-primary-container/40 to-moodfit-secondary-container/40 text-moodfit-on-primary-container text-sm font-bold rounded-full border border-white/50 shadow-sm hover:scale-105 transition-transform cursor-default"
+          className="px-4 py-2 bg-card border border-border text-muted-foreground text-xs font-mono font-bold tracking-wider rounded-lg hover:border-primary/30 hover:text-foreground transition-all cursor-default"
         >
           {mood}
         </motion.div>

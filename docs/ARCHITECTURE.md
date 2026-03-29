@@ -1,6 +1,6 @@
 # MOODFIT — 아키텍처 & 기술 선정 이유
 
-> 최종 업데이트: 2026-03-24
+> 최종 업데이트: 2026-03-30
 
 AI 이미지 기반 패션 룩 분해 & 크로스플랫폼 상품 추천 서비스. 핀터레스트 스크린샷 한 장으로 "이 스타일 뭔데? 어디서 사?" 에 답한다.
 
@@ -27,13 +27,19 @@ graph TB
         SerpApi["SerpApi<br/>Google Shopping"]
     end
 
+    subgraph DB["💾 Supabase (PostgreSQL)"]
+        Analyses["analyses 테이블<br/>AI 응답 + 검색 결과 로깅"]
+    end
+
     Upload -->|FormData| AnalyzeAPI
     AnalyzeAPI -->|base64 image| OpenAI
-    OpenAI -->|mood, palette, items JSON| AnalyzeAPI
-    AnalyzeAPI -->|분석 결과| Page
-    Page -->|searchQuery[]| SearchAPI
+    OpenAI -->|mood, palette, items, position JSON| AnalyzeAPI
+    AnalyzeAPI -->|INSERT 분석 로그| Analyses
+    AnalyzeAPI -->|분석 결과 + _logId| Page
+    Page -->|searchQuery[] + _logId| SearchAPI
     SearchAPI -->|keyword search| SerpApi
     SerpApi -->|상품 데이터| SearchAPI
+    SearchAPI -->|UPDATE 검색 결과| Analyses
     SearchAPI -->|products[]| Page
     Page --> Analyzing
     Page --> Result
@@ -44,7 +50,9 @@ graph TB
 
     class Upload,Analyzing,Result client
     class Page,AnalyzeAPI,SearchAPI server
+    classDef db fill:#E3F2FD,stroke:#1976D2
     class OpenAI,SerpApi external
+    class Analyses db
 ```
 
 ### 핵심 원칙
@@ -117,12 +125,13 @@ flowchart LR
     style G fill:#E8F5E9,stroke:#4CAF50
 ```
 
-### 2단계 비동기 로딩
+### 순차 로딩 + Progress Bar
 
-1. **AI 분석 완료 즉시** → 결과 화면 전환 (무드 태그 + 팔레트 + 아이템 분해)
-2. **상품 검색은 백그라운드** → 스켈레톤 UI → 실제 상품으로 교체
+1. **AI 분석** (0~55%) → progress bar 시뮬레이션으로 대기 UX 개선
+2. **상품 검색** (60~92%) → 두 번째 ticker로 시뮬레이션
+3. **100% 도달 후** → 결과 화면 전환 (모든 데이터 준비 완료)
 
-이 구조로 체감 응답 시간을 줄인다. AI 분석(~5초)이 끝나면 바로 결과를 보여주고, 상품 검색(~10초)은 뒤에서 돌린다.
+분석 + 검색을 모두 완료한 후 결과를 한번에 보여준다. Technical Readout(터미널 스타일 로그)으로 대기 시간 동안 진행 상황을 시각적으로 제공.
 
 ---
 
@@ -131,12 +140,13 @@ flowchart LR
 ```mermaid
 flowchart TB
     IMG["원본 이미지"] --> B64["base64 인코딩"]
-    B64 --> GPT["GPT-4o-mini Vision<br/>temperature: 0.3<br/>max_tokens: 1000"]
+    B64 --> GPT["GPT-4o-mini Vision<br/>temperature: 0.3<br/>max_tokens: 2000"]
     GPT --> PARSE["JSON 파싱<br/>(markdown fence 제거)"]
     PARSE --> MOOD["mood<br/>tags, vibe, season, occasion"]
     PARSE --> PAL["palette<br/>hex + label"]
     PARSE --> STYLE["style<br/>fit, aesthetic, detectedGender"]
-    PARSE --> ITEMS["items[]<br/>id, category, name, detail,<br/>fabric, color, fit, searchQuery"]
+    PARSE --> ITEMS["items[]<br/>id, category, name, detail,<br/>fabric, color, fit, searchQuery, position"]
+    PARSE --> LOG["Supabase INSERT<br/>ai_raw_response + 파싱 필드"]
 
     style GPT fill:#E3F2FD,stroke:#1976D2
 ```
@@ -172,8 +182,8 @@ score = (rating × 2) + min(reviews/100, 3) + (thumbnail ? 2 : 0) + (10 - positi
 
 | Method | Path | 설명 | 입력 | 출력 |
 |--------|------|------|------|------|
-| POST | `/api/analyze` | 이미지 분석 | `FormData { image: File }` | `{ mood, palette, style, items[] }` |
-| POST | `/api/search-products` | 상품 검색 | `{ gender, queries[] }` | `{ results: [{ id, products[] }] }` |
+| POST | `/api/analyze` | 이미지 분석 + 로깅 | `FormData { image: File }` | `{ mood, palette, style, items[], _logId }` |
+| POST | `/api/search-products` | 상품 검색 + 로깅 | `{ gender, queries[], _logId }` | `{ results: [{ id, products[] }] }` |
 
 ---
 
@@ -197,8 +207,9 @@ stateDiagram-v2
 | 레이어 | 방어 | 비고 |
 |--------|------|------|
 | API 키 | `.env.local` 서버 사이드만 접근 | 클라이언트 노출 없음 |
-| 파일 업로드 | `image/*` MIME 타입 검증 | 10MB 제한 (UI 안내) |
-| 외부 이미지 | `next.config.ts` remotePatterns | POC에서 `**` 허용, 프로덕션에서 제한 필요 |
+| 파일 업로드 | MIME 타입 + 파일 크기 서버 검증 | 10MB 제한, jpeg/png/webp/heic만 허용 |
+| 외부 이미지 | `next.config.ts` remotePatterns | googleusercontent, gstatic, ggpht, serpapi 허용 |
+| DB 로깅 | Supabase service role key | `.env.local` 서버 사이드, RLS 바이패스 |
 | JSON 파싱 | markdown fence 제거 + try-catch | AI 출력 불안정 대비 |
 
 ---
@@ -214,6 +225,7 @@ stateDiagram-v2
 | openai | 6.32.0 | GPT-4o-mini Vision SDK |
 | shadcn | 4.1.0 | UI 컴포넌트 (base-nova) |
 | lucide-react | 1.0.1 | 아이콘 |
+| @supabase/supabase-js | latest | DB 로깅 클라이언트 |
 
 ---
 
@@ -237,5 +249,5 @@ graph LR
 | MVP | Qdrant + 브랜드 DB | 상품 정확도가 POC 피드백에서 이슈될 때 |
 | MVP | 어필리에이트 API 전환 | 쿠팡 파트너스 15만원 달성 시 |
 | Beta | FastAPI 백엔드 분리 | API Route 응답 시간 > 15초 or Vercel 타임아웃 |
-| Beta | Supabase + 인증 | 유저 히스토리/구독 기능 필요 시 |
+| Beta | Supabase 인증 추가 | 유저 히스토리/구독 기능 필요 시 (DB는 이미 연동) |
 | Growth | 비주얼 유사도 검색 | 텍스트 기반 검색 한계 체감 시 |
