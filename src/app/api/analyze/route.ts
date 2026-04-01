@@ -75,13 +75,13 @@ export async function POST(request: NextRequest) {
               type: "image_url",
               image_url: {
                 url: `data:${mimeType};base64,${base64}`,
-                detail: "high",
+                detail: "low",
               },
             },
           ],
         },
       ],
-      max_tokens: 2000,
+      max_tokens: 1200,
       temperature: 0.3,
     })
 
@@ -192,7 +192,7 @@ export async function POST(request: NextRequest) {
       logger.error({ error: logError }, "❌ Supabase analyses 저장 실패")
     }
 
-    // Insert normalized items
+    // Insert normalized items (fire-and-forget: don't block response)
     const analysisId = logRow?.id
     if (analysisId && analysis.items?.length) {
       const itemRows = analysis.items.map((item: {
@@ -216,13 +216,12 @@ export async function POST(request: NextRequest) {
         search_query_original: item.searchQuery,
       }))
 
-      const { error: itemsError } = await supabase
+      supabase
         .from("analysis_items")
         .insert(itemRows)
-
-      if (itemsError) {
-        logger.error({ error: itemsError }, "❌ Supabase analysis_items 저장 실패")
-      }
+        .then(({ error: itemsError }) => {
+          if (itemsError) logger.error({ error: itemsError }, "❌ Supabase analysis_items 저장 실패")
+        })
     }
 
     if (analysisId) {

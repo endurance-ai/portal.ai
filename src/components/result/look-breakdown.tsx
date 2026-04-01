@@ -24,7 +24,6 @@ export interface LookItem {
   color?: string
   fit?: string
   position?: { top: number; left: number }
-  thumbnailUrl: string
   products: Product[]
 }
 
@@ -145,6 +144,7 @@ export function LookBreakdown({
                 src={imageUrl}
                 alt="Uploaded outfit"
                 fill
+                priority
                 sizes="(max-width: 1024px) 100vw, 33vw"
                 className="object-cover"
               />
@@ -405,36 +405,41 @@ export function LookBreakdown({
                           </div>
                         ) : (
                           /* Skeleton loading */
-                          <div className="flex gap-3">
-                            {[0, 1, 2].map((i) => (
-                              <div
-                                key={i}
-                                className="bg-surface-dim border border-border rounded-lg overflow-hidden shrink-0"
-                                style={{ width: "calc(33.333% - 8px)", minWidth: "140px" }}
-                              >
-                                <div className="w-full aspect-square bg-border/20 relative overflow-hidden">
-                                  <motion.div
-                                    className="absolute inset-0"
-                                    style={{
-                                      background:
-                                        "linear-gradient(90deg, transparent, rgba(245,158,11,0.04), transparent)",
-                                      backgroundSize: "200% 100%",
-                                    }}
-                                    animate={{ backgroundPosition: ["200% 0", "-200% 0"] }}
-                                    transition={{
-                                      duration: 1.5,
-                                      repeat: Infinity,
-                                      ease: "linear",
-                                      delay: i * 0.2,
-                                    }}
-                                  />
+                          <div className="space-y-2">
+                            <span className="text-[9px] font-mono text-on-surface-variant tracking-widest uppercase animate-pulse">
+                              Searching products...
+                            </span>
+                            <div className="flex gap-3">
+                              {[0, 1, 2].map((i) => (
+                                <div
+                                  key={i}
+                                  className="bg-surface-dim border border-border rounded-lg overflow-hidden shrink-0"
+                                  style={{ width: "calc(33.333% - 8px)", minWidth: "140px" }}
+                                >
+                                  <div className="w-full aspect-square bg-border/20 relative overflow-hidden">
+                                    <motion.div
+                                      className="absolute inset-0"
+                                      style={{
+                                        background:
+                                          "linear-gradient(90deg, transparent, rgba(245,158,11,0.04), transparent)",
+                                        backgroundSize: "200% 100%",
+                                      }}
+                                      animate={{ backgroundPosition: ["200% 0", "-200% 0"] }}
+                                      transition={{
+                                        duration: 1.5,
+                                        repeat: Infinity,
+                                        ease: "linear",
+                                        delay: i * 0.2,
+                                      }}
+                                    />
+                                  </div>
+                                  <div className="p-3 space-y-2">
+                                    <div className="h-2.5 w-16 bg-border rounded" />
+                                    <div className="h-2.5 w-12 bg-border rounded" />
+                                  </div>
                                 </div>
-                                <div className="p-3 space-y-2">
-                                  <div className="h-2.5 w-16 bg-border rounded" />
-                                  <div className="h-2.5 w-12 bg-border rounded" />
-                                </div>
-                              </div>
-                            ))}
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>

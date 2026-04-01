@@ -49,13 +49,8 @@ export function AnalyzingView({ imageUrl, progress, progressLabel }: AnalyzingVi
             {/* Scan overlay */}
             <div className="absolute inset-0 bg-primary/5 pointer-events-none" />
 
-            {/* Scanning line */}
-            <motion.div
-              className="absolute left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent opacity-60"
-              initial={{ top: "-5%" }}
-              animate={{ top: ["-5%", "105%"] }}
-              transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-            />
+            {/* Scanning line — CSS animation for GPU-accelerated compositing */}
+            <div className="absolute left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent opacity-60 animate-scan-line" />
 
             {/* System label */}
             <motion.div

@@ -159,3 +159,13 @@
   border-bottom: 1px solid rgba(245, 158, 11, 0.25);
   border-right: 1px solid rgba(245, 158, 11, 0.25);
 }
+
+/* Scan line animation — GPU-accelerated via composite layer */
+@keyframes scan-line {
+  0% { top: -5%; }
+  100% { top: 105%; }
+}
+.animate-scan-line {
+  will-change: top;
+  animation: scan-line 3s linear infinite;
+}
