@@ -5,6 +5,7 @@ import {AnimatePresence, motion} from "framer-motion"
 import {Header} from "@/components/layout/header"
 import {Footer} from "@/components/layout/footer"
 import {UploadZone} from "@/components/upload/upload-zone"
+import {type Gender, GenderSelector} from "@/components/upload/gender-selector"
 import {MoodChips} from "@/components/upload/mood-chips"
 import {AnalyzingView} from "@/components/analysis/analyzing-view"
 import type {LookItem, Product} from "@/components/result/look-breakdown"
@@ -13,6 +14,14 @@ import {LookBreakdown} from "@/components/result/look-breakdown"
 type AppState = "upload" | "analyzing" | "result"
 
 interface AnalysisResult {
+  styleNode?: {
+    primary: string
+    primaryConfidence: number
+    secondary: string
+    secondaryConfidence: number
+    reasoning: string
+  }
+  sensitivityTags?: string[]
   mood: {
     tags: { label: string; score: number }[]
     summary: string
@@ -62,6 +71,7 @@ export default function Home() {
     occasion?: string
     style?: { fit: string; aesthetic: string; gender: string }
   }>({})
+  const [gender, setGender] = useState<Gender>("male")
   const [error, setError] = useState<string | null>(null)
   const [progress, setProgress] = useState(0)
   const [progressLabel, setProgressLabel] = useState("")
@@ -122,12 +132,13 @@ export default function Home() {
       setProgress(60)
       setProgressLabel("Searching products across platforms...")
 
-      const detectedGender = analysis.style?.detectedGender || "unisex"
       const searchRes = await fetch("/api/search-products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          gender: detectedGender,
+          gender,
+          styleNode: analysis.styleNode,
+          sensitivityTags: analysis.sensitivityTags,
           _logId: logId,
           queries: analysis.items.map((item) => ({
             id: item.id,
@@ -193,7 +204,7 @@ export default function Home() {
       )
       setState("upload")
     }
-  }, [])
+  }, [gender])
 
   const handleTryAnother = useCallback(() => {
     if (imageUrl) URL.revokeObjectURL(imageUrl)
@@ -241,6 +252,8 @@ export default function Home() {
                   and style DNA.
                 </p>
               </motion.div>
+
+              <GenderSelector value={gender} onChange={setGender} />
 
               {error && (
                 <motion.p
