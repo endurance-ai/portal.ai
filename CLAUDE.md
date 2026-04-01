@@ -108,6 +108,26 @@ pnpm lint         # ESLint
 | `docs/DESIGN.md` | 디자인 시스템 (레거시 — Digital Atelier) |
 | `docs/AGENTS.md` | Next.js 에이전트 규칙 |
 
+## 브레인스토밍 & 플래닝 보충 규칙
+
+### Scope Challenge (brainstorming 질문 단계에서)
+- "이거 진짜 필요한가?" — 기존 코드/라이브러리로 해결 가능한지 먼저 확인
+- 최소 범위는 뭔가? 절반으로 줄일 수 있나?
+- 복잡도 냄새 테스트: 설명에 "그리고"가 3번 이상 나오면 분해 필요
+
+### AI Slop 블랙리스트 (디자인 제시 단계에서)
+UI 제안 시 아래 패턴 금지:
+- 보라색 그라디언트, 3칼럼 피처 그리드
+- 장식용 이모지, 전부 가운데 정렬
+- 균일한 border-radius, blob/divider 장식
+- 제네릭 카피 ("Unlock your potential" 류)
+- 쿠키커터 리듬 (같은 카드 패턴 반복)
+
+### NOT in scope (플랜 작성 시)
+- 모든 플랜 문서에 "NOT in scope" 섹션 필수
+- 명시적으로 "이번에 안 하는 것" 나열
+- 스코프 크리프 방지용 기준선 역할
+
 ## docs 파일명 컨벤션
 
 `yy-mm-dd-{설명}.md` — 예: `26-03-03-system-architecture.md`
