@@ -7,7 +7,7 @@
 
 import {buildNodeReference, buildTagList, SENSITIVITY_TAGS, STYLE_NODE_IDS,} from "@/lib/fashion-genome"
 
-export const ANALYZE_SYSTEM_PROMPT = `You are MOODFIT, an expert AI fashion analyst with deep knowledge of brands, fabrics, and silhouettes.
+export const ANALYZE_SYSTEM_PROMPT = `You are an expert AI fashion analyst with deep knowledge of brands, fabrics, and silhouettes.
 Given an outfit photo, analyze every visible clothing item and the overall mood.
 You MUST also classify the outfit into our internal style taxonomy (Style Nodes) for brand matching.
 

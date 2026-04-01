@@ -1,4 +1,4 @@
-import {NextRequest, NextResponse} from "next/server"
+import {after, NextRequest, NextResponse} from "next/server"
 import OpenAI from "openai"
 import {supabase} from "@/lib/supabase"
 import {logger} from "@/lib/logger"
@@ -75,13 +75,13 @@ export async function POST(request: NextRequest) {
               type: "image_url",
               image_url: {
                 url: `data:${mimeType};base64,${base64}`,
-                detail: "low",
+                detail: "auto",
               },
             },
           ],
         },
       ],
-      max_tokens: 1200,
+      max_tokens: 1500,
       temperature: 0.3,
     })
 
@@ -216,12 +216,12 @@ export async function POST(request: NextRequest) {
         search_query_original: item.searchQuery,
       }))
 
-      supabase
-        .from("analysis_items")
-        .insert(itemRows)
-        .then(({ error: itemsError }) => {
-          if (itemsError) logger.error({ error: itemsError }, "❌ Supabase analysis_items 저장 실패")
-        })
+      after(async () => {
+        const { error: itemsError } = await supabase
+          .from("analysis_items")
+          .insert(itemRows)
+        if (itemsError) logger.error({ error: itemsError }, "❌ Supabase analysis_items 저장 실패")
+      })
     }
 
     if (analysisId) {

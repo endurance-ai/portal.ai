@@ -170,7 +170,7 @@ export function LookBreakdown({
                       className={cn(
                         "relative flex items-center justify-center w-7 h-7 rounded-full text-[9px] font-mono font-bold transition-all duration-200",
                         isActive
-                          ? "bg-primary text-background shadow-[0_0_12px_rgba(245,158,11,0.5)]"
+                          ? "bg-primary text-background shadow-[0_0_12px_rgba(255,255,255,0.3)]"
                           : "bg-background/90 text-foreground border border-foreground/40 hover:bg-primary hover:text-background hover:border-primary shadow-[0_2px_8px_rgba(0,0,0,0.6)]"
                       )}
                     >
@@ -421,7 +421,7 @@ export function LookBreakdown({
                                       className="absolute inset-0"
                                       style={{
                                         background:
-                                          "linear-gradient(90deg, transparent, rgba(245,158,11,0.04), transparent)",
+                                          "linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent)",
                                         backgroundSize: "200% 100%",
                                       }}
                                       animate={{ backgroundPosition: ["200% 0", "-200% 0"] }}

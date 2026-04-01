@@ -6,7 +6,7 @@ import {Header} from "@/components/layout/header"
 import {Footer} from "@/components/layout/footer"
 import {UploadZone} from "@/components/upload/upload-zone"
 import {type Gender, GenderSelector} from "@/components/upload/gender-selector"
-import {StyleChips} from "@/components/upload/mood-chips"
+import {StyleChips} from "@/components/upload/style-chips"
 import {AnalyzingView} from "@/components/analysis/analyzing-view"
 import type {LookItem, Product} from "@/components/result/look-breakdown"
 import {LookBreakdown} from "@/components/result/look-breakdown"
@@ -76,8 +76,14 @@ export default function Home() {
   const [progress, setProgress] = useState(0)
   const [progressLabel, setProgressLabel] = useState("")
   const fileRef = useRef<File | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
   const handleFileSelect = useCallback(async (file: File) => {
+    // Abort any in-flight product search from a previous session
+    abortRef.current?.abort()
+    abortRef.current = new AbortController()
+    const { signal } = abortRef.current
+
     const url = URL.createObjectURL(file)
     setImageUrl(url)
     setState("analyzing")
@@ -150,6 +156,7 @@ export default function Home() {
       fetch("/api/search-products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal,
         body: JSON.stringify({
           gender,
           styleNode: analysis.styleNode,
@@ -191,6 +198,7 @@ export default function Home() {
   }, [gender])
 
   const handleTryAnother = useCallback(() => {
+    abortRef.current?.abort()
     if (imageUrl) URL.revokeObjectURL(imageUrl)
     setImageUrl("")
     setMoodTags([])

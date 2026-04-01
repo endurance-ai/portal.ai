@@ -15,7 +15,9 @@ async function compressImage(file: File): Promise<File> {
 
   return new Promise((resolve, reject) => {
     const img = new window.Image()
+    const objectUrl = URL.createObjectURL(file)
     img.onload = () => {
+      URL.revokeObjectURL(objectUrl)
       let { width, height } = img
 
       // Scale down if larger than target
@@ -23,6 +25,9 @@ async function compressImage(file: File): Promise<File> {
         const ratio = Math.min(TARGET_MAX_DIMENSION / width, TARGET_MAX_DIMENSION / height)
         width = Math.round(width * ratio)
         height = Math.round(height * ratio)
+      } else if (file.type === "image/jpeg") {
+        // Already small enough and JPEG — skip re-encode
+        resolve(file); return
       }
 
       const canvas = document.createElement("canvas")
@@ -41,8 +46,11 @@ async function compressImage(file: File): Promise<File> {
         JPEG_QUALITY
       )
     }
-    img.onerror = () => reject(new Error("Failed to load image"))
-    img.src = URL.createObjectURL(file)
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl)
+      reject(new Error("Failed to load image"))
+    }
+    img.src = objectUrl
   })
 }
 

@@ -110,13 +110,11 @@ export async function POST(request: NextRequest) {
     logger.info(`🏁 상품 검색 완료 — ${totalProducts}개 | ${searchDuration}ms`)
 
     if (_logId) {
-      await supabase
+      const { error: updateError } = await supabase
         .from("analyses")
         .update({ search_duration_ms: searchDuration })
         .eq("id", _logId)
-        .then(({ error }) => {
-          if (error) logger.error({ error }, "❌ analyses 업데이트 실패")
-        })
+      if (updateError) logger.error({ error: updateError }, "❌ analyses 업데이트 실패")
     }
 
     return NextResponse.json({ results })
