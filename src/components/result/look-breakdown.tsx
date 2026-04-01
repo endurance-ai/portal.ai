@@ -24,7 +24,6 @@ export interface LookItem {
   color?: string
   fit?: string
   position?: { top: number; left: number }
-  thumbnailUrl: string
   products: Product[]
 }
 
@@ -145,6 +144,7 @@ export function LookBreakdown({
                 src={imageUrl}
                 alt="Uploaded outfit"
                 fill
+                priority
                 sizes="(max-width: 1024px) 100vw, 33vw"
                 className="object-cover"
               />
@@ -170,7 +170,7 @@ export function LookBreakdown({
                       className={cn(
                         "relative flex items-center justify-center w-7 h-7 rounded-full text-[9px] font-mono font-bold transition-all duration-200",
                         isActive
-                          ? "bg-primary text-background shadow-[0_0_12px_rgba(245,158,11,0.5)]"
+                          ? "bg-primary text-background shadow-[0_0_12px_rgba(255,255,255,0.3)]"
                           : "bg-background/90 text-foreground border border-foreground/40 hover:bg-primary hover:text-background hover:border-primary shadow-[0_2px_8px_rgba(0,0,0,0.6)]"
                       )}
                     >
@@ -199,7 +199,7 @@ export function LookBreakdown({
               className="mt-3 p-3 bg-card border border-border rounded-lg"
             >
               <div className="text-[9px] font-mono font-bold text-primary tracking-widest uppercase">
-                Vibe Signature
+                Style Summary
               </div>
               <p className="text-xs font-semibold text-foreground italic mt-1">
                 &ldquo;{moodMeta.vibe}&rdquo;
@@ -405,36 +405,41 @@ export function LookBreakdown({
                           </div>
                         ) : (
                           /* Skeleton loading */
-                          <div className="flex gap-3">
-                            {[0, 1, 2].map((i) => (
-                              <div
-                                key={i}
-                                className="bg-surface-dim border border-border rounded-lg overflow-hidden shrink-0"
-                                style={{ width: "calc(33.333% - 8px)", minWidth: "140px" }}
-                              >
-                                <div className="w-full aspect-square bg-border/20 relative overflow-hidden">
-                                  <motion.div
-                                    className="absolute inset-0"
-                                    style={{
-                                      background:
-                                        "linear-gradient(90deg, transparent, rgba(245,158,11,0.04), transparent)",
-                                      backgroundSize: "200% 100%",
-                                    }}
-                                    animate={{ backgroundPosition: ["200% 0", "-200% 0"] }}
-                                    transition={{
-                                      duration: 1.5,
-                                      repeat: Infinity,
-                                      ease: "linear",
-                                      delay: i * 0.2,
-                                    }}
-                                  />
+                          <div className="space-y-2">
+                            <span className="text-[9px] font-mono text-on-surface-variant tracking-widest uppercase animate-pulse">
+                              Searching products...
+                            </span>
+                            <div className="flex gap-3">
+                              {[0, 1, 2].map((i) => (
+                                <div
+                                  key={i}
+                                  className="bg-surface-dim border border-border rounded-lg overflow-hidden shrink-0"
+                                  style={{ width: "calc(33.333% - 8px)", minWidth: "140px" }}
+                                >
+                                  <div className="w-full aspect-square bg-border/20 relative overflow-hidden">
+                                    <motion.div
+                                      className="absolute inset-0"
+                                      style={{
+                                        background:
+                                          "linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent)",
+                                        backgroundSize: "200% 100%",
+                                      }}
+                                      animate={{ backgroundPosition: ["200% 0", "-200% 0"] }}
+                                      transition={{
+                                        duration: 1.5,
+                                        repeat: Infinity,
+                                        ease: "linear",
+                                        delay: i * 0.2,
+                                      }}
+                                    />
+                                  </div>
+                                  <div className="p-3 space-y-2">
+                                    <div className="h-2.5 w-16 bg-border rounded" />
+                                    <div className="h-2.5 w-12 bg-border rounded" />
+                                  </div>
                                 </div>
-                                <div className="p-3 space-y-2">
-                                  <div className="h-2.5 w-16 bg-border rounded" />
-                                  <div className="h-2.5 w-12 bg-border rounded" />
-                                </div>
-                              </div>
-                            ))}
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>

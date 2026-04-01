@@ -1,6 +1,7 @@
-# MOODFIT (fashion-ai)
+# portal.ai (fashion-ai)
 
-AI 이미지 기반 패션 무드 분석 & 크로스플랫폼 상품 추천 서비스 (POC)
+AI 이미지 기반 패션 스타일 분석 & 크로스플랫폼 상품 추천 서비스 (POC)
+"One photo. Every option." — 사진 한 장으로 룩 분해 + 크로스플랫폼 상품 검색
 
 ## 프로젝트 구조
 
@@ -10,7 +11,7 @@ src/app/api/analyze/  → GPT-4o-mini Vision 이미지 분석 + Supabase 로깅
 src/app/api/search-products/ → SerpApi 상품 검색 + Supabase 로깅
 src/components/       → UI 컴포넌트 (shadcn/ui 기반)
   layout/             → Header, Footer
-  upload/             → UploadZone, MoodChips
+  upload/             → UploadZone, StyleChips, GenderSelector
   analysis/           → AnalyzingView (progress bar + technical readout)
   result/             → LookBreakdown (accordion + hotspot + horizontal scroll)
 src/lib/              → 유틸리티 (supabase.ts, utils.ts)
@@ -26,8 +27,8 @@ docs/                 → 참조 문서, 디자인 시스템, 리서치
 | UI | React 19, Tailwind 4, shadcn/ui | framer-motion 애니메이션 |
 | 폰트 | Roboto + Roboto Mono | M3 기준 |
 | 아이콘 | lucide-react | |
-| 이미지 분석 | OpenAI GPT-4o-mini Vision | 건당 ~$0.003, max_tokens 2000 |
-| 상품 검색 | SerpApi (Google Shopping) | 월 100회 무료, 10개 fetch → 상위 4개 |
+| 이미지 분석 | OpenAI GPT-4o-mini Vision | 건당 ~$0.003, max_tokens 1500, detail auto |
+| 상품 검색 | 자체 DB (Fashion Genome) + SerpApi fallback | DB 우선, 부족 시 SerpApi |
 | DB/로깅 | Supabase (PostgreSQL) | 분석 결과 + 검색 쿼리/결과 전체 로깅 |
 | 배포 | Vercel | |
 
@@ -39,20 +40,20 @@ pnpm build        # 프로덕션 빌드
 pnpm lint         # ESLint
 ```
 
-## 디자인 시스템: Industrial Stellar
+## 디자인 시스템: B&W Minimal
 
-- **테마**: Dark mode (`#09090B`) + Stellar Amber (`#F59E0B`) accent
-- **텍스처**: Industrial Grid (32px 그리드, 코너 브래킷)
-- **M3 토큰**: `primary`, `foreground`, `card`, `border`, `muted-foreground`, `outline`, `on-surface-variant` 등
+- **테마**: Dark mode (`#09090B`) + White (`#FFFFFF`) accent — 컬러리스
+- **텍스처**: 미니멀 그리드 (32px, 저투명도 흰색) + 코너 브래킷
+- **M3 토큰**: `primary (#FFF)`, `foreground`, `card`, `border`, `muted-foreground`, `outline`, `on-surface-variant` 등
 - **커스텀 토큰**: `primary-dim`, `primary-container`, `surface-dim`, `outline-focus`
-- **디자인 스펙**: `docs/superpowers/specs/2026-03-29-industrial-stellar-design.md`
+- **디자인 철학**: 유저 이미지가 유일한 컬러 소스, UI는 뒤로 빠짐
 
 ## 코딩 컨벤션
 
 - 컴포넌트: PascalCase, named export (`export default`는 page만)
 - 경로 별칭: `@/*` → `src/*`
 - shadcn/ui: `pnpm dlx shadcn@latest add <component>`
-- CSS: M3 컬러 토큰 + 커스텀 유틸리티 (`.industrial-grid`, `.corner-brackets`)
+- CSS: M3 컬러 토큰 + 커스텀 유틸리티 (`.industrial-grid`, `.corner-brackets`, `.animate-scan-line`)
 - 서버/클라이언트 분리: RSC 기본, 인터랙션 시 `"use client"`
 - UI 텍스트: 영어 (해외 사이트 느낌)
 
@@ -60,14 +61,14 @@ pnpm lint         # ESLint
 
 | 파일 | 설명 |
 |------|------|
-| `src/app/page.tsx` | 메인 — 3-screen 상태 전환 + progress bar 시뮬레이션 |
-| `src/app/api/analyze/route.ts` | GPT-4o-mini Vision + 위치좌표 + Supabase insert |
-| `src/app/api/search-products/route.ts` | SerpApi + 상세 스코어링 로그 + Supabase update |
+| `src/app/page.tsx` | 메인 — 3-screen 상태 전환 + 스트리밍 UX (분석 즉시 결과, 상품 백그라운드) |
+| `src/app/api/analyze/route.ts` | GPT-4o-mini Vision + 위치좌표 + Supabase insert + after() |
+| `src/app/api/search-products/route.ts` | 자체 DB + SerpApi fallback + 스코어링 + Supabase update |
 | `src/components/result/look-breakdown.tsx` | 결과 — sticky 이미지 + 핫스팟 + 아코디언 + 가로스크롤 상품 |
 | `src/components/analysis/analyzing-view.tsx` | 분석 중 — progress bar + terminal readout |
-| `src/components/upload/upload-zone.tsx` | 이미지 드래그 & 드롭 업로드 |
+| `src/components/upload/upload-zone.tsx` | 이미지 드래그 & 드롭 업로드 + 클라이언트 압축 (1280px, JPEG 0.8) |
 | `src/lib/supabase.ts` | Supabase 서버 클라이언트 (service role) |
-| `src/app/globals.css` | M3 테마 + Industrial Stellar 토큰 |
+| `src/app/globals.css` | M3 테마 + B&W Minimal 토큰 |
 | `supabase/migrations/001_create_analyses.sql` | analyses 테이블 스키마 |
 
 ## 비즈니스 규칙
@@ -78,7 +79,7 @@ pnpm lint         # ESLint
 | 무드 분석 | 태그 + score + vibe + season + occasion |
 | 아이템 상세 | fit, fabric, color, detail, position 추출 |
 | 성별 판단 | detectedGender → 검색 쿼리에 men/women 반영 |
-| 상품 검색 | SerpApi → 관련성 + 평점 스코어링 → 상위 4개 |
+| 상품 검색 | 자체 DB (스타일 노드 부스트) + SerpApi fallback → 상위 5개 |
 | 분석 로깅 | AI 원본 응답 + 검색 쿼리/결과 전체 Supabase 저장 |
 | 파일 제한 | 10MB 이하, JPEG/PNG/WebP/HEIC만 허용 |
 

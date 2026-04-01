@@ -110,13 +110,11 @@ export async function POST(request: NextRequest) {
     logger.info(`🏁 상품 검색 완료 — ${totalProducts}개 | ${searchDuration}ms`)
 
     if (_logId) {
-      supabase
+      const { error: updateError } = await supabase
         .from("analyses")
         .update({ search_duration_ms: searchDuration })
         .eq("id", _logId)
-        .then(({ error }) => {
-          if (error) logger.error({ error }, "❌ analyses 업데이트 실패")
-        })
+      if (updateError) logger.error({ error: updateError }, "❌ analyses 업데이트 실패")
     }
 
     return NextResponse.json({ results })
@@ -135,20 +133,20 @@ async function getNodeBrands(
   const primary = new Set<string>()
   const secondary = new Set<string>()
 
-  if (primaryNode) {
-    const { data } = await supabase
-      .from("brand_nodes")
-      .select("brand_name")
-      .eq("style_node", primaryNode)
-    data?.forEach((b) => primary.add(b.brand_name.toLowerCase()))
-  }
+  const nodes = [primaryNode, secondaryNode].filter(Boolean) as string[]
+  if (nodes.length === 0) return { primary, secondary }
 
-  if (secondaryNode) {
-    const { data } = await supabase
-      .from("brand_nodes")
-      .select("brand_name")
-      .eq("style_node", secondaryNode)
-    data?.forEach((b) => secondary.add(b.brand_name.toLowerCase()))
+  const { data } = await supabase
+    .from("brand_nodes")
+    .select("brand_name, style_node")
+    .in("style_node", nodes)
+
+  if (data) {
+    for (const b of data) {
+      const name = b.brand_name.toLowerCase()
+      if (b.style_node === primaryNode) primary.add(name)
+      if (b.style_node === secondaryNode) secondary.add(name)
+    }
   }
 
   return { primary, secondary }
@@ -171,7 +169,7 @@ async function searchProducts(
     .select("brand, name, price, image_url, product_url, platform, category, style_node")
     .eq("in_stock", true)
     .like("image_url", "http%") // 정상 이미지 URL만
-    .limit(500)
+    .limit(80)
 
   if (categories) {
     query = query.in("category", categories)

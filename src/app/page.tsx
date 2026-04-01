@@ -6,7 +6,7 @@ import {Header} from "@/components/layout/header"
 import {Footer} from "@/components/layout/footer"
 import {UploadZone} from "@/components/upload/upload-zone"
 import {type Gender, GenderSelector} from "@/components/upload/gender-selector"
-import {MoodChips} from "@/components/upload/mood-chips"
+import {StyleChips} from "@/components/upload/style-chips"
 import {AnalyzingView} from "@/components/analysis/analyzing-view"
 import type {LookItem, Product} from "@/components/result/look-breakdown"
 import {LookBreakdown} from "@/components/result/look-breakdown"
@@ -76,8 +76,14 @@ export default function Home() {
   const [progress, setProgress] = useState(0)
   const [progressLabel, setProgressLabel] = useState("")
   const fileRef = useRef<File | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
   const handleFileSelect = useCallback(async (file: File) => {
+    // Abort any in-flight product search from a previous session
+    abortRef.current?.abort()
+    abortRef.current = new AbortController()
+    const { signal } = abortRef.current
+
     const url = URL.createObjectURL(file)
     setImageUrl(url)
     setState("analyzing")
@@ -86,18 +92,15 @@ export default function Home() {
     setProgressLabel("Uploading image...")
     fileRef.current = file
 
-    // Smooth progress simulation — ticks up gradually while waiting for API
+    // Smooth progress simulation for analyze phase
     let simulated = 5
     const ticker = setInterval(() => {
-      simulated += Math.random() * 3 + 0.5 // +0.5~3.5% per tick
-      if (simulated > 52) simulated = 52  // cap before real response
+      simulated += Math.random() * 3 + 0.5
+      if (simulated > 85) simulated = 85
       setProgress(Math.round(simulated))
     }, 400)
 
-    let ticker2: ReturnType<typeof setInterval> | null = null
-
     try {
-      // Step 1: AI image analysis (0% → ~55%)
       setProgressLabel("Analyzing silhouette & texture...")
 
       const formData = new FormData()
@@ -114,27 +117,46 @@ export default function Home() {
       }
 
       clearInterval(ticker)
-      setProgress(55)
-      setProgressLabel("Extracting mood & palette...")
+      setProgress(100)
+      setProgressLabel("Complete")
 
       const analysis: AnalysisResult & { _logId?: string } = await analyzeRes.json()
       const logId = analysis._logId
 
-      // Step 2: Search products (60% → 95%)
-      // Start a new ticker for product search phase
-      let simulated2 = 60
-      ticker2 = setInterval(() => {
-        simulated2 += Math.random() * 2.5 + 0.5
-        if (simulated2 > 88) simulated2 = 88
-        setProgress(Math.round(simulated2))
-      }, 300)
+      // Build items WITHOUT products — show result immediately
+      const initialItems: LookItem[] = analysis.items.map((item) => ({
+        id: item.id,
+        category: item.category,
+        name: item.name,
+        detail: item.detail,
+        fabric: item.fabric,
+        color: item.color,
+        fit: item.fit,
+        position: item.position,
+        products: [], // empty → skeletons shown
+      }))
 
-      setProgress(60)
-      setProgressLabel("Searching products across platforms...")
+      // Brief pause at 100% so user sees completion
+      await new Promise((r) => setTimeout(r, 300))
 
-      const searchRes = await fetch("/api/search-products", {
+      // Set result state IMMEDIATELY — user sees look breakdown with skeletons
+      setMoodTags(analysis.mood.tags)
+      setPalette(analysis.palette)
+      setMoodMeta({
+        summary: analysis.mood.summary,
+        vibe: analysis.mood.vibe,
+        season: analysis.mood.season,
+        occasion: analysis.mood.occasion,
+        style: analysis.style,
+      })
+      setItems(initialItems)
+      setState("result")
+
+      // Background: fetch products and update progressively
+      fetch("/api/search-products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal,
         body: JSON.stringify({
           gender,
           styleNode: analysis.styleNode,
@@ -147,54 +169,23 @@ export default function Home() {
           })),
         }),
       })
-
-      clearInterval(ticker2)
-      setProgress(92)
-      setProgressLabel("Compiling results...")
-
-      let productResults: ProductSearchResult["results"] = []
-      if (searchRes.ok) {
-        const searchData: ProductSearchResult = await searchRes.json()
-        productResults = searchData.results
-      }
-
-      // Build final items with products merged
-      const finalItems: LookItem[] = analysis.items.map((item) => {
-        const found = productResults.find((r) => r.id === item.id)
-        return {
-          id: item.id,
-          category: item.category,
-          name: item.name,
-          detail: item.detail,
-          fabric: item.fabric,
-          color: item.color,
-          fit: item.fit,
-          position: item.position,
-          thumbnailUrl: "",
-          products: found?.products ?? [],
-        }
-      })
-
-      setProgress(100)
-      setProgressLabel("Complete")
-
-      // Brief pause at 100% so the user sees it
-      await new Promise((r) => setTimeout(r, 400))
-
-      setMoodTags(analysis.mood.tags)
-      setPalette(analysis.palette)
-      setMoodMeta({
-        summary: analysis.mood.summary,
-        vibe: analysis.mood.vibe,
-        season: analysis.mood.season,
-        occasion: analysis.mood.occasion,
-        style: analysis.style,
-      })
-      setItems(finalItems)
-      setState("result")
+        .then((res) => (res.ok ? res.json() : null))
+        .then((searchData: ProductSearchResult | null) => {
+          if (!searchData) return
+          // Update items with products
+          setItems((prev) =>
+            prev.map((item) => {
+              const found = searchData.results.find((r) => r.id === item.id)
+              return found ? { ...item, products: found.products } : item
+            })
+          )
+        })
+        .catch((err) => {
+          console.error("Product search failed:", err)
+          // Items stay with empty products — skeletons remain, not a fatal error
+        })
     } catch (err) {
       clearInterval(ticker)
-      if (ticker2) clearInterval(ticker2)
       URL.revokeObjectURL(url)
       console.error("Analysis error:", err)
       setError(
@@ -207,6 +198,7 @@ export default function Home() {
   }, [gender])
 
   const handleTryAnother = useCallback(() => {
+    abortRef.current?.abort()
     if (imageUrl) URL.revokeObjectURL(imageUrl)
     setImageUrl("")
     setMoodTags([])
@@ -241,15 +233,15 @@ export default function Home() {
                 transition={{ duration: 0.6 }}
               >
                 <h1 className="text-4xl md:text-6xl font-extrabold text-foreground tracking-[-0.03em] leading-tight">
-                  Drop your fit.
+                  One photo.
                   <br />
-                  <span className="text-primary">
-                    We&apos;ll read the vibe.
+                  <span className="text-muted-foreground">
+                    Every option.
                   </span>
                 </h1>
                 <p className="text-on-surface-variant text-base md:text-lg max-w-md mx-auto font-medium leading-relaxed">
-                  Upload one outfit photo and our AI extracts the mood, palette,
-                  and style DNA.
+                  Drop an outfit — we break down every piece and find it
+                  across platforms.
                 </p>
               </motion.div>
 
@@ -266,7 +258,7 @@ export default function Home() {
               )}
 
               <UploadZone onFileSelect={handleFileSelect} />
-              <MoodChips />
+              <StyleChips />
             </motion.div>
           )}
 

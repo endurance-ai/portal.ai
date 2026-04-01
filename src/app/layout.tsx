@@ -6,18 +6,20 @@ const roboto = Roboto({
   variable: "--font-sans",
   subsets: ["latin"],
   weight: ["400", "500", "700", "900"],
+  display: "swap",
 })
 
 const robotoMono = Roboto_Mono({
   variable: "--font-mono",
   subsets: ["latin"],
   weight: ["400", "500", "700"],
+  display: "swap",
 })
 
 export const metadata: Metadata = {
-  title: "MOODFIT | AI Style Analysis",
+  title: "portal.ai | One Photo. Every Option.",
   description:
-    "Upload one outfit photo and our AI extracts the mood, palette, and style DNA.",
+    "Upload one outfit photo — we break down every piece and find it across platforms.",
 }
 
 export default function RootLayout({

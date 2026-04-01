@@ -1,4 +1,4 @@
-import type { LookItem } from "@/components/result/look-breakdown"
+import type {LookItem} from "@/components/result/look-breakdown"
 
 export const MOCK_MOOD_TAGS = [
   { label: "Street", score: 92 },
@@ -18,7 +18,6 @@ export const MOCK_ITEMS: LookItem[] = [
     id: "outer",
     category: "Outer",
     name: "Oversized Wool Coat",
-    thumbnailUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuAjjJRZuZRSpPza61QSPJtArBoFhyoPa_6t7J7QBZkLJlSx3JhEYwvnh4dwaXVOSvRqT2V4Wnihk-ZAkDRP-jxOziIlqqE6fT0lDTJm1dj6O3Aen5NZzC8c9qvitBPZb2g2I-jJQv9bQqcdJAvhyhdCvCJ6mSt9dNAWvrQxy-eeo_mTLwqEjoWKOeAp7ECbqkmh1QjYcnrNHpAGFBUJ69_fKovEfGB3e6omLNh4Y_tdzsLFnt8p1RQ0eNLBiXIiG_yW4mkxhpzo_N78",
     products: [
       {
         brand: "THE ROW",
@@ -47,7 +46,6 @@ export const MOCK_ITEMS: LookItem[] = [
     id: "bottom",
     category: "Bottom",
     name: "Wide-Leg Pleated Trousers",
-    thumbnailUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuCS72jucrUEuArjwYmQYpd_eNyj_NL4xdrdrzZvFjRfIuKjbS_AThEVFNcZNQjVqckwg7fpC0FkQ72etNhAaZRV8QrWsZNrGAEKRj7Edek5hRF2K0DvEw1yNwxCd64dkqhrldnfCYfimxwyJTX_anGlZqt5GmbargST8_cl60sTxIe4WJX69W51-Y6qLuIBW32Z_J-rp73hpapnr5aFB4L4mrdf6rmqR65Rn23VmtGN4kbF_3WZj4JXdalnknEw5xClzM1PHc32Mut1",
     products: [
       {
         brand: "LEMAIRE",
