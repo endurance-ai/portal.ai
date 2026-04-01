@@ -6,7 +6,7 @@ import {Header} from "@/components/layout/header"
 import {Footer} from "@/components/layout/footer"
 import {UploadZone} from "@/components/upload/upload-zone"
 import {type Gender, GenderSelector} from "@/components/upload/gender-selector"
-import {MoodChips} from "@/components/upload/mood-chips"
+import {StyleChips} from "@/components/upload/mood-chips"
 import {AnalyzingView} from "@/components/analysis/analyzing-view"
 import type {LookItem, Product} from "@/components/result/look-breakdown"
 import {LookBreakdown} from "@/components/result/look-breakdown"
@@ -225,15 +225,15 @@ export default function Home() {
                 transition={{ duration: 0.6 }}
               >
                 <h1 className="text-4xl md:text-6xl font-extrabold text-foreground tracking-[-0.03em] leading-tight">
-                  Drop your fit.
+                  One photo.
                   <br />
-                  <span className="text-primary">
-                    We&apos;ll read the vibe.
+                  <span className="text-muted-foreground">
+                    Every option.
                   </span>
                 </h1>
                 <p className="text-on-surface-variant text-base md:text-lg max-w-md mx-auto font-medium leading-relaxed">
-                  Upload one outfit photo and our AI extracts the mood, palette,
-                  and style DNA.
+                  Drop an outfit — we break down every piece and find it
+                  across platforms.
                 </p>
               </motion.div>
 
@@ -250,7 +250,7 @@ export default function Home() {
               )}
 
               <UploadZone onFileSelect={handleFileSelect} />
-              <MoodChips />
+              <StyleChips />
             </motion.div>
           )}
 

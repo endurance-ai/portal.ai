@@ -17,9 +17,9 @@ const robotoMono = Roboto_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "MOODFIT | AI Style Analysis",
+  title: "portal.ai | One Photo. Every Option.",
   description:
-    "Upload one outfit photo and our AI extracts the mood, palette, and style DNA.",
+    "Upload one outfit photo — we break down every piece and find it across platforms.",
 }
 
 export default function RootLayout({

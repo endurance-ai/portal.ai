@@ -199,7 +199,7 @@ export function LookBreakdown({
               className="mt-3 p-3 bg-card border border-border rounded-lg"
             >
               <div className="text-[9px] font-mono font-bold text-primary tracking-widest uppercase">
-                Vibe Signature
+                Style Summary
               </div>
               <p className="text-xs font-semibold text-foreground italic mt-1">
                 &ldquo;{moodMeta.vibe}&rdquo;

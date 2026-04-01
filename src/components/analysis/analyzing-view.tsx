@@ -79,9 +79,9 @@ export function AnalyzingView({ imageUrl, progress, progressLabel }: AnalyzingVi
           <div className="space-y-8">
             <div>
               <h1 className="text-3xl lg:text-5xl font-extrabold tracking-tight text-foreground leading-[1.1]">
-                Reading the{" "}
-                <span className="text-primary">
-                  vibe...
+                Scanning{" "}
+                <span className="text-muted-foreground">
+                  your look...
                 </span>
               </h1>
               <p className="text-on-surface-variant text-sm mt-3 font-mono tracking-wide uppercase">
