@@ -35,7 +35,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No search queries provided" }, { status: 400 })
     }
 
-    const genderFilter = gender === "female" ? "women" : gender === "male" ? "men" : null
+    const VALID_GENDERS = new Set(["men", "women"])
+    const genderRaw = gender === "female" ? "women" : gender === "male" ? "men" : null
+    const genderFilter = genderRaw && VALID_GENDERS.has(genderRaw) ? genderRaw : null
     const primaryNode = styleNode?.primary
     const secondaryNode = styleNode?.secondary
 
