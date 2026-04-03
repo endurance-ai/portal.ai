@@ -36,11 +36,14 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-dvh items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-6">
-        <div className="text-center space-y-1">
-          <h1 className="text-lg font-bold tracking-tight">portal.ai admin</h1>
-          <p className="text-sm text-muted-foreground">Sign in to continue</p>
+        <div className="text-center space-y-2">
+          <div className="mx-auto w-10 h-10 rounded-full bg-primary flex items-center justify-center mb-2">
+            <span className="text-primary-foreground font-bold text-sm">P</span>
+          </div>
+          <h1 className="text-xl font-bold tracking-tight">Welcome back</h1>
+          <p className="text-sm text-muted-foreground">Sign in to portal.ai admin</p>
         </div>
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleLogin} className="space-y-4 border border-border rounded-lg p-4">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
