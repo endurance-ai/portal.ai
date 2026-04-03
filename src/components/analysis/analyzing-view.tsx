@@ -10,7 +10,7 @@ interface AnalyzingViewProps {
   progressLabel: string
 }
 
-const READOUT_LINES = [
+const IMAGE_READOUT_LINES = [
   { at: 0, text: "INITIALIZING SCAN..." },
   { at: 10, text: "UPLOADING IMAGE DATA..." },
   { at: 20, text: "DETECTING SILHOUETTE..." },
@@ -22,10 +22,22 @@ const READOUT_LINES = [
   { at: 100, text: "ANALYSIS COMPLETE" },
 ]
 
+const PROMPT_READOUT_LINES = [
+  { at: 0, text: "INITIALIZING SEARCH..." },
+  { at: 15, text: "PARSING QUERY KEYWORDS..." },
+  { at: 35, text: "EXTRACTING ITEM ATTRIBUTES..." },
+  { at: 55, text: "BUILDING SEARCH VECTORS..." },
+  { at: 75, text: "SEARCHING PRODUCT DATABASE..." },
+  { at: 90, text: "COMPILING RESULTS..." },
+  { at: 100, text: "SEARCH COMPLETE" },
+]
+
 export function AnalyzingView({ imageUrl, progress, progressLabel }: AnalyzingViewProps) {
+  const hasImage = !!imageUrl
+  const readoutLines = hasImage ? IMAGE_READOUT_LINES : PROMPT_READOUT_LINES
   const visibleLines = useMemo(
-    () => READOUT_LINES.filter((line) => progress >= line.at),
-    [progress]
+    () => readoutLines.filter((line) => progress >= line.at),
+    [readoutLines, progress]
   )
 
   return (
@@ -39,12 +51,20 @@ export function AnalyzingView({ imageUrl, progress, progressLabel }: AnalyzingVi
           transition={{ duration: 0.6 }}
         >
           <div className="rounded-lg overflow-hidden bg-card border border-border corner-brackets aspect-[4/3] lg:aspect-[4/5] relative">
-            <Image
-              src={imageUrl}
-              alt="Uploaded outfit"
-              fill
-              className="object-cover"
-            />
+            {hasImage ? (
+              <Image
+                src={imageUrl}
+                alt="Uploaded outfit"
+                fill
+                className="object-cover"
+              />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center bg-surface-dim">
+                <span className="text-xs font-mono text-muted-foreground tracking-widest uppercase">
+                  Text analysis
+                </span>
+              </div>
+            )}
 
             {/* Scan overlay */}
             <div className="absolute inset-0 bg-primary/5 pointer-events-none" />
@@ -62,7 +82,7 @@ export function AnalyzingView({ imageUrl, progress, progressLabel }: AnalyzingVi
               <div className="flex items-center gap-3">
                 <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
                 <span className="text-[11px] font-mono font-bold text-primary tracking-widest">
-                  SYS.ANALYSIS // ACTIVE
+                  {hasImage ? "SYS.ANALYSIS // ACTIVE" : "SYS.SEARCH // ACTIVE"}
                 </span>
               </div>
             </motion.div>

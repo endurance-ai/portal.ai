@@ -86,6 +86,9 @@ export default function Home() {
 
     const hasImage = !!data.file
 
+    // Revoke previous blob URL before creating new one
+    if (imageUrl) URL.revokeObjectURL(imageUrl)
+
     // Set image URL if file exists
     let url = ""
     if (data.file) {
@@ -129,6 +132,7 @@ export default function Home() {
       const analyzeRes = await fetch("/api/analyze", {
         method: "POST",
         body: formData,
+        signal,
       })
 
       if (!analyzeRes.ok) {
@@ -205,6 +209,8 @@ export default function Home() {
         })
     } catch (err) {
       clearInterval(ticker)
+      setImageUrl("")
+      setState("upload")
       if (url) URL.revokeObjectURL(url)
       console.error("Analysis error:", err)
       setError(
@@ -212,9 +218,8 @@ export default function Home() {
           ? err.message
           : "Failed to analyze. Please try again.",
       )
-      setState("upload")
     }
-  }, [gender])
+  }, [gender, imageUrl])
 
   const handleTryAnother = useCallback(() => {
     abortRef.current?.abort()

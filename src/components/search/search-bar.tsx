@@ -79,10 +79,16 @@ export function SearchBar({ gender, onGenderChange, onSubmit, disabled }: Search
     try {
       const compressed = await compressImage(file)
       setImage(compressed)
-      setPreviewUrl(URL.createObjectURL(compressed))
+      setPreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev)
+        return URL.createObjectURL(compressed)
+      })
     } catch {
       setImage(file)
-      setPreviewUrl(URL.createObjectURL(file))
+      setPreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev)
+        return URL.createObjectURL(file)
+      })
     }
   }, [])
 
@@ -210,6 +216,7 @@ export function SearchBar({ gender, onGenderChange, onSubmit, disabled }: Search
             onKeyDown={handleKeyDown}
             disabled={disabled}
             placeholder="What style are you looking for?"
+            maxLength={500}
             rows={1}
             className={cn(
               "w-full resize-none bg-transparent text-foreground placeholder:text-muted-foreground",
@@ -253,7 +260,7 @@ export function SearchBar({ gender, onGenderChange, onSubmit, disabled }: Search
                 ? "bg-foreground text-background hover:opacity-80"
                 : "bg-muted text-muted-foreground cursor-not-allowed"
             )}
-            aria-label="Submit"
+            aria-label="Search for this style"
           >
             <ArrowUp className="size-4" />
           </button>
@@ -271,6 +278,9 @@ export function SearchBar({ gender, onGenderChange, onSubmit, disabled }: Search
         type="file"
         accept="image/jpeg,image/png,image/heic,image/webp"
         className="sr-only"
+        aria-hidden="true"
+        tabIndex={-1}
+        aria-label="Upload outfit image (JPEG, PNG, WebP, HEIC, max 10MB)"
         onChange={handleFileInputChange}
       />
     </motion.div>
