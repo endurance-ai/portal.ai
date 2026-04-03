@@ -2,13 +2,14 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
-import { CheckCircle, XCircle, AlertCircle, ArrowLeft, Loader2 } from "lucide-react"
+import { CheckCircle, XCircle, AlertCircle, ArrowLeft, Loader2, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -28,9 +29,22 @@ const VERDICT_CONFIG: Record<Verdict, { label: string; icon: typeof CheckCircle;
 
 function formatTime(iso: string) {
   const d = new Date(iso)
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) +
+  return d.toLocaleDateString("ko-KR", { month: "short", day: "numeric", year: "numeric" }) +
     " " +
-    d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })
+    d.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false })
+}
+
+function ScoreBar({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
+  const pct = Math.min((value / max) * 100, 100)
+  return (
+    <div className="flex items-center gap-2 text-xs">
+      <span className="w-10 text-muted-foreground shrink-0">{label}</span>
+      <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+        <div className={cn("h-full rounded-full", color)} style={{ width: `${pct}%` }} />
+      </div>
+      <span className="w-8 text-right tabular-nums text-muted-foreground">{value.toFixed(2)}</span>
+    </div>
+  )
 }
 
 export function EvalReviewDetail({ analysis, items, reviews }: Props) {
@@ -40,6 +54,9 @@ export function EvalReviewDetail({ analysis, items, reviews }: Props) {
   const [addToGoldenSet, setAddToGoldenSet] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [saved, setSaved] = useState(false)
+
+  // search_results from analyses table
+  const searchResults: any[] = analysis.search_results || []
 
   async function handleSubmit() {
     if (!verdict) return
@@ -58,104 +75,186 @@ export function EvalReviewDetail({ analysis, items, reviews }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* Back button */}
       <Button variant="ghost" size="sm" onClick={() => router.push("/admin/eval")}>
         <ArrowLeft className="size-4 mr-1" /> 뒤로
       </Button>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Left column — Analysis result */}
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold">분석 결과</h2>
-
-          <Card>
-            <CardContent className="p-4 space-y-3">
-              <div className="flex items-center gap-2 flex-wrap">
-                {analysis.style_node_primary && (
-                  <Badge variant="secondary">
-                    {analysis.style_node_primary}
-                    {analysis.style_node_confidence != null && (
-                      <span className="ml-1 opacity-60">
-                        {Math.round(analysis.style_node_confidence * 100)}%
-                      </span>
-                    )}
-                  </Badge>
-                )}
-                {analysis.style_node_secondary && (
-                  <Badge variant="outline">{analysis.style_node_secondary}</Badge>
-                )}
-                {analysis.detected_gender && (
-                  <Badge variant="outline">{analysis.detected_gender}</Badge>
-                )}
-              </div>
-
-              {analysis.sensitivity_tags && analysis.sensitivity_tags.length > 0 && (
-                <div className="flex gap-1 flex-wrap">
-                  {analysis.sensitivity_tags.map((tag: string) => (
-                    <Badge key={tag} variant="outline" className="text-xs">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-
-              {analysis.mood_summary && (
-                <p className="text-sm italic text-muted-foreground">{analysis.mood_summary}</p>
-              )}
-
-              <p className="text-xs text-muted-foreground">
-                {formatTime(analysis.created_at)}
-                {analysis.analysis_duration_ms != null && (
-                  <span className="ml-2">
-                    Analysis: {(analysis.analysis_duration_ms / 1000).toFixed(1)}s
+      {/* Analysis meta */}
+      <Card>
+        <CardContent className="p-4 space-y-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            {analysis.style_node_primary && (
+              <Badge variant="secondary">
+                {analysis.style_node_primary}
+                {analysis.style_node_confidence != null && (
+                  <span className="ml-1 opacity-60">
+                    {Math.round(analysis.style_node_confidence * 100)}%
                   </span>
                 )}
-              </p>
-            </CardContent>
-          </Card>
+              </Badge>
+            )}
+            {analysis.style_node_secondary && (
+              <Badge variant="outline">{analysis.style_node_secondary}</Badge>
+            )}
+            {analysis.detected_gender && (
+              <Badge variant="outline">{analysis.detected_gender}</Badge>
+            )}
+          </div>
 
-          {/* Items */}
-          <h3 className="text-sm font-semibold">아이템 ({items.length || (Array.isArray(analysis.items) ? analysis.items.length : 0)})</h3>
-          <div className="space-y-2">
-            {(items.length > 0 ? items : (analysis.items || [])).map((item: any, idx: number) => (
-              <Card key={item.id || idx}>
-                <CardContent className="p-3 space-y-2">
+          {analysis.sensitivity_tags && analysis.sensitivity_tags.length > 0 && (
+            <div className="flex gap-1 flex-wrap">
+              {analysis.sensitivity_tags.map((tag: string) => (
+                <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>
+              ))}
+            </div>
+          )}
+
+          {analysis.mood_summary && (
+            <p className="text-sm italic text-muted-foreground">{analysis.mood_summary}</p>
+          )}
+
+          <p className="text-xs text-muted-foreground">
+            {formatTime(analysis.created_at)}
+            {analysis.analysis_duration_ms != null && (
+              <span className="ml-2 tabular-nums">AI: {(analysis.analysis_duration_ms / 1000).toFixed(1)}s</span>
+            )}
+            {analysis.search_duration_ms != null && (
+              <span className="ml-2 tabular-nums">검색: {(analysis.search_duration_ms / 1000).toFixed(1)}s</span>
+            )}
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Items + Search Results (per item) */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold">아이템별 검색 결과</h2>
+
+        {(items.length > 0 ? items : (analysis.items || [])).map((item: any, idx: number) => {
+          // 매칭되는 search_results 찾기
+          const sr = searchResults.find((r: any) => r.id === (item.item_id || item.id))
+
+          return (
+            <Card key={item.id || idx}>
+              <CardContent className="p-4 space-y-3">
+                {/* Item header */}
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">{item.category || item.name}</span>
+                    <span className="text-sm font-semibold">{item.category || item.name}</span>
                     {item.name && item.category && (
-                      <span className="text-xs text-muted-foreground">{item.name}</span>
+                      <span className="text-sm text-muted-foreground">{item.name}</span>
                     )}
                   </div>
                   <div className="flex gap-1 flex-wrap">
                     {item.subcategory && <Badge variant="outline" className="text-xs">{item.subcategory}</Badge>}
                     {item.fit && <Badge variant="outline" className="text-xs">{item.fit}</Badge>}
                     {item.fabric && <Badge variant="outline" className="text-xs">{item.fabric}</Badge>}
-                    {item.color && (
-                      <Badge variant="outline" className="text-xs">
-                        {item.color_hex && (
-                          <span
-                            className="inline-block size-2 rounded-full mr-1"
-                            style={{ backgroundColor: item.color_hex }}
-                          />
-                        )}
-                        {item.color}
-                      </Badge>
+                  </div>
+                </div>
+
+                {/* Search queries */}
+                {(item.search_query_sent || item.searchQuery) && (
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground font-mono flex items-center gap-1">
+                      <Search className="size-3" />
+                      EN: {item.search_query_sent || item.searchQuery}
+                    </p>
+                    {item.search_query_ko && (
+                      <p className="text-xs text-muted-foreground font-mono">
+                        🇰🇷 KO: {item.search_query_ko}
+                      </p>
                     )}
                   </div>
-                  {(item.search_query_sent || item.searchQuery) && (
-                    <p className="text-xs text-muted-foreground font-mono">
-                      Q: {item.search_query_sent || item.searchQuery}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
+                )}
 
-        {/* Right column — Reviews + Form */}
+                {/* Keywords used */}
+                {sr && (
+                  <div className="flex flex-wrap gap-1">
+                    {sr.koKeywords?.map((kw: string) => (
+                      <Badge key={`ko-${kw}`} variant="secondary" className="text-[10px]">🇰🇷 {kw}</Badge>
+                    ))}
+                    {sr.enKeywords?.map((kw: string) => (
+                      <Badge key={`en-${kw}`} variant="outline" className="text-[10px]">EN {kw}</Badge>
+                    ))}
+                  </div>
+                )}
+
+                {/* Products with scoring */}
+                {sr?.products && sr.products.length > 0 ? (
+                  <div className="space-y-2">
+                    {sr.products.map((product: any, pi: number) => (
+                      <div key={pi} className="flex gap-3 p-2 rounded-md border border-border hover:bg-muted/30">
+                        {/* Product image */}
+                        <div className="size-16 shrink-0 rounded overflow-hidden bg-muted relative">
+                          {product.imageUrl ? (
+                            <Image
+                              src={product.imageUrl}
+                              alt={product.title || "product"}
+                              fill
+                              sizes="64px"
+                              className="object-cover"
+                            />
+                          ) : (
+                            <div className="size-full flex items-center justify-center text-muted-foreground text-xs">N/A</div>
+                          )}
+                        </div>
+
+                        {/* Product info + scoring */}
+                        <div className="flex-1 min-w-0 space-y-1.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-sm font-medium truncate">{product.title}</p>
+                            <span className="text-xs text-muted-foreground tabular-nums shrink-0">{product.price}</span>
+                          </div>
+
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span>{product.brand}</span>
+                            <span>·</span>
+                            <span>{product.platform}</span>
+                          </div>
+
+                          {/* Score breakdown */}
+                          {product.scoring && (
+                            <div className="space-y-1 pt-1">
+                              <ScoreBar label="키워드" value={product.scoring.keywordScore} max={1} color="bg-blue-400" />
+                              <ScoreBar label="노드" value={product.scoring.nodeBoost} max={0.3} color="bg-green-400" />
+                              <ScoreBar label="속성" value={product.scoring.attrBoost} max={0.32} color="bg-purple-400" />
+
+                              <div className="flex items-center justify-between text-xs pt-0.5">
+                                <div className="flex gap-1 flex-wrap">
+                                  {product.scoring.matchedKoKeywords?.map((kw: string) => (
+                                    <span key={kw} className="px-1 py-0.5 bg-blue-500/10 text-blue-400 rounded text-[10px]">{kw}</span>
+                                  ))}
+                                  {product.scoring.matchedEnKeywords?.map((kw: string) => (
+                                    <span key={kw} className="px-1 py-0.5 bg-purple-500/10 text-purple-400 rounded text-[10px]">{kw}</span>
+                                  ))}
+                                  {product.scoring.nodeType && (
+                                    <span className="px-1 py-0.5 bg-green-500/10 text-green-400 rounded text-[10px]">
+                                      {product.scoring.nodeType} node
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="font-mono font-semibold tabular-nums">
+                                  {product.scoring.totalScore.toFixed(2)}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground py-2">검색 결과 없음</p>
+                )}
+              </CardContent>
+            </Card>
+          )
+        })}
+      </div>
+
+      {/* Reviews + Form */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Previous reviews */}
         <div className="space-y-4">
-          {/* Previous reviews */}
           {reviews.length > 0 && (
             <>
               <h2 className="text-lg font-semibold">이전 리뷰</h2>
@@ -166,9 +265,7 @@ export function EvalReviewDetail({ analysis, items, reviews }: Props) {
                     <Card key={r.id}>
                       <CardContent className="p-3 space-y-1">
                         <div className="flex items-center gap-2">
-                          <Badge className={cfg?.className || ""}>
-                            {r.verdict}
-                          </Badge>
+                          <Badge className={cfg?.className || ""}>{r.verdict}</Badge>
                           <span className="text-xs text-muted-foreground">{r.reviewer_email}</span>
                         </div>
                         {r.comment && <p className="text-sm text-muted-foreground">{r.comment}</p>}
@@ -180,8 +277,10 @@ export function EvalReviewDetail({ analysis, items, reviews }: Props) {
               </div>
             </>
           )}
+        </div>
 
-          {/* New review form */}
+        {/* New review form */}
+        <div className="space-y-4">
           {saved ? (
             <Card>
               <CardContent className="p-6 flex items-center gap-2 text-green-400">
@@ -194,7 +293,6 @@ export function EvalReviewDetail({ analysis, items, reviews }: Props) {
               <h2 className="text-lg font-semibold">리뷰</h2>
               <Card>
                 <CardContent className="p-4 space-y-4">
-                  {/* Verdict buttons */}
                   <div className="flex gap-2">
                     {(Object.entries(VERDICT_CONFIG) as [Verdict, typeof VERDICT_CONFIG[Verdict]][]).map(
                       ([key, cfg]) => {
@@ -204,10 +302,7 @@ export function EvalReviewDetail({ analysis, items, reviews }: Props) {
                             key={key}
                             variant="outline"
                             size="sm"
-                            className={cn(
-                              "flex-1",
-                              verdict === key && cfg.className
-                            )}
+                            className={cn("flex-1", verdict === key && cfg.className)}
                             onClick={() => setVerdict(key)}
                           >
                             <Icon className="size-4 mr-1" />
@@ -218,7 +313,6 @@ export function EvalReviewDetail({ analysis, items, reviews }: Props) {
                     )}
                   </div>
 
-                  {/* Comment */}
                   <Textarea
                     placeholder="의견을 남겨주세요 (선택)"
                     value={comment}
@@ -226,7 +320,6 @@ export function EvalReviewDetail({ analysis, items, reviews }: Props) {
                     rows={3}
                   />
 
-                  {/* Golden set checkbox */}
                   <div className="flex items-center gap-2">
                     <Checkbox
                       id="golden-set"
@@ -238,12 +331,7 @@ export function EvalReviewDetail({ analysis, items, reviews }: Props) {
                     </Label>
                   </div>
 
-                  {/* Submit */}
-                  <Button
-                    onClick={handleSubmit}
-                    disabled={!verdict || submitting}
-                    className="w-full"
-                  >
+                  <Button onClick={handleSubmit} disabled={!verdict || submitting} className="w-full">
                     {submitting && <Loader2 className="size-4 mr-1 animate-spin" />}
                     리뷰 제출
                   </Button>
