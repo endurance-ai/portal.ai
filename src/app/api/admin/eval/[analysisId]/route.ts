@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServer } from "@/lib/supabase-server"
+import { supabase } from "@/lib/supabase"
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ analysisId: string }> }
 ) {
-  const supabase = await createSupabaseServer()
-  const { data: { user } } = await supabase.auth.getUser()
+  const authClient = await createSupabaseServer()
+  const { data: { user } } = await authClient.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { analysisId } = await params
@@ -16,7 +17,6 @@ export async function GET(
 
   if (analysisRes.error) return NextResponse.json({ error: "Analysis not found" }, { status: 404 })
 
-  // These tables may not exist yet
   let reviews: unknown[] = []
   let items: unknown[] = []
 
@@ -43,8 +43,8 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ analysisId: string }> }
 ) {
-  const supabase = await createSupabaseServer()
-  const { data: { user } } = await supabase.auth.getUser()
+  const authClient = await createSupabaseServer()
+  const { data: { user } } = await authClient.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { analysisId } = await params

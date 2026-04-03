@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server"
 import { createSupabaseServer } from "@/lib/supabase-server"
+import { supabase } from "@/lib/supabase"
 import * as XLSX from "xlsx"
 
 export async function GET() {
-  const supabase = await createSupabaseServer()
-  const { data: { user } } = await supabase.auth.getUser()
+  const authClient = await createSupabaseServer()
+  const { data: { user } } = await authClient.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { data: brands } = await supabase

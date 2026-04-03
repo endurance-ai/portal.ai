@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation"
-import { createSupabaseServer } from "@/lib/supabase-server"
+import { supabase } from "@/lib/supabase"
 import { EvalReviewDetail } from "@/components/admin/eval-review-detail"
 
 export default async function EvalAnalysisPage({
@@ -8,7 +8,6 @@ export default async function EvalAnalysisPage({
   params: Promise<{ analysisId: string }>
 }) {
   const { analysisId } = await params
-  const supabase = await createSupabaseServer()
 
   const [analysisRes, reviewsRes, itemsRes] = await Promise.all([
     supabase.from("analyses").select("*").eq("id", analysisId).single(),

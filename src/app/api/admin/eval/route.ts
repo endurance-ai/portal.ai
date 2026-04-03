@@ -1,20 +1,19 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServer } from "@/lib/supabase-server"
+import { supabase } from "@/lib/supabase"
 
 export async function GET(request: NextRequest) {
-  const supabase = await createSupabaseServer()
-  const { data: { user } } = await supabase.auth.getUser()
+  const authClient = await createSupabaseServer()
+  const { data: { user } } = await authClient.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { searchParams } = request.nextUrl
   const page = parseInt(searchParams.get("page") || "0")
   const limit = 20
 
-  // Metrics
   const { count: totalAnalyses } = await supabase
     .from("analyses").select("*", { count: "exact", head: true })
 
-  // eval_reviews may not exist yet — handle gracefully
   let allReviews: { analysis_id: string; verdict: string }[] = []
   try {
     const { data, error } = await supabase
@@ -31,7 +30,6 @@ export async function GET(request: NextRequest) {
   const verdictDist = { pass: 0, fail: 0, partial: 0 }
   allReviews.forEach(v => { verdictDist[v.verdict as keyof typeof verdictDist]++ })
 
-  // Queue - unreviewed analyses
   let queue
   if (reviewedIds.size > 0) {
     const { data } = await supabase
