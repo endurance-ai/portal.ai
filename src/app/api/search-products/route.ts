@@ -4,6 +4,16 @@ import {logger} from "@/lib/logger"
 
 // ─── 타입 ─────────────────────────────────────────────────
 
+type ScoreBreakdown = {
+  keywordScore: number
+  nodeBoost: number
+  attrBoost: number
+  totalScore: number
+  matchedKoKeywords: string[]
+  matchedEnKeywords: string[]
+  nodeType: "primary" | "secondary" | null
+}
+
 type FormattedProduct = {
   brand: string
   price: string
@@ -11,6 +21,7 @@ type FormattedProduct = {
   imageUrl: string
   link: string
   title: string
+  _scoring?: ScoreBreakdown
 }
 
 type ScoredProduct = FormattedProduct & { _nodeMatch: boolean }
@@ -112,22 +123,27 @@ export async function POST(request: NextRequest) {
         const dbCategories = CATEGORY_MAP[item.category] || null
 
         const products = await searchProducts(koKeywords, enKeywords, genderFilter, dbCategories, nodeBrands)
-        if (products.length > 0) {
-          const fromNode = products.filter((p) => p._nodeMatch).length
-          logger.info(`      📌 DB: ${products.length}개 (노드 매칭 ${fromNode}개)`)
+
+        // 상세 로깅
+        for (const p of products.slice(0, TARGET_RESULTS)) {
+          const s = p._scoring
+          logger.info(
+            `      📊 ${p.brand} | ${p.title.slice(0, 40)} | ` +
+            `total=${s?.totalScore.toFixed(2)} (kw=${s?.keywordScore.toFixed(2)} node=${s?.nodeBoost.toFixed(2)} attr=${s?.attrBoost.toFixed(2)}) | ` +
+            `ko=[${s?.matchedKoKeywords.join(",")}] en=[${s?.matchedEnKeywords.join(",")}]`
+          )
         }
 
-        const finalProducts: FormattedProduct[] = products
-          .slice(0, TARGET_RESULTS)
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          .map(({ _nodeMatch, ...rest }) => rest)
+        const finalProducts = products.slice(0, TARGET_RESULTS).map(({ _nodeMatch, ...rest }) => rest)
 
         logger.info(`   ✅ [${item.category}] 최종 ${finalProducts.length}개`)
-        for (const p of finalProducts) {
-          logger.info(`      💰 ${p.price} — ${p.platform} | ${p.brand} | ${p.title.slice(0, 50)}`)
-        }
 
-        return { id: item.id, products: finalProducts }
+        return {
+          id: item.id,
+          koKeywords,
+          enKeywords,
+          products: finalProducts,
+        }
       })
     )
 
@@ -135,15 +151,38 @@ export async function POST(request: NextRequest) {
     const totalProducts = results.reduce((sum, r) => sum + r.products.length, 0)
     logger.info(`🏁 상품 검색 완료 — ${totalProducts}개 | ${searchDuration}ms`)
 
+    // DB에 검색 상세 로깅 (fire-and-forget)
     if (_logId) {
-      const { error: updateError } = await supabase
+      supabase
         .from("analyses")
-        .update({ search_duration_ms: searchDuration })
+        .update({
+          search_duration_ms: searchDuration,
+          search_results: results.map((r) => ({
+            id: r.id,
+            koKeywords: r.koKeywords,
+            enKeywords: r.enKeywords,
+            products: r.products.map((p) => ({
+              brand: p.brand,
+              title: p.title,
+              price: p.price,
+              platform: p.platform,
+              scoring: p._scoring,
+            })),
+          })),
+        })
         .eq("id", _logId)
-      if (updateError) logger.error({ error: updateError }, "❌ analyses 업데이트 실패")
+        .then(({ error }) => {
+          if (error) logger.error({ error }, "❌ analyses 업데이트 실패")
+        })
     }
 
-    return NextResponse.json({ results })
+    // 응답에서 _scoring 제거 (프론트에는 안 보냄, DB에만 저장)
+    const cleanResults = results.map((r) => ({
+      id: r.id,
+      products: r.products.map(({ _scoring, ...rest }) => rest),
+    }))
+
+    return NextResponse.json({ results: cleanResults })
   } catch (error) {
     logger.error({ error }, "💥 상품 검색 중 예외 발생")
     return NextResponse.json({ error: "Failed to search products" }, { status: 500 })
@@ -196,7 +235,6 @@ async function getNodeBrands(
       if (b.style_node === primaryNode) primary.add(name)
       if (b.style_node === secondaryNode) secondary.add(name)
 
-      // attributes JSONB → 플랫 Set으로 변환
       const attrs = new Set<string>()
       if (b.attributes && typeof b.attributes === "object") {
         for (const values of Object.values(b.attributes as Record<string, string[]>)) {
@@ -252,36 +290,65 @@ async function searchProducts(
       const brandLower = (p.brand || "").toLowerCase()
 
       // 1) 한국어 키워드 → 상품명 매칭 (0~1)
-      const koMatchCount = koKeywords.filter((kw) => text.includes(kw)).length
-      const keywordScore = koMatchCount / Math.max(koKeywords.length, 1)
+      const matchedKo = koKeywords.filter((kw) => text.includes(kw))
+      const keywordScore = matchedKo.length / Math.max(koKeywords.length, 1)
 
       // 2) 노드 부스트
       let nodeBoost = 0
       let nodeMatch = false
+      let nodeType: "primary" | "secondary" | null = null
       if (nodeBrands.primary.has(brandLower)) {
         nodeBoost = SCORE_WEIGHTS.PRIMARY_NODE_BOOST
         nodeMatch = true
+        nodeType = "primary"
       } else if (nodeBrands.secondary.has(brandLower)) {
         nodeBoost = SCORE_WEIGHTS.SECONDARY_NODE_BOOST
         nodeMatch = true
+        nodeType = "secondary"
       }
 
       // 3) Attribute 부스트 — 영어 키워드 ↔ 브랜드 attributes (영어↔영어)
       let attrBoost = 0
+      const matchedEn: string[] = []
       const attrs = nodeBrands.brandAttrs.get(brandLower)
       if (attrs && attrs.size > 0) {
-        const overlap = enKeywords.filter((kw) => attrs.has(kw)).length
-        if (overlap > 0) {
+        for (const kw of enKeywords) {
+          if (attrs.has(kw)) matchedEn.push(kw)
+        }
+        if (matchedEn.length > 0) {
           attrBoost = SCORE_WEIGHTS.ATTR_BOOST_PER_MATCH *
-            Math.min(overlap, SCORE_WEIGHTS.ATTR_BOOST_MAX)
+            Math.min(matchedEn.length, SCORE_WEIGHTS.ATTR_BOOST_MAX)
         }
       }
 
-      return { ...p, _score: keywordScore + nodeBoost + attrBoost, _nodeMatch: nodeMatch }
+      const totalScore = keywordScore + nodeBoost + attrBoost
+
+      const scoring: ScoreBreakdown = {
+        keywordScore,
+        nodeBoost,
+        attrBoost,
+        totalScore,
+        matchedKoKeywords: matchedKo,
+        matchedEnKeywords: matchedEn,
+        nodeType,
+      }
+
+      return {
+        _score: totalScore,
+        _nodeMatch: nodeMatch,
+        _scoring: scoring,
+        _rawPrice: p.price || 0,
+        brand: p.brand,
+        price: p.price ? `₩${p.price.toLocaleString()}` : "",
+        platform: p.platform,
+        imageUrl: p.image_url || "",
+        link: p.product_url,
+        title: `${p.brand} ${p.name}`,
+      }
     })
 
   const filtered = scored.filter((p) => p._score > 0)
-  filtered.sort((a, b) => b._score - a._score || (a.price || 0) - (b.price || 0))
+  filtered.sort((a, b) => b._score - a._score || a._rawPrice - b._rawPrice)
 
   // 브랜드 다양성
   const result: typeof filtered = []
@@ -296,13 +363,5 @@ async function searchProducts(
     result.push(p)
   }
 
-  return result.map((p) => ({
-    brand: p.brand,
-    price: p.price ? `₩${p.price.toLocaleString()}` : "",
-    platform: p.platform,
-    imageUrl: p.image_url || "",
-    link: p.product_url,
-    title: `${p.brand} ${p.name}`,
-    _nodeMatch: p._nodeMatch,
-  }))
+  return result
 }
