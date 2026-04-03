@@ -294,7 +294,7 @@ async function collectProductsFromPage(
         }
 
         // 브랜드: 상품 텍스트에서 추출 (Cafe24 편집샵은 보통 브랜드명이 상품명 앞에 있음)
-        const brandEl = el.querySelector(".brand, [class*=brand], .manufacturer, .mf_name")
+        const brandEl = el.querySelector(".brand, [class*=brand], .manufacturer, .mf_name, p.b, .b")
         let brand = brandEl ? (brandEl.textContent || "").trim() : ""
         if (!brand && args.brandNameOverride) brand = args.brandNameOverride
         // 일부 사이트는 상품명 전체 텍스트 첫 줄이 브랜드

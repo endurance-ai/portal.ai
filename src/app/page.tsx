@@ -45,6 +45,7 @@ interface AnalysisResult {
     color?: string
     fit?: string
     searchQuery: string
+    searchQueryKo?: string
     position?: { top: number; left: number }
   }[]
 }
@@ -160,12 +161,12 @@ export default function Home() {
         body: JSON.stringify({
           gender,
           styleNode: analysis.styleNode,
-          sensitivityTags: analysis.sensitivityTags,
           _logId: logId,
           queries: analysis.items.map((item) => ({
             id: item.id,
             category: item.category,
             searchQuery: item.searchQuery,
+            searchQueryKo: item.searchQueryKo,
           })),
         }),
       })
@@ -176,13 +177,15 @@ export default function Home() {
           setItems((prev) =>
             prev.map((item) => {
               const found = searchData.results.find((r) => r.id === item.id)
-              return found ? { ...item, products: found.products } : item
+              return found
+                ? { ...item, products: found.products, productsLoaded: true }
+                : { ...item, productsLoaded: true }
             })
           )
         })
         .catch((err) => {
           console.error("Product search failed:", err)
-          // Items stay with empty products — skeletons remain, not a fatal error
+          setItems((prev) => prev.map((item) => ({ ...item, productsLoaded: true })))
         })
     } catch (err) {
       clearInterval(ticker)

@@ -4,6 +4,7 @@ import {supabase} from "@/lib/supabase"
 import {logger} from "@/lib/logger"
 import {STYLE_NODES, type StyleNodeId} from "@/lib/fashion-genome"
 import {ANALYZE_SYSTEM_PROMPT, ANALYZE_USER_PROMPT} from "@/lib/prompts/analyze"
+import {uploadImage} from "@/lib/r2"
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -27,6 +28,18 @@ export async function POST(request: NextRequest) {
   const startTime = Date.now()
 
   try {
+    // API 접근 로그 (fire-and-forget)
+    const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+      || request.headers.get("x-real-ip")
+      || "unknown"
+    const clientUa = request.headers.get("user-agent") || "unknown"
+    supabase.from("api_access_logs").insert({
+      ip: clientIp,
+      user_agent: clientUa,
+      endpoint: "/api/analyze",
+      method: "POST",
+    }).then()
+
     const formData = await request.formData()
     const imageFile = formData.get("image") as File | null
 
@@ -62,6 +75,16 @@ export async function POST(request: NextRequest) {
 
     logger.info("🤖 GPT-4o-mini Vision 분석 시작...")
     const aiStart = Date.now()
+
+    // R2 이미지 업로드 (AI 분석과 병렬)
+    const imageUploadPromise = uploadImage(
+      Buffer.from(bytes),
+      imageFile.name,
+      mimeType,
+    ).catch((err) => {
+      logger.error({ err }, "❌ R2 이미지 업로드 실패")
+      return null
+    })
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -168,6 +191,8 @@ export async function POST(request: NextRequest) {
 
     // ── Supabase 저장 ───────────────────────────────────
     const analysisDuration = Date.now() - startTime
+    const imageUrl = await imageUploadPromise
+    if (imageUrl) logger.info(`📤 R2 업로드 완료 — ${imageUrl}`)
     logger.info(`💾 Supabase 저장 중...`)
 
     const { data: logRow, error: logError } = await supabase
@@ -175,6 +200,7 @@ export async function POST(request: NextRequest) {
       .insert({
         image_filename: imageFile.name,
         image_size_bytes: imageFile.size,
+        image_url: imageUrl,
         ai_raw_response: analysis,
         mood_tags: analysis.mood?.tags,
         mood_summary: analysis.mood?.summary,

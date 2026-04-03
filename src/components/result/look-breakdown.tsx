@@ -25,6 +25,7 @@ export interface LookItem {
   fit?: string
   position?: { top: number; left: number }
   products: Product[]
+  productsLoaded?: boolean
 }
 
 export interface MoodMeta {
@@ -226,6 +227,7 @@ export function LookBreakdown({
           {items.map((item, itemIndex) => {
             const isExpanded = expandedIdx === itemIndex
             const hasProducts = item.products.length > 0
+            const isLoading = !item.productsLoaded && !hasProducts
 
             return (
               <motion.div
@@ -403,7 +405,7 @@ export function LookBreakdown({
                               ))}
                             </div>
                           </div>
-                        ) : (
+                        ) : isLoading ? (
                           /* Skeleton loading */
                           <div className="space-y-2">
                             <span className="text-[9px] font-mono text-on-surface-variant tracking-widest uppercase animate-pulse">
@@ -440,6 +442,13 @@ export function LookBreakdown({
                                 </div>
                               ))}
                             </div>
+                          </div>
+                        ) : (
+                          /* No products found */
+                          <div className="py-4 text-center">
+                            <p className="text-xs text-on-surface-variant">
+                              No matching products found in our database.
+                            </p>
                           </div>
                         )}
                       </div>

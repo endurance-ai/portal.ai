@@ -2,9 +2,17 @@ import {NextRequest, NextResponse} from "next/server"
 import {supabase} from "@/lib/supabase"
 import {logger} from "@/lib/logger"
 
-const SERPAPI_KEY = process.env.SERPAPI_KEY
-
 // ─── 타입 ─────────────────────────────────────────────────
+
+type ScoreBreakdown = {
+  keywordScore: number
+  nodeBoost: number
+  attrBoost: number
+  totalScore: number
+  matchedKoKeywords: string[]
+  matchedEnKeywords: string[]
+  nodeType: "primary" | "secondary" | null
+}
 
 type FormattedProduct = {
   brand: string
@@ -13,6 +21,7 @@ type FormattedProduct = {
   imageUrl: string
   link: string
   title: string
+  _scoring?: ScoreBreakdown
 }
 
 type ScoredProduct = FormattedProduct & { _nodeMatch: boolean }
@@ -20,9 +29,8 @@ type ScoredProduct = FormattedProduct & { _nodeMatch: boolean }
 type NodeBrandData = {
   primary: Set<string>
   secondary: Set<string>
-  brandMeta: Map<string, { keywords: string[]; tags: string[] }>
+  brandAttrs: Map<string, Set<string>>
   excludedBrands: Set<string>
-  aiTags: string[]
 }
 
 // ─── 상수 ─────────────────────────────────────────────────
@@ -33,8 +41,8 @@ const MAX_PER_BRAND = 2
 const SCORE_WEIGHTS = {
   PRIMARY_NODE_BOOST: 0.3,
   SECONDARY_NODE_BOOST: 0.15,
-  SENSITIVITY_BOOST_PER_TAG: 0.1,
-  SENSITIVITY_BOOST_MAX_TAGS: 3,
+  ATTR_BOOST_PER_MATCH: 0.08,
+  ATTR_BOOST_MAX: 4,
 } as const
 
 const CATEGORY_MAP: Record<string, string[]> = {
@@ -54,11 +62,21 @@ const CATEGORY_MAP: Record<string, string[]> = {
 
 export async function POST(request: NextRequest) {
   try {
+    const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+      || request.headers.get("x-real-ip")
+      || "unknown"
+    const clientUa = request.headers.get("user-agent") || "unknown"
+    supabase.from("api_access_logs").insert({
+      ip: clientIp,
+      user_agent: clientUa,
+      endpoint: "/api/search-products",
+      method: "POST",
+    }).then()
+
     const body = await request.json()
     const queries = body.queries
     const gender = body.gender as string | undefined
     const styleNode = body.styleNode as { primary: string; secondary?: string } | undefined
-    const sensitivityTags = body.sensitivityTags as string[] | undefined
     const _logId = body._logId as string | undefined
 
     const searchStart = Date.now()
@@ -78,50 +96,54 @@ export async function POST(request: NextRequest) {
       `🔍 상품 검색 시작 — ${queries.length}개 아이템 | 성별: ${genderFilter || "전체"} | 노드: ${primaryNode || "없음"}→${secondaryNode || "없음"}`
     )
 
-    const nodeBrands = await getNodeBrands(primaryNode, secondaryNode, sensitivityTags)
+    const nodeBrands = await getNodeBrands(primaryNode, secondaryNode)
 
     const results = await Promise.all(
-      queries.map(async (item: { id: string; category: string; searchQuery: string }) => {
+      queries.map(async (item: { id: string; category: string; searchQuery: string; searchQueryKo?: string }) => {
         logger.info(`   🔎 [${item.category}] "${item.searchQuery}"`)
+        if (item.searchQueryKo) logger.info(`      🇰🇷 "${item.searchQueryKo}"`)
 
-        const keywords = item.searchQuery
+        // 영어 키워드 — attrBoost용
+        const enKeywords = item.searchQuery
           .toLowerCase()
           .replace(/\b(men|women|unisex)\b/g, "")
           .trim()
           .split(/\s+/)
           .filter((w: string) => w.length > 2)
 
+        // 한국어 키워드 — 상품명 매칭용 (없으면 영어 폴백)
+        const koKeywords = item.searchQueryKo
+          ? item.searchQueryKo
+              .replace(/남성|여성|유니섹스/g, "")
+              .trim()
+              .split(/\s+/)
+              .filter((w: string) => w.length > 1)
+          : enKeywords
+
         const dbCategories = CATEGORY_MAP[item.category] || null
 
-        const products = await searchProducts(keywords, genderFilter, dbCategories, nodeBrands)
-        if (products.length > 0) {
-          const fromNode = products.filter((p) => p._nodeMatch).length
-          logger.info(`      📌 DB: ${products.length}개 (노드 매칭 ${fromNode}개)`)
+        const products = await searchProducts(koKeywords, enKeywords, genderFilter, dbCategories, nodeBrands)
+
+        // 상세 로깅
+        for (const p of products.slice(0, TARGET_RESULTS)) {
+          const s = p._scoring
+          logger.info(
+            `      📊 ${p.brand} | ${p.title.slice(0, 40)} | ` +
+            `total=${s?.totalScore.toFixed(2)} (kw=${s?.keywordScore.toFixed(2)} node=${s?.nodeBoost.toFixed(2)} attr=${s?.attrBoost.toFixed(2)}) | ` +
+            `ko=[${s?.matchedKoKeywords.join(",")}] en=[${s?.matchedEnKeywords.join(",")}]`
+          )
         }
 
-        // Fallback: SerpApi
-        if (products.length < TARGET_RESULTS && SERPAPI_KEY) {
-          const needed = TARGET_RESULTS - products.length
-          logger.info(`      🌐 DB 부족 (${products.length}/${TARGET_RESULTS}) → SerpApi fallback`)
-          const serpProducts = await searchSerpApi(item.searchQuery, genderFilter, needed)
-          const existingUrls = new Set(products.map((p) => p.link))
-          const newOnes = serpProducts.filter((p) => !existingUrls.has(p.link))
-            .map((p) => ({ ...p, _nodeMatch: false }))
-          products.push(...newOnes)
-          logger.info(`      🌐 SerpApi: +${newOnes.length}개`)
-        }
-
-        const finalProducts: FormattedProduct[] = products
-          .slice(0, TARGET_RESULTS)
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          .map(({ _nodeMatch, ...rest }) => rest)
+        const finalProducts = products.slice(0, TARGET_RESULTS).map(({ _nodeMatch, ...rest }) => rest)
 
         logger.info(`   ✅ [${item.category}] 최종 ${finalProducts.length}개`)
-        for (const p of finalProducts) {
-          logger.info(`      💰 ${p.price} — ${p.platform} | ${p.brand} | ${p.title.slice(0, 50)}`)
-        }
 
-        return { id: item.id, products: finalProducts }
+        return {
+          id: item.id,
+          koKeywords,
+          enKeywords,
+          products: finalProducts,
+        }
       })
     )
 
@@ -129,15 +151,40 @@ export async function POST(request: NextRequest) {
     const totalProducts = results.reduce((sum, r) => sum + r.products.length, 0)
     logger.info(`🏁 상품 검색 완료 — ${totalProducts}개 | ${searchDuration}ms`)
 
+    // DB에 검색 상세 로깅 (fire-and-forget)
     if (_logId) {
-      const { error: updateError } = await supabase
+      supabase
         .from("analyses")
-        .update({ search_duration_ms: searchDuration })
+        .update({
+          search_duration_ms: searchDuration,
+          search_results: results.map((r) => ({
+            id: r.id,
+            koKeywords: r.koKeywords,
+            enKeywords: r.enKeywords,
+            products: r.products.map((p) => ({
+              brand: p.brand,
+              title: p.title,
+              price: p.price,
+              platform: p.platform,
+              imageUrl: p.imageUrl,
+              link: p.link,
+              scoring: p._scoring,
+            })),
+          })),
+        })
         .eq("id", _logId)
-      if (updateError) logger.error({ error: updateError }, "❌ analyses 업데이트 실패")
+        .then(({ error }) => {
+          if (error) logger.error({ error }, "❌ analyses 업데이트 실패")
+        })
     }
 
-    return NextResponse.json({ results })
+    // 응답에서 _scoring 제거 (프론트에는 안 보냄, DB에만 저장)
+    const cleanResults = results.map((r) => ({
+      id: r.id,
+      products: r.products.map(({ _scoring, ...rest }) => rest),
+    }))
+
+    return NextResponse.json({ results: cleanResults })
   } catch (error) {
     logger.error({ error }, "💥 상품 검색 중 예외 발생")
     return NextResponse.json({ error: "Failed to search products" }, { status: 500 })
@@ -149,17 +196,14 @@ export async function POST(request: NextRequest) {
 async function getNodeBrands(
   primaryNode: string | undefined,
   secondaryNode: string | undefined,
-  sensitivityTags?: string[]
 ): Promise<NodeBrandData> {
   const primary = new Set<string>()
   const secondary = new Set<string>()
-  const brandMeta = new Map<string, { keywords: string[]; tags: string[] }>()
+  const brandAttrs = new Map<string, Set<string>>()
   const excludedBrands = new Set<string>()
-  const aiTags = (sensitivityTags || []).map((t) => t.toLowerCase())
 
   const nodes = [primaryNode, secondaryNode].filter(Boolean) as string[]
 
-  // 두 쿼리 병렬 실행
   const [excludedResult, nodesResult] = await Promise.all([
     supabase
       .from("brand_nodes")
@@ -168,7 +212,7 @@ async function getNodeBrands(
     nodes.length > 0
       ? supabase
           .from("brand_nodes")
-          .select("brand_name, brand_name_normalized, style_node, brand_keywords, sensitivity_tags")
+          .select("brand_name, brand_name_normalized, style_node, attributes")
           .in("style_node", nodes)
           .neq("category_type", "제외")
       : Promise.resolve({ data: null, error: null }),
@@ -193,20 +237,26 @@ async function getNodeBrands(
       if (b.style_node === primaryNode) primary.add(name)
       if (b.style_node === secondaryNode) secondary.add(name)
 
-      brandMeta.set(name, {
-        keywords: b.brand_keywords || [],
-        tags: b.sensitivity_tags || [],
-      })
+      const attrs = new Set<string>()
+      if (b.attributes && typeof b.attributes === "object") {
+        for (const values of Object.values(b.attributes as Record<string, string[]>)) {
+          if (Array.isArray(values)) {
+            for (const v of values) attrs.add(v.toLowerCase())
+          }
+        }
+      }
+      brandAttrs.set(name, attrs)
     }
   }
 
-  return { primary, secondary, brandMeta, excludedBrands, aiTags }
+  return { primary, secondary, brandAttrs, excludedBrands }
 }
 
 // ─── DB 검색 + 스코어링 ──────────────────────────────────
 
 async function searchProducts(
-  keywords: string[],
+  koKeywords: string[],
+  enKeywords: string[],
   genderFilter: string | null,
   categories: string[] | null,
   nodeBrands: NodeBrandData
@@ -241,38 +291,66 @@ async function searchProducts(
       const text = `${p.brand} ${p.name}`.toLowerCase()
       const brandLower = (p.brand || "").toLowerCase()
 
-      // 1) 키워드 매칭 (0~1)
-      const matchCount = keywords.filter((kw) => text.includes(kw)).length
-      const keywordScore = matchCount / Math.max(keywords.length, 1)
+      // 1) 한국어 키워드 → 상품명 매칭 (0~1)
+      const matchedKo = koKeywords.filter((kw) => text.includes(kw))
+      const keywordScore = matchedKo.length / Math.max(koKeywords.length, 1)
 
       // 2) 노드 부스트
       let nodeBoost = 0
       let nodeMatch = false
+      let nodeType: "primary" | "secondary" | null = null
       if (nodeBrands.primary.has(brandLower)) {
         nodeBoost = SCORE_WEIGHTS.PRIMARY_NODE_BOOST
         nodeMatch = true
+        nodeType = "primary"
       } else if (nodeBrands.secondary.has(brandLower)) {
         nodeBoost = SCORE_WEIGHTS.SECONDARY_NODE_BOOST
         nodeMatch = true
+        nodeType = "secondary"
       }
 
-      // 3) 감도 부스트 — AI sensitivityTags ↔ 브랜드 sensitivity_tags + brand_keywords
-      let sensBoost = 0
-      const meta = nodeBrands.brandMeta.get(brandLower)
-      if (meta && nodeBrands.aiTags.length > 0) {
-        const brandAllKw = [...meta.tags, ...meta.keywords].map((k) => k.toLowerCase())
-        const overlap = nodeBrands.aiTags.filter((t) => brandAllKw.includes(t)).length
-        if (overlap > 0) {
-          sensBoost = SCORE_WEIGHTS.SENSITIVITY_BOOST_PER_TAG *
-            Math.min(overlap, SCORE_WEIGHTS.SENSITIVITY_BOOST_MAX_TAGS)
+      // 3) Attribute 부스트 — 영어 키워드 ↔ 브랜드 attributes (영어↔영어)
+      let attrBoost = 0
+      const matchedEn: string[] = []
+      const attrs = nodeBrands.brandAttrs.get(brandLower)
+      if (attrs && attrs.size > 0) {
+        for (const kw of enKeywords) {
+          if (attrs.has(kw)) matchedEn.push(kw)
+        }
+        if (matchedEn.length > 0) {
+          attrBoost = SCORE_WEIGHTS.ATTR_BOOST_PER_MATCH *
+            Math.min(matchedEn.length, SCORE_WEIGHTS.ATTR_BOOST_MAX)
         }
       }
 
-      return { ...p, _score: keywordScore + nodeBoost + sensBoost, _nodeMatch: nodeMatch }
+      const totalScore = keywordScore + nodeBoost + attrBoost
+
+      const scoring: ScoreBreakdown = {
+        keywordScore,
+        nodeBoost,
+        attrBoost,
+        totalScore,
+        matchedKoKeywords: matchedKo,
+        matchedEnKeywords: matchedEn,
+        nodeType,
+      }
+
+      return {
+        _score: totalScore,
+        _nodeMatch: nodeMatch,
+        _scoring: scoring,
+        _rawPrice: p.price || 0,
+        brand: p.brand,
+        price: p.price ? `₩${p.price.toLocaleString()}` : "",
+        platform: p.platform,
+        imageUrl: p.image_url || "",
+        link: p.product_url,
+        title: `${p.brand} ${p.name}`,
+      }
     })
 
   const filtered = scored.filter((p) => p._score > 0)
-  filtered.sort((a, b) => b._score - a._score || (a.price || 0) - (b.price || 0))
+  filtered.sort((a, b) => b._score - a._score || a._rawPrice - b._rawPrice)
 
   // 브랜드 다양성
   const result: typeof filtered = []
@@ -287,77 +365,5 @@ async function searchProducts(
     result.push(p)
   }
 
-  return result.map((p) => ({
-    brand: p.brand,
-    price: p.price ? `₩${p.price.toLocaleString()}` : "",
-    platform: p.platform,
-    imageUrl: p.image_url || "",
-    link: p.product_url,
-    title: `${p.brand} ${p.name}`,
-    _nodeMatch: p._nodeMatch,
-  }))
-}
-
-// ─── SerpApi Fallback ──────────────────────────────────
-
-async function searchSerpApi(
-  searchQuery: string,
-  genderFilter: string | null,
-  limit: number
-): Promise<FormattedProduct[]> {
-  if (!SERPAPI_KEY) return []
-
-  let query = searchQuery
-  const genderLabel = genderFilter === "women" ? "women" : genderFilter === "men" ? "men" : ""
-  if (genderLabel && !query.toLowerCase().includes(genderLabel)) {
-    query = `${query} ${genderLabel}`
-  }
-
-  const params = new URLSearchParams({
-    engine: "google_shopping",
-    q: query,
-    api_key: SERPAPI_KEY,
-    num: String(Math.min(limit * 2, 10)),
-    hl: "en",
-  })
-
-  try {
-    const res = await fetch(`https://serpapi.com/search.json?${params.toString()}`)
-    if (!res.ok) {
-      logger.error(`      ❌ SerpApi HTTP ${res.status}`)
-      return []
-    }
-
-    const data = await res.json()
-    const raw: {
-      position?: number; title?: string; source?: string; price?: string;
-      extracted_price?: number; rating?: number; reviews?: number;
-      thumbnail?: string; product_link?: string; link?: string
-    }[] = data.shopping_results ?? []
-
-    const filtered = raw
-      .filter((p) => p.thumbnail && (p.extracted_price ?? 0) > 0)
-      .map((p) => ({
-        ...p,
-        _score:
-          (p.rating ? p.rating * 2 : 0) +
-          (p.reviews ? Math.min(p.reviews / 100, 3) : 0) +
-          (p.thumbnail ? 2 : 0) +
-          (10 - (p.position ?? 10)) * 0.5,
-      }))
-      .sort((a, b) => b._score - a._score)
-      .slice(0, limit)
-
-    return filtered.map((p) => ({
-      brand: p.source || "Unknown",
-      price: p.price || "",
-      platform: p.source || "",
-      imageUrl: p.thumbnail || "",
-      link: p.product_link || p.link || "#",
-      title: p.title || "",
-    }))
-  } catch (err) {
-    logger.error({ err }, "      ❌ SerpApi 요청 실패")
-    return []
-  }
+  return result
 }
