@@ -166,6 +166,8 @@ export async function POST(request: NextRequest) {
               title: p.title,
               price: p.price,
               platform: p.platform,
+              imageUrl: p.imageUrl,
+              link: p.link,
               scoring: p._scoring,
             })),
           })),
