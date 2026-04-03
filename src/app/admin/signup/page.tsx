@@ -21,33 +21,39 @@ export default function SignupPage() {
     setError("")
     setLoading(true)
 
-    // 1. Supabase Auth에 유저 생성
-    const { error: authError } = await supabase.auth.signUp({ email, password })
+    try {
+      // 1. Supabase Auth에 유저 생성
+      const { error: authError } = await supabase.auth.signUp({ email, password })
 
-    if (authError) {
-      setError(authError.message)
+      if (authError) {
+        setError(authError.message)
+        setLoading(false)
+        return
+      }
+
+      // 2. 서버 API로 users 테이블에 등록 (service role, RLS 무시)
+      const res = await fetch("/api/admin/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        setError(data.error || "Failed to register")
+        setLoading(false)
+        return
+      }
+
+      // 3. 바로 로그아웃 (승인 전까지 접근 불가)
+      await supabase.auth.signOut()
+
+      setSuccess(true)
+    } catch (err) {
+      setError("Something went wrong. Please try again.")
+    } finally {
       setLoading(false)
-      return
     }
-
-    // 2. admin_users 테이블에 승인 대기 상태로 등록
-    const { error: dbError } = await supabase.from("users").insert({
-      email,
-      role: "member",
-      status: "pending",
-    })
-
-    if (dbError && !dbError.message.includes("duplicate")) {
-      setError(dbError.message)
-      setLoading(false)
-      return
-    }
-
-    // 3. 바로 로그아웃 (승인 전까지 접근 불가)
-    await supabase.auth.signOut()
-
-    setSuccess(true)
-    setLoading(false)
   }
 
   if (success) {
@@ -90,7 +96,7 @@ export default function SignupPage() {
             <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 6 characters" minLength={6} required />
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button className="w-full" disabled={loading}>
+          <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Submitting..." : "Request access"}
           </Button>
         </form>
