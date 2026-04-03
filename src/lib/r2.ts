@@ -24,7 +24,8 @@ export async function uploadImage(
   filename: string,
   contentType: string,
 ): Promise<string> {
-  const key = `analyses/${Date.now()}-${filename}`
+  const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 100)
+  const key = `analyses/${Date.now()}-${crypto.randomUUID()}-${safeName}`
 
   await r2.send(
     new PutObjectCommand({

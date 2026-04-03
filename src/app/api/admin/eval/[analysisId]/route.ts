@@ -63,13 +63,13 @@ export async function POST(
   if (addToGoldenSet) {
     const { data: analysis } = await supabase
       .from("analyses")
-      .select("style_node_primary, style_node_secondary, items, image_filename")
+      .select("style_node_primary, style_node_secondary, items, image_url")
       .eq("id", analysisId).single()
 
     if (analysis) {
       await supabase.from("eval_golden_set").insert({
         analysis_id: analysisId,
-        image_url: analysis.image_filename || "",
+        image_url: analysis.image_url || "",
         expected_node_primary: analysis.style_node_primary,
         expected_node_secondary: analysis.style_node_secondary,
         expected_items: analysis.items,
