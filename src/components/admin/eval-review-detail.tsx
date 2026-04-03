@@ -79,7 +79,25 @@ export function EvalReviewDetail({ analysis, items, reviews }: Props) {
         <ArrowLeft className="size-4 mr-1" /> 뒤로
       </Button>
 
-      {/* Analysis meta */}
+      {/* Analysis meta + uploaded image */}
+      <div className="grid gap-4 lg:grid-cols-[240px_1fr]">
+        {/* Uploaded image */}
+        {analysis.image_url ? (
+          <div className="relative aspect-[3/4] w-full max-w-[240px] rounded-lg overflow-hidden border border-border bg-muted">
+            <Image
+              src={analysis.image_url}
+              alt="업로드 이미지"
+              fill
+              sizes="240px"
+              className="object-cover"
+            />
+          </div>
+        ) : (
+          <div className="aspect-[3/4] w-full max-w-[240px] rounded-lg border border-border bg-muted flex items-center justify-center">
+            <span className="text-sm text-muted-foreground">이미지 없음</span>
+          </div>
+        )}
+
       <Card>
         <CardContent className="p-4 space-y-3">
           <div className="flex items-center gap-2 flex-wrap">
@@ -124,6 +142,7 @@ export function EvalReviewDetail({ analysis, items, reviews }: Props) {
           </p>
         </CardContent>
       </Card>
+      </div>
 
       {/* Items + Search Results (per item) */}
       <div className="space-y-4">

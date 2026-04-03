@@ -27,6 +27,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "samplas.co.kr" },
       { protocol: "https", hostname: "*.obscura-store.com" },
       { protocol: "https", hostname: "*.samplas.co.kr" },
+      { protocol: "https", hostname: "pub-dddeb1e14cdf428caa5cfbad8e1f98da.r2.dev" },
     ],
   },
 }
