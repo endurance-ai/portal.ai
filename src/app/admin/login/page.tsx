@@ -21,10 +21,24 @@ export default function LoginPage() {
     setError("")
     setLoading(true)
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
 
-    if (error) {
-      setError(error.message)
+    if (authError) {
+      setError(authError.message)
+      setLoading(false)
+      return
+    }
+
+    // 승인 상태 확인
+    const { data: user } = await supabase
+      .from("users")
+      .select("status, role")
+      .eq("email", email)
+      .single()
+
+    if (!user || user.status !== "approved") {
+      await supabase.auth.signOut()
+      setError("Your account is pending approval.")
       setLoading(false)
       return
     }
@@ -59,7 +73,7 @@ export default function LoginPage() {
         </form>
         <p className="text-center text-sm text-muted-foreground">
           No account?{" "}
-          <Link href="/admin/signup" className="text-foreground underline underline-offset-4 hover:text-primary">Sign up</Link>
+          <Link href="/admin/signup" className="text-foreground underline underline-offset-4 hover:text-primary">Request access</Link>
         </p>
       </div>
     </div>
