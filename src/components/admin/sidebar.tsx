@@ -6,9 +6,24 @@ import { Database, BarChart3, FlaskConical } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const NAV_ITEMS = [
-  { href: "/admin/genome", label: "Genome", icon: Database },
-  { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/admin/eval", label: "Eval", icon: FlaskConical },
+  {
+    href: "/admin/genome",
+    label: "Genome",
+    description: "Brand DB",
+    icon: Database,
+  },
+  {
+    href: "/admin/analytics",
+    label: "Analytics",
+    description: "Usage & metrics",
+    icon: BarChart3,
+  },
+  {
+    href: "/admin/eval",
+    label: "Eval",
+    description: "Model evaluation",
+    icon: FlaskConical,
+  },
 ] as const
 
 export function Sidebar() {
@@ -18,22 +33,32 @@ export function Sidebar() {
     <>
       {/* Desktop sidebar */}
       <aside className="hidden md:flex w-52 flex-col border-r border-border bg-sidebar p-4 gap-1">
-        <Link href="/admin" className="text-sm font-bold tracking-tight text-sidebar-foreground mb-6 px-2">
-          portal.ai <span className="text-muted-foreground font-normal">admin</span>
+        <Link
+          href="/admin"
+          className="text-base font-bold tracking-tight text-sidebar-foreground mb-6 px-2"
+        >
+          portal.ai{" "}
+          <span className="text-muted-foreground font-normal text-sm">admin</span>
         </Link>
-        {NAV_ITEMS.map(({ href, label, icon: Icon }) => (
+
+        {NAV_ITEMS.map(({ href, label, description, icon: Icon }) => (
           <Link
             key={href}
             href={href}
             className={cn(
-              "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
+              "flex items-center gap-2.5 rounded-md px-2 py-2 text-sm transition-colors",
               pathname.startsWith(href)
                 ? "bg-sidebar-accent text-sidebar-accent-foreground"
                 : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
             )}
           >
-            <Icon className="size-4" />
-            {label}
+            <Icon className="size-4 shrink-0" />
+            <div>
+              <span className="text-sm leading-none">{label}</span>
+              <span className="block text-[11px] text-muted-foreground/70 mt-0.5 leading-none">
+                {description}
+              </span>
+            </div>
           </Link>
         ))}
       </aside>

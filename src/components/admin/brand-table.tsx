@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button"
 import { BrandFilters } from "@/components/admin/brand-filters"
 import { BrandEditPanel } from "@/components/admin/brand-edit-panel"
 import { Download, Loader2, ChevronLeft, ChevronRight } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { STYLE_NODE_CONFIG, NODE_COLOR_CLASSES } from "@/lib/style-nodes"
 
 interface Brand {
   id: string
@@ -21,6 +23,24 @@ interface Brand {
   sensitivity_tags: string[]
   attributes: Record<string, string[]> | null
   [key: string]: unknown
+}
+
+function NodeCell({ nodeId }: { nodeId: string }) {
+  const cfg = STYLE_NODE_CONFIG[nodeId]
+  if (!cfg) {
+    return <span className="text-sm text-muted-foreground">{nodeId || "—"}</span>
+  }
+  const colors = NODE_COLOR_CLASSES[cfg.color]
+  // Short label: first word only keeps the cell compact
+  const shortLabel = cfg.label.split(" ")[0]
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className={cn("size-2 shrink-0 rounded-full", colors.dot)} />
+      <span className="text-sm font-medium tabular-nums">{nodeId}</span>
+      <span className="text-sm text-muted-foreground hidden lg:inline">{shortLabel}</span>
+    </div>
+  )
 }
 
 export function BrandTable() {
@@ -101,7 +121,7 @@ export function BrandTable() {
     return (
       <>
         {shown.map((a) => (
-          <Badge key={a} variant="secondary" className="text-[10px]">{a}</Badge>
+          <Badge key={a} variant="secondary" className="text-xs">{a}</Badge>
         ))}
         {rest > 0 && (
           <span className="text-xs text-muted-foreground">+{rest}</span>
@@ -117,15 +137,15 @@ export function BrandTable() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold">Brand Genome DB</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-lg font-semibold text-balance">Brand Genome DB</h1>
+          <p className="text-sm text-muted-foreground tabular-nums">
             {total.toLocaleString()} brands
           </p>
         </div>
         <a
           href="/api/admin/brands/export"
           download
-          className="inline-flex items-center justify-center rounded-lg border border-border bg-background px-2.5 h-7 text-sm font-medium hover:bg-muted transition-colors"
+          className="inline-flex items-center justify-center rounded-lg border border-border bg-background px-3 h-8 text-sm font-medium hover:bg-muted transition-colors"
         >
           <Download className="mr-1.5 size-4" />
           Export
@@ -149,11 +169,11 @@ export function BrandTable() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Brand</TableHead>
-              <TableHead>Node</TableHead>
-              <TableHead className="hidden md:table-cell">Attributes</TableHead>
-              <TableHead className="hidden sm:table-cell">Gender</TableHead>
-              <TableHead className="hidden sm:table-cell">Price</TableHead>
+              <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Brand</TableHead>
+              <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Node</TableHead>
+              <TableHead className="hidden md:table-cell text-xs uppercase tracking-wider text-muted-foreground">Attributes</TableHead>
+              <TableHead className="hidden sm:table-cell text-xs uppercase tracking-wider text-muted-foreground">Gender</TableHead>
+              <TableHead className="hidden sm:table-cell text-xs uppercase tracking-wider text-muted-foreground">Price</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -176,19 +196,19 @@ export function BrandTable() {
                   className="cursor-pointer"
                   onClick={() => handleRowClick(b)}
                 >
-                  <TableCell className="font-medium">{b.brand_name}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{b.style_node}</Badge>
+                  <TableCell className="py-3 text-sm font-medium">{b.brand_name}</TableCell>
+                  <TableCell className="py-3">
+                    <NodeCell nodeId={b.style_node} />
                   </TableCell>
-                  <TableCell className="hidden md:table-cell">
+                  <TableCell className="hidden md:table-cell py-3">
                     <div className="flex flex-wrap gap-1">
                       {attrBadges(b.attributes)}
                     </div>
                   </TableCell>
-                  <TableCell className="hidden sm:table-cell text-muted-foreground">
+                  <TableCell className="hidden sm:table-cell py-3 text-sm text-muted-foreground">
                     {(b.gender_scope || []).join(", ")}
                   </TableCell>
-                  <TableCell className="hidden sm:table-cell text-muted-foreground">
+                  <TableCell className="hidden sm:table-cell py-3 text-sm text-muted-foreground tabular-nums">
                     {b.price_band || "—"}
                   </TableCell>
                 </TableRow>
@@ -201,7 +221,7 @@ export function BrandTable() {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground tabular-nums">
             Page {page + 1} of {totalPages}
           </p>
           <div className="flex gap-1">

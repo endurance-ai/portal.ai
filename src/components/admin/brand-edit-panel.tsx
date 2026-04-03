@@ -20,21 +20,38 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Loader2 } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { STYLE_NODE_IDS, STYLE_NODE_CONFIG, NODE_COLOR_CLASSES } from "@/lib/style-nodes"
 
-const STYLE_NODE_OPTIONS = [
-  "A-1", "A-2", "A-3", "B", "B-2", "C", "D", "E",
-  "F", "F-2", "F-3", "G", "H", "I", "K",
-]
-
-const ATTR_ENUMS: Record<string, string[]> = {
-  silhouette: [
-    "structured", "sculptural", "draped", "oversized", "voluminous",
-    "body-conscious", "tailored", "deconstructed", "reconstructed",
-  ],
-  palette: ["monochrome", "bold-color"],
-  material: ["denim", "leather", "sheer", "technical", "knit", "jersey", "padded"],
-  detail: ["graphic", "decorative", "layered", "utility", "military"],
-  vibe: ["bohemian", "heritage", "gorpcore", "outdoor", "trail", "athletic", "japanese"],
+const ATTR_ENUMS: Record<string, { values: string[]; label: string; description: string }> = {
+  silhouette: {
+    label: "Silhouette",
+    description: "Shape & structure",
+    values: [
+      "structured", "sculptural", "draped", "oversized", "voluminous",
+      "body-conscious", "tailored", "deconstructed", "reconstructed",
+    ],
+  },
+  palette: {
+    label: "Color Palette",
+    description: "Color direction",
+    values: ["monochrome", "bold-color"],
+  },
+  material: {
+    label: "Material Focus",
+    description: "Fabric & texture",
+    values: ["denim", "leather", "sheer", "technical", "knit", "jersey", "padded"],
+  },
+  detail: {
+    label: "Detail & Styling",
+    description: "Surface & construction",
+    values: ["graphic", "decorative", "layered", "utility", "military"],
+  },
+  vibe: {
+    label: "Vibe & Origin",
+    description: "Cultural reference",
+    values: ["bohemian", "heritage", "gorpcore", "outdoor", "trail", "athletic", "japanese"],
+  },
 }
 
 interface Brand {
@@ -106,6 +123,9 @@ export function BrandEditPanel({ brand, open, onOpenChange, onSaved }: BrandEdit
 
   if (!brand) return null
 
+  const selectedNodeCfg = styleNode ? STYLE_NODE_CONFIG[styleNode] : null
+  const selectedNodeColors = selectedNodeCfg ? NODE_COLOR_CLASSES[selectedNodeCfg.color] : null
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="overflow-y-auto sm:max-w-md">
@@ -114,26 +134,49 @@ export function BrandEditPanel({ brand, open, onOpenChange, onSaved }: BrandEdit
           <SheetDescription>{brand.brand_name_normalized}</SheetDescription>
         </SheetHeader>
 
-        <div className="flex-1 space-y-5 px-4">
+        <div className="flex-1 space-y-6 px-4">
           {/* Style Node */}
           <div className="space-y-1.5">
             <Label>Style Node</Label>
             <Select value={styleNode} onValueChange={(v) => setStyleNode(v ?? "")}>
               <SelectTrigger className="w-full">
-                <SelectValue />
+                <SelectValue>
+                  {selectedNodeCfg && selectedNodeColors ? (
+                    <div className="flex items-center gap-2">
+                      <span className={cn("size-2 rounded-full shrink-0", selectedNodeColors.dot)} />
+                      <span>{styleNode}</span>
+                      <span className="text-muted-foreground">{selectedNodeCfg.label}</span>
+                    </div>
+                  ) : (
+                    styleNode || "Select node"
+                  )}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {STYLE_NODE_OPTIONS.map((n) => (
-                  <SelectItem key={n} value={n}>{n}</SelectItem>
-                ))}
+                {STYLE_NODE_IDS.map((id) => {
+                  const cfg = STYLE_NODE_CONFIG[id]
+                  const colors = NODE_COLOR_CLASSES[cfg.color]
+                  return (
+                    <SelectItem key={id} value={id}>
+                      <div className="flex items-center gap-2">
+                        <span className={cn("size-2 rounded-full shrink-0", colors.dot)} />
+                        <span className="font-medium">{id}</span>
+                        <span className="text-muted-foreground">{cfg.label}</span>
+                      </div>
+                    </SelectItem>
+                  )
+                })}
               </SelectContent>
             </Select>
           </div>
 
           {/* Attributes */}
-          {Object.entries(ATTR_ENUMS).map(([category, values]) => (
+          {Object.entries(ATTR_ENUMS).map(([category, { label, description, values }]) => (
             <div key={category} className="space-y-1.5">
-              <Label className="capitalize">{category}</Label>
+              <div>
+                <Label>{label}</Label>
+                <p className="text-[11px] text-muted-foreground/70 mt-0.5">{description}</p>
+              </div>
               <div className="flex flex-wrap gap-1.5">
                 {values.map((v) => {
                   const active = (attrs[category] || []).includes(v)
@@ -141,7 +184,10 @@ export function BrandEditPanel({ brand, open, onOpenChange, onSaved }: BrandEdit
                     <Badge
                       key={v}
                       variant={active ? "default" : "outline"}
-                      className="cursor-pointer select-none"
+                      className={cn(
+                        "cursor-pointer select-none text-xs transition-colors",
+                        active && "bg-foreground text-background hover:bg-foreground/90"
+                      )}
                       onClick={() => toggleAttr(category, v)}
                     >
                       {v}
@@ -160,7 +206,7 @@ export function BrandEditPanel({ brand, open, onOpenChange, onSaved }: BrandEdit
             </div>
             <div className="flex justify-between">
               <span>Price Band</span>
-              <span className="text-foreground">{brand.price_band || "—"}</span>
+              <span className="text-foreground tabular-nums">{brand.price_band || "—"}</span>
             </div>
             <div className="flex justify-between">
               <span>Gender</span>

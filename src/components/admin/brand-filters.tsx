@@ -1,6 +1,5 @@
 "use client"
 
-import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -10,11 +9,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Search } from "lucide-react"
-
-const NODES = [
-  "ALL", "A-1", "A-2", "A-3", "B", "B-2", "C", "D", "E",
-  "F", "F-2", "F-3", "G", "H", "I", "K",
-] as const
+import { cn } from "@/lib/utils"
+import { STYLE_NODE_CONFIG, STYLE_NODE_IDS, NODE_COLOR_CLASSES } from "@/lib/style-nodes"
 
 const CATEGORIES = [
   { value: "", label: "All Categories" },
@@ -56,17 +52,52 @@ export function BrandFilters({
   return (
     <div className="space-y-3">
       {/* Node chips */}
-      <div className="flex flex-wrap gap-1.5">
-        {NODES.map((n) => (
-          <Badge
-            key={n}
-            variant={node === n ? "default" : "outline"}
-            className="cursor-pointer select-none"
-            onClick={() => onNodeChange(n)}
-          >
-            {n}
-          </Badge>
-        ))}
+      <div className="flex flex-wrap gap-2">
+        {/* ALL chip */}
+        <button
+          onClick={() => onNodeChange("ALL")}
+          className={cn(
+            "inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-semibold transition-colors select-none",
+            node === "ALL"
+              ? "bg-foreground text-background border-foreground"
+              : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
+          )}
+        >
+          ALL
+        </button>
+
+        {/* Per-node chips */}
+        {STYLE_NODE_IDS.map((id) => {
+          const cfg = STYLE_NODE_CONFIG[id]
+          const colors = NODE_COLOR_CLASSES[cfg.color]
+          const isSelected = node === id
+          // Derive a short label: first word of the label (e.g. "Minimal" from "Minimal Contemporary")
+          const shortLabel = cfg.label.split(" ")[0]
+
+          return (
+            <button
+              key={id}
+              onClick={() => onNodeChange(id)}
+              title={cfg.description}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors select-none",
+                isSelected
+                  ? cn(colors.bg, colors.text, colors.border)
+                  : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/20"
+              )}
+            >
+              <span className="font-semibold">{id}</span>
+              <span
+                className={cn(
+                  "hidden sm:inline",
+                  isSelected ? cn(colors.text, "opacity-70") : "text-muted-foreground/70"
+                )}
+              >
+                {shortLabel}
+              </span>
+            </button>
+          )
+        })}
       </div>
 
       {/* Search + dropdowns */}
@@ -77,7 +108,7 @@ export function BrandFilters({
             placeholder="Search brands..."
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="pl-8 h-8"
+            className="pl-8 h-9"
           />
         </div>
 
