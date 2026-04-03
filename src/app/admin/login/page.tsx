@@ -29,34 +29,6 @@ export default function LoginPage() {
       return
     }
 
-    // 승인 상태 확인
-    const { data: user } = await supabase
-      .from("users")
-      .select("status, role")
-      .eq("email", email)
-      .single()
-
-    if (!user) {
-      await supabase.auth.signOut()
-      setError("No admin account found for this email. Request access first.")
-      setLoading(false)
-      return
-    }
-
-    if (user.status === "pending") {
-      await supabase.auth.signOut()
-      setError("Your account is pending approval. Please wait for an admin to approve.")
-      setLoading(false)
-      return
-    }
-
-    if (user.status === "rejected") {
-      await supabase.auth.signOut()
-      setError("Your access request was rejected.")
-      setLoading(false)
-      return
-    }
-
     router.push("/admin/genome")
     router.refresh()
   }
@@ -87,7 +59,7 @@ export default function LoginPage() {
         </form>
         <p className="text-center text-sm text-muted-foreground">
           No account?{" "}
-          <Link href="/admin/signup" className="text-foreground underline underline-offset-4 hover:text-primary">Request access</Link>
+          <Link href="/admin/signup" className="text-foreground underline underline-offset-4 hover:text-primary">Sign up</Link>
         </p>
       </div>
     </div>

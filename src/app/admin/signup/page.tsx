@@ -6,7 +6,7 @@ import { createSupabaseBrowser } from "@/lib/supabase-browser"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Clock } from "lucide-react"
+import { Mail } from "lucide-react"
 
 export default function SignupPage() {
   const [email, setEmail] = useState("")
@@ -21,39 +21,16 @@ export default function SignupPage() {
     setError("")
     setLoading(true)
 
-    try {
-      // 1. Supabase Auth에 유저 생성
-      const { error: authError } = await supabase.auth.signUp({ email, password })
+    const { error: authError } = await supabase.auth.signUp({ email, password })
 
-      if (authError) {
-        setError(authError.message)
-        setLoading(false)
-        return
-      }
-
-      // 2. 서버 API로 users 테이블에 등록 (service role, RLS 무시)
-      const res = await fetch("/api/admin/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      })
-
-      if (!res.ok) {
-        const data = await res.json()
-        setError(data.error || "Failed to register")
-        setLoading(false)
-        return
-      }
-
-      // 3. 바로 로그아웃 (승인 전까지 접근 불가)
-      await supabase.auth.signOut()
-
-      setSuccess(true)
-    } catch (err) {
-      setError("Something went wrong. Please try again.")
-    } finally {
+    if (authError) {
+      setError(authError.message)
       setLoading(false)
+      return
     }
+
+    setSuccess(true)
+    setLoading(false)
   }
 
   if (success) {
@@ -61,12 +38,12 @@ export default function SignupPage() {
       <div className="flex min-h-dvh items-center justify-center p-4">
         <div className="w-full max-w-sm space-y-4 text-center">
           <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-            <Clock className="size-5 text-muted-foreground" />
+            <Mail className="size-5 text-muted-foreground" />
           </div>
-          <h1 className="text-lg font-bold">Pending approval</h1>
+          <h1 className="text-lg font-bold">Check your email</h1>
           <p className="text-sm text-muted-foreground">
-            Your account <strong>{email}</strong> has been registered.<br />
-            An admin will approve your access.
+            We sent a confirmation link to <strong>{email}</strong>.<br />
+            Click the link to activate your account.
           </p>
           <Link href="/admin/login">
             <Button variant="outline" className="mt-4">Back to login</Button>
@@ -83,8 +60,8 @@ export default function SignupPage() {
           <div className="mx-auto w-10 h-10 rounded-lg border-2 border-dashed border-muted-foreground flex items-center justify-center mb-2">
             <span className="text-muted-foreground font-bold text-sm">+</span>
           </div>
-          <h1 className="text-xl font-bold tracking-tight">Request access</h1>
-          <p className="text-sm text-muted-foreground">Submit a request to join portal.ai admin</p>
+          <h1 className="text-xl font-bold tracking-tight">Create account</h1>
+          <p className="text-sm text-muted-foreground">Sign up for portal.ai admin</p>
         </div>
         <form onSubmit={handleSignup} className="space-y-4 border border-border rounded-lg p-4">
           <div className="space-y-2">
@@ -97,11 +74,11 @@ export default function SignupPage() {
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Submitting..." : "Request access"}
+            {loading ? "Creating account..." : "Sign up"}
           </Button>
         </form>
         <p className="text-center text-sm text-muted-foreground">
-          Already approved?{" "}
+          Already have an account?{" "}
           <Link href="/admin/login" className="text-foreground underline underline-offset-4 hover:text-primary">Sign in</Link>
         </p>
       </div>
