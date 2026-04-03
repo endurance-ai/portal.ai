@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
           ],
         },
       ],
-      max_tokens: 1500,
+      max_tokens: 2500,
       temperature: 0.3,
     })
 
@@ -90,6 +90,15 @@ export async function POST(request: NextRequest) {
     logger.info(
       `✅ AI 응답 완료 — ${aiDuration}ms | 토큰: ${usage?.prompt_tokens ?? "?"}→${usage?.completion_tokens ?? "?"} (총 ${usage?.total_tokens ?? "?"})`
     )
+
+    const finishReason = response.choices[0]?.finish_reason
+    if (finishReason === "length") {
+      logger.error("AI 응답이 토큰 한도로 잘림 (finish_reason: length)")
+      return NextResponse.json(
+        { error: "Analysis incomplete. Please try again." },
+        { status: 502 }
+      )
+    }
 
     const content = response.choices[0]?.message?.content
     if (!content) {

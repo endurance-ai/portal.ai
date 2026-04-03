@@ -198,6 +198,20 @@ export const STYLE_NODES = {
       "refined casual", "wabi-sabi", "indigo craft",
     ],
   },
+  "K": {
+    name: "영_캐주얼",
+    enName: "Young Casual",
+    mood: "트렌디한 소비 감도의 영캐주얼",
+    include:
+      "빠른 트렌드 반응, 영한 무드, 도메스틱 패션성",
+    exclude:
+      "스트릿이면 H, 로맨틱 페미닌이면 F-2",
+    adjacent: ["H", "F-2"],
+    enKeywords: [
+      "young casual", "trendy", "domestic fashion",
+      "youth trend", "fast fashion forward", "korean casual",
+    ],
+  },
 } as const
 
 export type StyleNodeId = keyof typeof STYLE_NODES
@@ -208,17 +222,17 @@ export const STYLE_NODE_IDS = Object.keys(STYLE_NODES) as StyleNodeId[]
 
 export const SENSITIVITY_TAGS = [
   "미니멀",
+  "컨템포러리",
   "캐주얼",
-  "하이엔드",
   "스트릿",
-  "페미닌",
-  "테크니컬",
-  "얼터너티브",
-  "트렌딩",
-  "컨템퍼러리",
-  "빈티지",
+  "하이엔드",
+  "센슈얼",
   "로맨틱",
-  "재패니즈",
+  "테크니컬",
+  "헤리티지",
+  "실험적",
+  "아웃도어",
+  "고프코어",
 ] as const
 
 export type SensitivityTag = (typeof SENSITIVITY_TAGS)[number]

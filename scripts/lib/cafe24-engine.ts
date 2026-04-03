@@ -30,6 +30,9 @@ const DEFAULT_SELECTORS = {
     ".name a",
     ".name span",
     ".name",
+    ".nm span",           // sculpstore 패턴
+    ".nm a",
+    ".nm",
     ".prd-name",
     ".product-name",
     ".tit",
@@ -180,10 +183,11 @@ async function collectProductsFromPage(
     pricePatternStr: config.pricePattern?.source || null,
   }
 
-  // NOTE: page.evaluate 안에 function/const 선언 금지 — tsx의 __name 변환이 브라우저에서 ReferenceError 유발
+  // NOTE: page.evaluate 블록 안에서는 var 사용 — tsx의 __name 변환이 let/const 선언을 브라우저에서 ReferenceError로 유발
   // eslint-disable-next-line no-eval
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const evalResult: {ok: boolean; products?: any[]; error?: string} = await page.evaluate((args) => {
+    /* eslint-disable no-var */
     try {
       let items: NodeListOf<Element> | null = null
       for (let i = 0; i < args.itemSelectors.length; i++) {
@@ -198,12 +202,20 @@ async function collectProductsFromPage(
       for (let j = 0; j < items.length; j++) {
         const el = items[j]
 
-        let nameEl: Element | null = null
+        // 상품명 추출: displaynone 요소 제외, ":" 같은 쓰레기값 건너뛰기
+        var name = ""
         for (let k = 0; k < args.nameSelectors.length; k++) {
-          nameEl = el.querySelector(args.nameSelectors[k])
-          if (nameEl) break
+          var nameEls = el.querySelectorAll(args.nameSelectors[k])
+          for (var ni = 0; ni < nameEls.length; ni++) {
+            var ne = nameEls[ni]
+            // displaynone 클래스가 있으면 건너뛰기
+            if (ne.classList.contains("displaynone")) continue
+            var txt = (ne.textContent || "").trim().replace(/\s+/g, " ")
+            // ":" 또는 1~2글자 쓰레기값 건너뛰기
+            if (txt.length > 2 && txt !== ":") { name = txt; break }
+          }
+          if (name) break
         }
-        const name = nameEl ? (nameEl.textContent || "").trim().replace(/\s+/g, " ") : ""
         if (!name) continue
 
         let priceEl: Element | null = null
@@ -230,14 +242,22 @@ async function collectProductsFromPage(
         const priceStr = priceMatch ? (priceMatch[1] || priceMatch[0]) : null
         const price = priceStr ? parseInt(priceStr.replace(/,/g, ""), 10) : null
 
-        let imgEl: Element | null = null
-        for (let k = 0; k < args.imageSelectors.length; k++) {
-          imgEl = el.querySelector(args.imageSelectors[k])
-          if (imgEl) break
+        // 이미지: 아이콘/로고가 아닌 실제 상품 이미지 찾기
+        var imageUrl = ""
+        for (var ik = 0; ik < args.imageSelectors.length; ik++) {
+          var imgCandidates = el.querySelectorAll(args.imageSelectors[ik])
+          for (var im = 0; im < imgCandidates.length; im++) {
+            var imgSrc = (imgCandidates[im].getAttribute("src") || imgCandidates[im].getAttribute("data-original") || imgCandidates[im].getAttribute("data-src") || imgCandidates[im].getAttribute("data-lazy-src") || "")
+            // 아이콘/로고/배지 파일 건너뛰기
+            if (imgSrc.match(/\/(icon_|logo_|badge_|btn_|blank\.|spacer\.)/i)) continue
+            // 너무 작은 이미지 건너뛰기 (width/height 속성 기준)
+            var imgW = parseInt(imgCandidates[im].getAttribute("width") || "0", 10)
+            var imgH = parseInt(imgCandidates[im].getAttribute("height") || "0", 10)
+            if ((imgW > 0 && imgW < 50) || (imgH > 0 && imgH < 50)) continue
+            if (imgSrc) { imageUrl = imgSrc; break }
+          }
+          if (imageUrl) break
         }
-        let imageUrl = imgEl
-          ? (imgEl.getAttribute("src") || imgEl.getAttribute("data-original") || imgEl.getAttribute("data-src") || imgEl.getAttribute("data-lazy-src") || "")
-          : ""
         if (imageUrl.startsWith("//")) imageUrl = "https:" + imageUrl
 
         let linkEl: Element | null = null
@@ -250,14 +270,27 @@ async function collectProductsFromPage(
           ? href
           : href ? args.baseUrl + (href.startsWith("/") ? "" : "/") + href : ""
 
-        // 재고: .product-soldout에 displaynone이 있으면 재고 있음
-        const soldoutEl = el.querySelector(".product-soldout, .soldout, .sold-out, .icon-soldout")
-        let inStock = true
+        // 재고: soldout 요소가 보이면 품절, 숨겨져 있으면 재고 있음
+        var soldoutEl = el.querySelector('[class*="soldout"], .sold, .sold-out, .icon-soldout')
+        var inStock = true
         if (soldoutEl) {
-          inStock = soldoutEl.classList.contains("displaynone")
+          // 방법 1: "displaynone" 클래스 (일부 Cafe24 테마)
+          // 방법 2: CSS computed display: none (슬로우스테디클럽 등)
+          var hasDisplayNoneClass = soldoutEl.classList.contains("displaynone")
+          var isHiddenByCSS = window.getComputedStyle(soldoutEl).display === "none"
+          inStock = hasDisplayNoneClass || isHiddenByCSS
         } else {
-          const allText = (el.textContent || "").toLowerCase()
-          inStock = !allText.includes("out of stock") && !allText.includes("품절") && !allText.includes("sold out")
+          // 숨겨진 요소 제외하고 보이는 텍스트만 검사
+          var stockText = ""
+          var stockEls = el.querySelectorAll("span, div, p")
+          for (var si = 0; si < stockEls.length; si++) {
+            var se = stockEls[si]
+            if (se.classList.contains("displaynone")) continue
+            if (window.getComputedStyle(se).display === "none") continue
+            stockText += " " + (se.textContent || "")
+          }
+          stockText = stockText.toLowerCase()
+          inStock = !stockText.includes("out of stock") && !stockText.includes("품절") && !stockText.includes("sold out")
         }
 
         // 브랜드: 상품 텍스트에서 추출 (Cafe24 편집샵은 보통 브랜드명이 상품명 앞에 있음)
@@ -301,6 +334,7 @@ async function collectProductsFromPage(
     } catch (e: unknown) {
       return {ok: false as const, error: (e as Error).message}
     }
+    /* eslint-enable no-var */
   }, evalArgs)
 
   if (!evalResult.ok) {

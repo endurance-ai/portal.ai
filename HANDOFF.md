@@ -1,94 +1,197 @@
-# HANDOFF — Fashion Genome 연동 세션 (2026-03-31)
+# HANDOFF — 2026-04-03
+
+> Fashion Genome DB v2 연동 + 크롤러 확장 + 검색 로직 개선 + 코드 리뷰 반영
+> 다음 세션 목표: **데이터 정합성 맞추기 — 엑셀 DB / 크롤링 데이터 / AI 출력 간 매핑 최적화**
+
+---
 
 ## 완료된 작업
 
-### 1. Fashion Genome DB 분석
-- 동료가 만든 `Fashion_genome_root.xlsx` 전체 파악 완료
-- 5개 시트: Platform_DB(41개 플랫폼), Style_DB(15개 노드), Node_Criteria, Brand_DB(1,079개 브랜드), Guide
-- 감도 태그 12종, 노드 분포, 플랫폼별 브랜드 수 등 통계 분석
+### DB 스키마 & 데이터
 
-### 2. AI 프롬프트 개편 — 스타일 노드 체계 주입
-- `src/lib/fashion-genome.ts` — 15개 노드 + 12개 태그를 TypeScript ENUM으로 정의. `buildNodeReference()`, `buildTagList()` 함수로 프롬프트에 자동 주입
-- `src/lib/prompts/analyze.ts` — 프롬프트를 별도 파일로 분리
-- `src/app/api/analyze/route.ts` — HTTP 핸들링만 남기고 프롬프트 import
-- AI 출력에 `styleNode` (primary/secondary + confidence + reasoning) + `sensitivityTags` 필드 추가
+- [x] **마이그레이션 007**: `brand_nodes` v2 스키마 (`brand_name_normalized`, `brand_keywords`, `category_type`, `source_platforms`)
+- [x] **마이그레이션 008**: `products.product_url` UNIQUE, `style_node` CHECK 제약, `(category, in_stock)` 복합 인덱스, `brand_name_normalized` NOT NULL
+- [x] **import-brand-nodes.ts** v2 엑셀 파서 → 1,066개 브랜드 적재 완료 (에러 0)
+- [x] **fashion-genome.ts** 동기화: K노드(영_캐주얼) 추가, SENSITIVITY_TAGS 12종 엑셀 v2에 맞춰 교체
 
-### 3. Supabase 마이그레이션
-- `supabase/migrations/003_add_style_node_columns.sql` 작성
-- `style_node_primary`, `style_node_secondary`, `style_node_confidence`, `sensitivity_tags` 컬럼 추가
-- **⚠️ 아직 Supabase Dashboard에서 실행 필요** — 실행 전까지 insert 에러 발생
+### 검색 로직 (`search-products/route.ts` 전면 개선)
 
-### 4. 로깅 시스템 추가 (pino)
-- `src/lib/logger.ts` — pino + pino-pretty 설정
-- `src/app/api/analyze/route.ts` — 이미지 수신, AI 분석, 스타일 노드, 감도 태그, 아이템, 팔레트 등 전 과정 한글 이모지 로깅
-- `src/app/api/search-products/route.ts` — 검색 쿼리, 결과 수, 최종 상품 등 로깅
+- [x] 감도 부스트: 한국어 sensitivityTags ↔ 브랜드 sensitivity_tags + brand_keywords 매칭 (영어↔한국어 버그 수정)
+- [x] 제외 브랜드 필터링 (`category_type = "제외"`)
+- [x] 아이콘 이미지 필터 (`icon_`, `logo_`, `badge_` URL 제외)
+- [x] `getNodeBrands` 2개 쿼리 `Promise.all` 병렬화
+- [x] 스코어 상수 추출 (`SCORE_WEIGHTS`, `TARGET_RESULTS`, `MAX_PER_BRAND`)
+- [x] 입력 검증, SerpApi 타입 방어 등
 
-### 5. 성별 선택 UI (Daydream 스타일)
-- `src/components/upload/gender-selector.tsx` — Womens / Mens 필 탭 (framer-motion layoutId 애니메이션)
-- `src/app/page.tsx` — 업로드 전 성별 선택 → 상품 검색에 유저 선택값 전달 (AI 추론 대신)
+### AI 분석
 
-### 6. 기획 문서
-- `docs/plans/26-03-31-fashion-genome-integration-roadmap.md` — POC/MVP/운영 3단계 로드맵 (DB 보완, 유저 입력, UI 제안)
+- [x] `max_tokens` 1500 → 2500 + `finish_reason` 경고 로그
+- [x] 프롬프트: `item.id` 중복 방지 ("top_1, top_2"), `style.gender` 필드 제거
 
-### 7. 크롤링 가능성 조사
-- **SSENSE**: ❌ 불가 — Cloudflare + PerimeterX 이중 방어, TOS에서 상업적 크롤링 명시 금지. 403 확인 완료. 제휴만 가능
-- **샵아모멘토**: ⚠️ 가능 — Cafe24 기반, robots.txt 허용, 봇 감지 없음. 단 JS 렌더링 필요 (Playwright)
+### 크롤러 (대폭 개선)
 
-## 진행 중인 작업
+- [x] **3개 플랫폼 신규 활성화**: 8division, sculpstore, fr8ight
+- [x] **이미지 셀렉터**: icon/logo/badge 패턴 + 50px 미만 건너뛰기
+- [x] **품절 판정 수정**: `[class*="soldout"], .sold` + CSS computed display + 숨겨진 요소 텍스트 폴백 제외
+- [x] **상품명 추출**: `displaynone` 건너뛰기 + 쓰레기값 필터링 + `.nm span/a` 셀렉터 추가
+- [x] **import-products.ts**: per-file try/catch, 가격 sanitize (1억원 초과 → null)
+- [x] **import-brand-nodes.ts**: `.ilike()` 분리 호출 (A.P.C. 등 안전)
+- [x] `crawl-shopamomento.ts` 레거시 삭제
 
-### 샵아모멘토 크롤러
-- `scripts/crawl-shopamomento.ts` 작성 완료 (Playwright + Chromium)
-- Women(cate_no=445), Men(cate_no=446) 카테고리 대상
-- **아직 실행 안 함** — 다음 세션에서 실행 필요
-- 실행: `npx tsx scripts/crawl-shopamomento.ts`
-- 출력: `data/shopamomento-products.json`
+### 문서
 
-### Platform_DB URL + 크롤링 가능성 조사
-- 다른 에이전트에 위임 예정이었음
-- Platform_DB에 URL이 거의 없음 (샵아모멘토, SSENSE 2개만)
-- 나머지 40개 플랫폼의 URL 수집 + 크롤링/제휴 가능성 조사 필요
-- 결과를 엑셀 Platform_DB 시트에 직접 업데이트
+- [x] `docs/plans/26-03-31-fashion-genome-integration-roadmap.md` 전면 최신화 — v2 품질 점검, 팀원 체크리스트
 
-## 다음에 해야 할 것
+---
 
-### 즉시 (이번 주)
-2. **크롤러 실행** — 샵아모멘토 상품 수집 테스트
-3. **크롤러 셀렉터 튜닝** — Cafe24 구조에 맞게 조정 필요할 수 있음
-4. **Platform_DB URL 채우기** — 40개 플랫폼 URL + 크롤링 가능성 notes
+## 크롤링 현황 (JSON 기준, 2026-04-03)
 
-### 다음 단계
-5. 크롤링된 상품 데이터 → Supabase 테이블에 적재
-6. 스타일 노드 기반 매칭 로직 구현 (AI가 뽑은 노드 → Brand_DB → 실제 상품)
-7. SerpApi 의존도 줄이기 — 자체 상품 DB에서 검색하도록 전환
+| 플랫폼 | 상품 | 재고 | 브랜드 | 상태 |
+|--------|------|------|--------|------|
+| shopamomento | 612 | 612 | 45 | ✅ |
+| adekuver | 1,792 | 1,622 | 67 | ✅ (가격 이상값 import 시 sanitize) |
+| etcseoul | 2,629 | 2,629 | 146 | ✅ |
+| visualaid | 161 | 161 | **161** | ⚠️ 브랜드 추출 이상 (브랜드=상품명) |
+| iamshop | 204 | 204 | 28 | ✅ |
+| sculpstore | 5,819 | 4,644 | **0** | ⚠️ 브랜드 전부 빈 값 (`.b` 셀렉터) |
+| fr8ight | 2,551 | 2,223 | 86 | ✅ |
+| slowsteadyclub | 1,646 | **0** | 84 | ❌ 재크롤링 필요 |
+| 8division | 45 | **0** | 10 | ❌ 재크롤링 필요 |
+| **합계** | **15,459** | **12,095** | — | |
 
-## 중요한 결정사항/컨텍스트
+### Supabase products 테이블
 
-### 구글 쇼핑(SerpApi) 사용 중단 예정
-- 현재 SerpApi로 Google Shopping 검색 중이지만, 앞으로 사용 안 할 계획
-- 자체 상품 DB (크롤링 + 어필리에이트) 기반으로 전환
+- **아직 재임포트 안 함** — 기존 v1 데이터 잔존 가능
+- `TRUNCATE products;` 후 전체 재임포트 권장
 
-### DB 매칭 전략
-- AI가 이미지에서 스타일 노드(15개) + 감도 태그(12개) 추출
-- Brand_DB에서 해당 노드의 브랜드 풀 필터링
-- 아이템별 검색 쿼리로 브랜드 풀 내 상품 검색
-- 가격대 필터는 나중에 추가 (price_band 데이터 채워진 후)
+---
 
-### 타겟 쇼핑몰
-- **무신사/29CM은 안 함** — 대기업 플랫폼은 제외
-- **편집샵 중심** — 샵아모멘토, 조하리스토어 등 감도 높은 소규모 편집샵
-- **해외** — SSENSE (제휴 필요), 기타 해외 편집샵
-- 어필리에이트도 병행 검토 중 (링크프라이스 등)
+## 다음 세션: 즉시 해야 할 것
 
-### 파일 구조 (이번 세션에서 추가/수정)
+### 1. 크롤러 브랜드 추출 수정 + 재크롤링
+
 ```
-src/lib/fashion-genome.ts        ← NEW: 노드/태그 ENUM
-src/lib/prompts/analyze.ts       ← NEW: AI 프롬프트 분리
-src/lib/logger.ts                ← NEW: pino 로거
-src/components/upload/gender-selector.tsx  ← NEW: 성별 탭
-src/app/api/analyze/route.ts     ← MODIFIED: 노드 출력 + 로깅
-src/app/api/search-products/route.ts  ← MODIFIED: 로깅
-src/app/page.tsx                 ← MODIFIED: 성별 선택 연동
-supabase/migrations/003_add_style_node_columns.sql  ← NEW
-scripts/crawl-shopamomento.ts    ← NEW: 크롤러
-docs/plans/26-03-31-fashion-genome-integration-roadmap.md  ← NEW
+sculpstore: 브랜드가 <p class="b">BRAND</p> → cafe24-engine.ts 브랜드 셀렉터에 ".b", "p.b" 추가
+visualaid: 브랜드 추출이 상품명 중복 → DOM 구조 확인 필요
+slowsteadyclub: 품절 수정 반영 → 재크롤링만
+8division: 품절 수정 반영 → 재크롤링만
 ```
+
+재크롤링 커맨드:
+```bash
+pnpm exec dotenv -e .env.local -- npx tsx scripts/crawl.ts --site=slowsteadyclub
+pnpm exec dotenv -e .env.local -- npx tsx scripts/crawl.ts --site=8division
+pnpm exec dotenv -e .env.local -- npx tsx scripts/crawl.ts --site=sculpstore
+pnpm exec dotenv -e .env.local -- npx tsx scripts/crawl.ts --site=visualaid
+```
+
+### 2. 전체 임포트
+
+```bash
+# products 테이블 초기화 (Supabase SQL Editor)
+TRUNCATE products;
+
+# 전체 임포트
+pnpm exec dotenv -e .env.local -- npx tsx scripts/import-products.ts
+```
+
+### 3. 커밋
+
+11개 파일 수정, +645 -472 미커밋 상태.
+
+---
+
+## 다음 단계: 데이터 정합성 맞추기
+
+### 데이터 흐름 3개 레이어
+
+```
+[레이어 1] 엑셀 DB (Fashion Genome v2) — 팀원 관리
+    1,079개 브랜드 × {노드, 태그, 키워드, 성별, 가격대, 소스 플랫폼}
+         ↓ import-brand-nodes.ts
+[레이어 2] Supabase brand_nodes — 자동 적재
+         ↓ brand_name으로 products와 조인
+[레이어 3] Supabase products — 크롤러 수집
+    ~15,000개 상품 × {브랜드, 이름, 가격, 이미지, 카테고리, 성별}
+         ↓ AI 분석 결과와 매칭
+[레이어 4] AI 분석 출력 — GPT-4o-mini Vision
+    {styleNode, sensitivityTags, items[].searchQuery}
+```
+
+### 현재 매칭 병목 (우선순위 순)
+
+| 구간 | 문제 | 영향 | 해결 방향 |
+|------|------|------|-----------|
+| **[4]→[3]** AI searchQuery(영어) ↔ 상품명 | 한국어 상품명 28% 매칭 불가 | 높음 | 상품 이미지 AI 매핑 or 임베딩 |
+| **[3]→[2]** products.brand ↔ brand_nodes | 브랜드 빈 값 38% (sculpstore) | 높음 | 크롤러 브랜드 셀렉터 수정 |
+| **[1]→[3]** 엑셀 브랜드 ↔ 크롤링 브랜드 | 대소문자/표기 불일치 | 중간 | lower() 매칭 + 정규화 맵 |
+| **[4]→[2]** AI 태그 ↔ 브랜드 태그 | ~~영어↔한국어~~ | 해결됨 | — |
+
+### 팀원에게 공유할 엑셀 DB 이슈
+
+로드맵 문서 부록에 체크리스트로 정리됨 (`docs/plans/26-03-31-fashion-genome-integration-roadmap.md`):
+
+- [ ] source_platforms 빈 값 27개 — 크롤링 대상 편집샵에 입점 확인
+- [ ] 보류 아이웨어 13개 — 노드 배정 or 제외 결정
+- [ ] 저가대(~10만) 브랜드 2개뿐 — 의도적 제외인지 확인
+- [ ] brand_keywords 스팟체크 — 노드별 샘플 50개
+- [ ] 인접 노드 관계 검토
+
+### 상품 이미지 AI 무드 매핑 (검토 완료, 실행 대기)
+
+- **비용**: ~$36 (12,000개 × $0.003)
+- **효과**: 상품 레벨 노드/태그 → 한국어 상품명 문제 해결, 브랜드 없는 상품도 매칭 가능
+- **권장**: 50개 샘플 테스트 먼저 → 품질 확인 후 전체 실행
+- **주의**: 상품 이미지 품질 편차 (모델컷 vs 제품컷 vs 행거컷)
+
+---
+
+## 코드 리뷰 잔여 (미반영)
+
+3개 서브에이전트 리뷰에서 이번에 처리 못 한 항목:
+
+**아키텍처**
+- [ ] `search-products` → `lib/product-search/` 분리
+- [ ] 크롤러 플랫폼 디스패치 → 엔진 레지스트리 패턴
+- [ ] `platforms.ts` → 디렉토리 구조
+
+**DB**
+- [ ] `brand_nodes ↔ products` FK 또는 lower() 정합성 검증
+- [ ] `analyses` JSONB 컬럼 정리
+- [ ] 미사용 컬럼 (`gender_appended`, `search_query_sent`)
+
+**크롤러**
+- [ ] `page.evaluate` 내 `new Date()` → Node 타임스탬프 전달
+- [ ] 빈 페이지 시 에러 로깅 (현재 silent break)
+
+---
+
+## 파일 변경 (미커밋)
+
+```
+수정 11개 파일, +645 -472:
+  docs/plans/26-03-31-fashion-genome-integration-roadmap.md
+  next.config.ts
+  scripts/configs/platforms.ts
+  scripts/import-brand-nodes.ts
+  scripts/import-products.ts
+  scripts/lib/cafe24-engine.ts
+  src/app/api/analyze/route.ts
+  src/app/api/search-products/route.ts
+  src/lib/fashion-genome.ts
+  src/lib/prompts/analyze.ts
+
+삭제:
+  scripts/crawl-shopamomento.ts
+
+신규:
+  supabase/migrations/007_upgrade_brand_nodes_v2.sql
+  supabase/migrations/008_add_constraints_and_indexes.sql
+  data/Fashion_genome_root_source_platforms_final.xlsx
+```
+
+## 엑셀 DB 파일 위치
+
+- 기존: `/Users/hansangho/Desktop/스타트업/DB/Fashion_genome_root.xlsx`
+- **신규 (v2)**: `/Users/hansangho/Desktop/스타트업/DB/Fashion_genome_root_source_platforms_final.xlsx`
+- 프로젝트 복사본: `data/Fashion_genome_root_source_platforms_final.xlsx`

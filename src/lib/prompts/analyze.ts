@@ -70,7 +70,6 @@ Respond in this exact JSON format (no markdown, no code fences):
   "style": {
     "fit": "Oversized & Relaxed",
     "aesthetic": "Street Minimal",
-    "gender": "Unisex / Masculine-leaning",
     "detectedGender": "male"
   },
   "items": [
@@ -113,7 +112,7 @@ Rules:
 - sensitivityTags: pick 1-3 tags from the EXACT allowed list above (Korean). These describe the outfit's sensibility.
 - Extract 2-5 mood tags with confidence scores (0-100)
 - Extract 3-5 dominant colors as hex codes with descriptive labels
-- Identify each visible clothing item (outer, top, bottom, shoes, accessories)
+- Identify each visible clothing item (outer, top, bottom, shoes, accessories). Each item.id MUST be unique — if multiple items share a category, append an index: top_1, top_2
 - summary: 1-2 sentences, editorial tone, English only
 - vibe: one evocative line describing the overall feeling
 - season: appropriate season(s) for this look

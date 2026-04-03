@@ -62,16 +62,21 @@ async function main() {
 
   console.log(`📦 ${files.length}개 파일 적재 시작\n`)
 
-  // brand_nodes에서 브랜드 → 노드 매핑 가져오기
+  // brand_nodes에서 브랜드 → 노드 매핑 가져오기 (normalized + raw 양쪽으로 조회)
   const {data: brandNodes, error: bnError} = await supabase
     .from("brand_nodes")
-    .select("brand_name, style_node")
+    .select("brand_name, brand_name_normalized, style_node")
 
   const nodeMap = new Map<string, string>()
   if (bnError) {
     console.warn("⚠️ brand_nodes 조회 실패:", bnError.message)
   } else if (brandNodes) {
     for (const bn of brandNodes) {
+      // normalized name으로 매핑 (우선)
+      if (bn.brand_name_normalized) {
+        nodeMap.set(bn.brand_name_normalized.toLowerCase(), bn.style_node)
+      }
+      // raw name으로도 매핑 (호환)
       nodeMap.set(bn.brand_name.toLowerCase(), bn.style_node)
     }
     console.log(`🏷️ brand_nodes에서 ${nodeMap.size}개 매핑 로드\n`)
@@ -84,7 +89,14 @@ async function main() {
     const filePath = path.join(dataDir, file)
     const platform = file.replace("-products.json", "")
 
-    const raw: CrawledProduct[] = JSON.parse(fs.readFileSync(filePath, "utf-8"))
+    let raw: CrawledProduct[]
+    try {
+      raw = JSON.parse(fs.readFileSync(filePath, "utf-8"))
+    } catch (parseErr) {
+      console.error(`   ❌ ${file} JSON 파싱 실패:`, (parseErr as Error).message)
+      totalErrors++
+      continue
+    }
     console.log(`📄 ${file} — ${raw.length}개 상품`)
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -95,13 +107,20 @@ async function main() {
       const pnoMatch = productUrl.match(/product_no=(\d+)/)
       const productNo = pnoMatch ? parseInt(pnoMatch[1], 10) : null
 
+      // 가격 정합성: integer 범위(2^31) 초과 or 비현실적 값 제거
+      const MAX_PRICE = 100_000_000 // 1억원
+      const sanitizePrice = (v: unknown): number | null => {
+        const n = typeof v === "number" ? v : null
+        return n && n > 0 && n <= MAX_PRICE ? n : null
+      }
+
       return {
         brand,
         name: p.name as string,
         category: (p.category as string) || null,
-        price: (p.salePrice as number) || (p.price as number) || null,
-        original_price: (p.originalPrice as number) || (p.price as number) || null,
-        sale_price: (p.salePrice as number) || null,
+        price: sanitizePrice(p.salePrice) ?? sanitizePrice(p.price),
+        original_price: sanitizePrice(p.originalPrice) ?? sanitizePrice(p.price),
+        sale_price: sanitizePrice(p.salePrice),
         product_no: productNo,
         image_url: p.imageUrl as string,
         product_url: productUrl,
