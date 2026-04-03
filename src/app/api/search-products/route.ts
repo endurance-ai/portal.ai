@@ -20,9 +20,8 @@ type ScoredProduct = FormattedProduct & { _nodeMatch: boolean }
 type NodeBrandData = {
   primary: Set<string>
   secondary: Set<string>
-  brandMeta: Map<string, { keywords: string[]; tags: string[] }>
+  brandAttrs: Map<string, Set<string>>
   excludedBrands: Set<string>
-  aiTags: string[]
 }
 
 // ─── 상수 ─────────────────────────────────────────────────
@@ -33,8 +32,8 @@ const MAX_PER_BRAND = 2
 const SCORE_WEIGHTS = {
   PRIMARY_NODE_BOOST: 0.3,
   SECONDARY_NODE_BOOST: 0.15,
-  SENSITIVITY_BOOST_PER_TAG: 0.1,
-  SENSITIVITY_BOOST_MAX_TAGS: 3,
+  ATTR_BOOST_PER_MATCH: 0.08,
+  ATTR_BOOST_MAX: 4,
 } as const
 
 const CATEGORY_MAP: Record<string, string[]> = {
@@ -69,7 +68,6 @@ export async function POST(request: NextRequest) {
     const queries = body.queries
     const gender = body.gender as string | undefined
     const styleNode = body.styleNode as { primary: string; secondary?: string } | undefined
-    const sensitivityTags = body.sensitivityTags as string[] | undefined
     const _logId = body._logId as string | undefined
 
     const searchStart = Date.now()
@@ -89,7 +87,7 @@ export async function POST(request: NextRequest) {
       `🔍 상품 검색 시작 — ${queries.length}개 아이템 | 성별: ${genderFilter || "전체"} | 노드: ${primaryNode || "없음"}→${secondaryNode || "없음"}`
     )
 
-    const nodeBrands = await getNodeBrands(primaryNode, secondaryNode, sensitivityTags)
+    const nodeBrands = await getNodeBrands(primaryNode, secondaryNode)
 
     const results = await Promise.all(
       queries.map(async (item: { id: string; category: string; searchQuery: string }) => {
@@ -160,17 +158,14 @@ export async function POST(request: NextRequest) {
 async function getNodeBrands(
   primaryNode: string | undefined,
   secondaryNode: string | undefined,
-  sensitivityTags?: string[]
 ): Promise<NodeBrandData> {
   const primary = new Set<string>()
   const secondary = new Set<string>()
-  const brandMeta = new Map<string, { keywords: string[]; tags: string[] }>()
+  const brandAttrs = new Map<string, Set<string>>()
   const excludedBrands = new Set<string>()
-  const aiTags = (sensitivityTags || []).map((t) => t.toLowerCase())
 
   const nodes = [primaryNode, secondaryNode].filter(Boolean) as string[]
 
-  // 두 쿼리 병렬 실행
   const [excludedResult, nodesResult] = await Promise.all([
     supabase
       .from("brand_nodes")
@@ -179,7 +174,7 @@ async function getNodeBrands(
     nodes.length > 0
       ? supabase
           .from("brand_nodes")
-          .select("brand_name, brand_name_normalized, style_node, brand_keywords, sensitivity_tags")
+          .select("brand_name, brand_name_normalized, style_node, attributes")
           .in("style_node", nodes)
           .neq("category_type", "제외")
       : Promise.resolve({ data: null, error: null }),
@@ -204,14 +199,20 @@ async function getNodeBrands(
       if (b.style_node === primaryNode) primary.add(name)
       if (b.style_node === secondaryNode) secondary.add(name)
 
-      brandMeta.set(name, {
-        keywords: b.brand_keywords || [],
-        tags: b.sensitivity_tags || [],
-      })
+      // attributes JSONB → 플랫 Set으로 변환
+      const attrs = new Set<string>()
+      if (b.attributes && typeof b.attributes === "object") {
+        for (const values of Object.values(b.attributes as Record<string, string[]>)) {
+          if (Array.isArray(values)) {
+            for (const v of values) attrs.add(v.toLowerCase())
+          }
+        }
+      }
+      brandAttrs.set(name, attrs)
     }
   }
 
-  return { primary, secondary, brandMeta, excludedBrands, aiTags }
+  return { primary, secondary, brandAttrs, excludedBrands }
 }
 
 // ─── DB 검색 + 스코어링 ──────────────────────────────────
@@ -267,19 +268,18 @@ async function searchProducts(
         nodeMatch = true
       }
 
-      // 3) 감도 부스트 — AI sensitivityTags ↔ 브랜드 sensitivity_tags + brand_keywords
-      let sensBoost = 0
-      const meta = nodeBrands.brandMeta.get(brandLower)
-      if (meta && nodeBrands.aiTags.length > 0) {
-        const brandAllKw = [...meta.tags, ...meta.keywords].map((k) => k.toLowerCase())
-        const overlap = nodeBrands.aiTags.filter((t) => brandAllKw.includes(t)).length
+      // 3) Attribute 부스트 — searchQuery 키워드 ↔ 브랜드 attributes (영어↔영어)
+      let attrBoost = 0
+      const attrs = nodeBrands.brandAttrs.get(brandLower)
+      if (attrs && attrs.size > 0) {
+        const overlap = keywords.filter((kw) => attrs.has(kw)).length
         if (overlap > 0) {
-          sensBoost = SCORE_WEIGHTS.SENSITIVITY_BOOST_PER_TAG *
-            Math.min(overlap, SCORE_WEIGHTS.SENSITIVITY_BOOST_MAX_TAGS)
+          attrBoost = SCORE_WEIGHTS.ATTR_BOOST_PER_MATCH *
+            Math.min(overlap, SCORE_WEIGHTS.ATTR_BOOST_MAX)
         }
       }
 
-      return { ...p, _score: keywordScore + nodeBoost + sensBoost, _nodeMatch: nodeMatch }
+      return { ...p, _score: keywordScore + nodeBoost + attrBoost, _nodeMatch: nodeMatch }
     })
 
   const filtered = scored.filter((p) => p._score > 0)
