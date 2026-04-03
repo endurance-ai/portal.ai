@@ -3,7 +3,19 @@ import { Sidebar } from "@/components/admin/sidebar"
 import { Header } from "@/components/admin/header"
 import { ThemeProvider } from "@/components/admin/theme-provider"
 
-export const metadata = { title: "portal.ai Admin" }
+export const metadata = {
+  title: "portal.ai Admin",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "portal.ai",
+  },
+}
+
+export const viewport = {
+  themeColor: "#09090B",
+}
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createSupabaseServer()
