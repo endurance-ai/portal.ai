@@ -54,6 +54,17 @@ const CATEGORY_MAP: Record<string, string[]> = {
 
 export async function POST(request: NextRequest) {
   try {
+    const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+      || request.headers.get("x-real-ip")
+      || "unknown"
+    const clientUa = request.headers.get("user-agent") || "unknown"
+    supabase.from("api_access_logs").insert({
+      ip: clientIp,
+      user_agent: clientUa,
+      endpoint: "/api/search-products",
+      method: "POST",
+    }).then()
+
     const body = await request.json()
     const queries = body.queries
     const gender = body.gender as string | undefined

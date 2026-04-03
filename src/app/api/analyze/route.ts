@@ -27,6 +27,18 @@ export async function POST(request: NextRequest) {
   const startTime = Date.now()
 
   try {
+    // API 접근 로그 (fire-and-forget)
+    const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+      || request.headers.get("x-real-ip")
+      || "unknown"
+    const clientUa = request.headers.get("user-agent") || "unknown"
+    supabase.from("api_access_logs").insert({
+      ip: clientIp,
+      user_agent: clientUa,
+      endpoint: "/api/analyze",
+      method: "POST",
+    }).then()
+
     const formData = await request.formData()
     const imageFile = formData.get("image") as File | null
 
