@@ -84,6 +84,7 @@ Respond in this exact JSON format (no markdown, no code fences):
       "colorHex": "#2E3336",
       "fit": "oversized",
       "searchQuery": "oversized charcoal grey wool long coat men",
+      "searchQueryKo": "오버사이즈 차콜 그레이 울 롱 코트 남성",
       "position": {"top": 30, "left": 50}
     },
     {
@@ -97,6 +98,7 @@ Respond in this exact JSON format (no markdown, no code fences):
       "colorHex": "#1A1A1A",
       "fit": "boxy",
       "searchQuery": "boxy black graphic print jersey t-shirt men",
+      "searchQueryKo": "박시 블랙 그래픽 프린트 저지 티셔츠 남성",
       "position": {"top": 42, "left": 48}
     }
   ]
@@ -143,6 +145,14 @@ searchQuery rules (CRITICAL for accurate product matching):
 - Example good: "oversized charcoal grey wool overcoat men"
 - Example bad: "blue jeans"
 - Think like someone searching on Google Shopping for this exact item
+
+searchQueryKo rules (CRITICAL for Korean product DB matching):
+- MUST be a Korean translation of searchQuery, using fashion industry Korean terms
+- MUST include: 핏(오버사이즈/레귤러/슬림/박시 등), 색상(차콜/블랙/네이비 등), 소재(울/코튼/데님/저지 등), 아이템명(코트/티셔츠/팬츠 등)
+- MUST include gender: 남성/여성/유니섹스
+- Use Korean fashion shopping terms (how Korean shoppers would search)
+- Format: "[핏] [색상] [소재] [아이템] [성별]"
+- Example: "오버사이즈 차콜 그레이 울 롱 코트 남성"
 - Return valid JSON only`
 
 export const ANALYZE_USER_PROMPT =
