@@ -67,6 +67,7 @@ export function LookBreakdown({
   moodMeta,
   onTryAnother,
 }: LookBreakdownProps) {
+  const hasImage = !!imageUrl
   const [expandedIdx, setExpandedIdx] = useState<number | null>(
     items.length > 0 ? 0 : null
   )
@@ -84,138 +85,142 @@ export function LookBreakdown({
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6">
-      {/* Top bar: mood tags + palette */}
-      <motion.section
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-wrap items-center gap-3"
-      >
-        <div className="flex flex-wrap gap-2">
-          {moodTags.map((tag, i) => (
-            <span
-              key={tag.label}
-              className={cn(
-                "px-2.5 py-1 rounded text-[10px] font-mono font-bold tracking-wider",
-                i === 0
-                  ? "bg-primary-container text-primary"
-                  : "bg-border text-muted-foreground"
-              )}
-            >
-              {tag.label.toUpperCase()} {tag.score}%
-            </span>
-          ))}
-        </div>
-        {moodMeta?.style && (
-          <span className="px-2.5 py-1 rounded text-[10px] font-mono font-bold bg-primary/10 text-primary tracking-wider">
-            {moodMeta.style.aesthetic}
-          </span>
-        )}
-        <div className="flex-1" />
-        {palette.length > 0 && (
-          <div className="flex items-center gap-2">
-            <span className="text-[9px] font-mono font-bold text-on-surface-variant tracking-widest uppercase">
-              Color Map
-            </span>
-            <div className="flex -space-x-1">
-              {palette.map((color) => (
-                <div
-                  key={color.hex}
-                  className="w-5 h-5 rounded border border-border"
-                  style={{ backgroundColor: color.hex }}
-                  title={`${color.label} (${color.hex})`}
-                />
-              ))}
-            </div>
+      {/* Top bar: mood tags + palette — only shown when image is present */}
+      {hasImage && (moodTags.length > 0 || palette.length > 0) && (
+        <motion.section
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-wrap items-center gap-3"
+        >
+          <div className="flex flex-wrap gap-2">
+            {moodTags.map((tag, i) => (
+              <span
+                key={tag.label}
+                className={cn(
+                  "px-2.5 py-1 rounded text-[10px] font-mono font-bold tracking-wider",
+                  i === 0
+                    ? "bg-primary-container text-primary"
+                    : "bg-border text-muted-foreground"
+                )}
+              >
+                {tag.label.toUpperCase()} {tag.score}%
+              </span>
+            ))}
           </div>
-        )}
-      </motion.section>
+          {moodMeta?.style && (
+            <span className="px-2.5 py-1 rounded text-[10px] font-mono font-bold bg-primary/10 text-primary tracking-wider">
+              {moodMeta.style.aesthetic}
+            </span>
+          )}
+          <div className="flex-1" />
+          {palette.length > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] font-mono font-bold text-on-surface-variant tracking-widest uppercase">
+                Color Map
+              </span>
+              <div className="flex -space-x-1">
+                {palette.map((color) => (
+                  <div
+                    key={color.hex}
+                    className="w-5 h-5 rounded border border-border"
+                    style={{ backgroundColor: color.hex }}
+                    title={`${color.label} (${color.hex})`}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </motion.section>
+      )}
 
       {/* Main layout: image left + accordion right */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left: Sticky image with hotspots */}
-        <motion.div
-          className="lg:col-span-4 lg:sticky lg:top-24"
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <div className="bg-card border border-border rounded-lg overflow-hidden corner-brackets">
-            <div className="relative aspect-[3/4]">
-              <Image
-                src={imageUrl}
-                alt="Uploaded outfit"
-                fill
-                priority
-                sizes="(max-width: 1024px) 100vw, 33vw"
-                className="object-cover"
-              />
+      <div className={cn("grid grid-cols-1 gap-6 items-start", hasImage && "lg:grid-cols-12")}>
+        {/* Left: Sticky image with hotspots — only shown when image is present */}
+        {hasImage && (
+          <motion.div
+            className="lg:col-span-4 lg:sticky lg:top-24"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <div className="bg-card border border-border rounded-lg overflow-hidden corner-brackets">
+              <div className="relative aspect-[3/4]">
+                <Image
+                  src={imageUrl}
+                  alt="Uploaded outfit"
+                  fill
+                  priority
+                  sizes="(max-width: 1024px) 100vw, 33vw"
+                  className="object-cover"
+                />
 
-              {/* Hotspot dots */}
-              {items.map((item, i) => {
-                const pos = item.position ?? getHotspotPosition(item.id)
-                const isActive = expandedIdx === i
-                return (
-                  <button
-                    key={`hotspot-${i}`}
-                    className="absolute z-20"
-                    style={{
-                      top: `${pos.top}%`,
-                      left: `${pos.left}%`,
-                      transform: "translate(-50%, -50%)",
-                    }}
-                    onClick={() => toggleItem(i)}
-                    aria-label={`View ${item.category}: ${item.name}`}
-                    aria-expanded={isActive}
-                  >
-                    <span
-                      className={cn(
-                        "relative flex items-center justify-center w-7 h-7 rounded-full text-[9px] font-mono font-bold transition-all duration-200",
-                        isActive
-                          ? "bg-primary text-background shadow-[0_0_12px_rgba(255,255,255,0.3)]"
-                          : "bg-background/90 text-foreground border border-foreground/40 hover:bg-primary hover:text-background hover:border-primary shadow-[0_2px_8px_rgba(0,0,0,0.6)]"
-                      )}
+                {/* Hotspot dots */}
+                {items.map((item, i) => {
+                  const pos = item.position ?? getHotspotPosition(item.id)
+                  const isActive = expandedIdx === i
+                  return (
+                    <button
+                      key={`hotspot-${i}`}
+                      className="absolute z-20"
+                      style={{
+                        top: `${pos.top}%`,
+                        left: `${pos.left}%`,
+                        transform: "translate(-50%, -50%)",
+                      }}
+                      onClick={() => toggleItem(i)}
+                      aria-label={`View ${item.category}: ${item.name}`}
+                      aria-expanded={isActive}
                     >
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-            <div className="px-3 py-2 border-t border-border flex justify-between items-center">
-              <span className="text-[9px] font-mono font-bold text-outline tracking-widest uppercase">
-                The Look
-              </span>
-              <span className="text-[9px] font-mono font-bold text-on-surface-variant tracking-widest uppercase">
-                AI Scan
-              </span>
-            </div>
-          </div>
-
-          {/* Vibe card below image */}
-          {moodMeta?.vibe && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.2 }}
-              className="mt-3 p-3 bg-card border border-border rounded-lg"
-            >
-              <div className="text-[9px] font-mono font-bold text-primary tracking-widest uppercase">
-                Style Summary
+                      <span
+                        className={cn(
+                          "relative flex items-center justify-center w-7 h-7 rounded-full text-[9px] font-mono font-bold transition-all duration-200",
+                          isActive
+                            ? "bg-primary text-background shadow-[0_0_12px_rgba(255,255,255,0.3)]"
+                            : "bg-background/90 text-foreground border border-foreground/40 hover:bg-primary hover:text-background hover:border-primary shadow-[0_2px_8px_rgba(0,0,0,0.6)]"
+                        )}
+                      >
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                    </button>
+                  )
+                })}
               </div>
-              <p className="text-xs font-semibold text-foreground italic mt-1">
-                &ldquo;{moodMeta.vibe}&rdquo;
-              </p>
-              {moodMeta.summary && (
-                <p className="text-[10px] text-outline mt-2 leading-relaxed">
-                  {moodMeta.summary}
-                </p>
-              )}
-            </motion.div>
-          )}
-        </motion.div>
+              <div className="px-3 py-2 border-t border-border flex justify-between items-center">
+                <span className="text-[9px] font-mono font-bold text-outline tracking-widest uppercase">
+                  The Look
+                </span>
+                <span className="text-[9px] font-mono font-bold text-on-surface-variant tracking-widest uppercase">
+                  AI Scan
+                </span>
+              </div>
+            </div>
 
-        {/* Right: Accordion */}
-        <div className="lg:col-span-8 space-y-3">
+            {/* Vibe card below image */}
+            {moodMeta?.vibe && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.2 }}
+                className="mt-3 p-3 bg-card border border-border rounded-lg"
+              >
+                <div className="text-[9px] font-mono font-bold text-primary tracking-widest uppercase">
+                  Style Summary
+                </div>
+                <p className="text-xs font-semibold text-foreground italic mt-1">
+                  &ldquo;{moodMeta.vibe}&rdquo;
+                </p>
+                {moodMeta.summary && (
+                  <p className="text-[10px] text-outline mt-2 leading-relaxed">
+                    {moodMeta.summary}
+                  </p>
+                )}
+              </motion.div>
+            )}
+          </motion.div>
+        )}
+
+        {/* Right: Accordion — takes full width when no image */}
+        <div className={cn("space-y-3", hasImage ? "lg:col-span-8" : "col-span-1")}>
           {/* Section heading */}
           <div className="flex items-center gap-3">
             <span className="text-[10px] font-mono font-bold text-on-surface-variant tracking-[0.2em] uppercase">
