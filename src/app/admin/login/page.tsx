@@ -36,9 +36,23 @@ export default function LoginPage() {
       .eq("email", email)
       .single()
 
-    if (!user || user.status !== "approved") {
+    if (!user) {
       await supabase.auth.signOut()
-      setError("Your account is pending approval.")
+      setError("No admin account found for this email. Request access first.")
+      setLoading(false)
+      return
+    }
+
+    if (user.status === "pending") {
+      await supabase.auth.signOut()
+      setError("Your account is pending approval. Please wait for an admin to approve.")
+      setLoading(false)
+      return
+    }
+
+    if (user.status === "rejected") {
+      await supabase.auth.signOut()
+      setError("Your access request was rejected.")
       setLoading(false)
       return
     }
@@ -67,7 +81,7 @@ export default function LoginPage() {
             <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required />
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button className="w-full" disabled={loading}>
+          <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Signing in..." : "Sign in"}
           </Button>
         </form>
