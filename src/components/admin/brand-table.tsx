@@ -122,14 +122,14 @@ export function BrandTable() {
             {total.toLocaleString()} brands
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          render={<a href="/api/admin/brands/export" download />}
+        <a
+          href="/api/admin/brands/export"
+          download
+          className="inline-flex items-center justify-center rounded-lg border border-border bg-background px-2.5 h-7 text-sm font-medium hover:bg-muted transition-colors"
         >
           <Download className="mr-1.5 size-4" />
           Export
-        </Button>
+        </a>
       </div>
 
       {/* Filters */}
