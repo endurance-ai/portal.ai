@@ -161,7 +161,6 @@ export default function Home() {
         body: JSON.stringify({
           gender,
           styleNode: analysis.styleNode,
-          sensitivityTags: analysis.sensitivityTags,
           _logId: logId,
           queries: analysis.items.map((item) => ({
             id: item.id,

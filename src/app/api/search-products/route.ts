@@ -2,8 +2,6 @@ import {NextRequest, NextResponse} from "next/server"
 import {supabase} from "@/lib/supabase"
 import {logger} from "@/lib/logger"
 
-const SERPAPI_KEY = process.env.SERPAPI_KEY
-
 // ─── 타입 ─────────────────────────────────────────────────
 
 type FormattedProduct = {
@@ -94,7 +92,7 @@ export async function POST(request: NextRequest) {
         logger.info(`   🔎 [${item.category}] "${item.searchQuery}"`)
         if (item.searchQueryKo) logger.info(`      🇰🇷 "${item.searchQueryKo}"`)
 
-        // 영어 키워드 — attrBoost + SerpApi용
+        // 영어 키워드 — attrBoost용
         const enKeywords = item.searchQuery
           .toLowerCase()
           .replace(/\b(men|women|unisex)\b/g, "")
@@ -117,18 +115,6 @@ export async function POST(request: NextRequest) {
         if (products.length > 0) {
           const fromNode = products.filter((p) => p._nodeMatch).length
           logger.info(`      📌 DB: ${products.length}개 (노드 매칭 ${fromNode}개)`)
-        }
-
-        // Fallback: SerpApi
-        if (products.length < TARGET_RESULTS && SERPAPI_KEY) {
-          const needed = TARGET_RESULTS - products.length
-          logger.info(`      🌐 DB 부족 (${products.length}/${TARGET_RESULTS}) → SerpApi fallback`)
-          const serpProducts = await searchSerpApi(item.searchQuery, genderFilter, needed)
-          const existingUrls = new Set(products.map((p) => p.link))
-          const newOnes = serpProducts.filter((p) => !existingUrls.has(p.link))
-            .map((p) => ({ ...p, _nodeMatch: false }))
-          products.push(...newOnes)
-          logger.info(`      🌐 SerpApi: +${newOnes.length}개`)
         }
 
         const finalProducts: FormattedProduct[] = products
@@ -319,68 +305,4 @@ async function searchProducts(
     title: `${p.brand} ${p.name}`,
     _nodeMatch: p._nodeMatch,
   }))
-}
-
-// ─── SerpApi Fallback ──────────────────────────────────
-
-async function searchSerpApi(
-  searchQuery: string,
-  genderFilter: string | null,
-  limit: number
-): Promise<FormattedProduct[]> {
-  if (!SERPAPI_KEY) return []
-
-  let query = searchQuery
-  const genderLabel = genderFilter === "women" ? "women" : genderFilter === "men" ? "men" : ""
-  if (genderLabel && !query.toLowerCase().includes(genderLabel)) {
-    query = `${query} ${genderLabel}`
-  }
-
-  const params = new URLSearchParams({
-    engine: "google_shopping",
-    q: query,
-    api_key: SERPAPI_KEY,
-    num: String(Math.min(limit * 2, 10)),
-    hl: "en",
-  })
-
-  try {
-    const res = await fetch(`https://serpapi.com/search.json?${params.toString()}`)
-    if (!res.ok) {
-      logger.error(`      ❌ SerpApi HTTP ${res.status}`)
-      return []
-    }
-
-    const data = await res.json()
-    const raw: {
-      position?: number; title?: string; source?: string; price?: string;
-      extracted_price?: number; rating?: number; reviews?: number;
-      thumbnail?: string; product_link?: string; link?: string
-    }[] = data.shopping_results ?? []
-
-    const filtered = raw
-      .filter((p) => p.thumbnail && (p.extracted_price ?? 0) > 0)
-      .map((p) => ({
-        ...p,
-        _score:
-          (p.rating ? p.rating * 2 : 0) +
-          (p.reviews ? Math.min(p.reviews / 100, 3) : 0) +
-          (p.thumbnail ? 2 : 0) +
-          (10 - (p.position ?? 10)) * 0.5,
-      }))
-      .sort((a, b) => b._score - a._score)
-      .slice(0, limit)
-
-    return filtered.map((p) => ({
-      brand: p.source || "Unknown",
-      price: p.price || "",
-      platform: p.source || "",
-      imageUrl: p.thumbnail || "",
-      link: p.product_link || p.link || "#",
-      title: p.title || "",
-    }))
-  } catch (err) {
-    logger.error({ err }, "      ❌ SerpApi 요청 실패")
-    return []
-  }
 }
