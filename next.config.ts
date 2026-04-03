@@ -18,6 +18,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "visualaid.kr" },
       { protocol: "https", hostname: "iamshop-online.com" },
       { protocol: "https", hostname: "sculpstore.com" },
+      { protocol: "https", hostname: "www.8division.com" },
       { protocol: "https", hostname: "fr8ight.co.kr" },
       { protocol: "https", hostname: "heights-store.com" },
       { protocol: "https", hostname: "empty.seoul.kr" },

@@ -4,6 +4,8 @@ import {logger} from "@/lib/logger"
 
 const SERPAPI_KEY = process.env.SERPAPI_KEY
 
+// ─── 타입 ─────────────────────────────────────────────────
+
 type FormattedProduct = {
   brand: string
   price: string
@@ -13,31 +15,62 @@ type FormattedProduct = {
   title: string
 }
 
+type ScoredProduct = FormattedProduct & { _nodeMatch: boolean }
+
+type NodeBrandData = {
+  primary: Set<string>
+  secondary: Set<string>
+  brandMeta: Map<string, { keywords: string[]; tags: string[] }>
+  excludedBrands: Set<string>
+  aiTags: string[]
+}
+
+// ─── 상수 ─────────────────────────────────────────────────
+
+const TARGET_RESULTS = 5
+const MAX_PER_BRAND = 2
+
+const SCORE_WEIGHTS = {
+  PRIMARY_NODE_BOOST: 0.3,
+  SECONDARY_NODE_BOOST: 0.15,
+  SENSITIVITY_BOOST_PER_TAG: 0.1,
+  SENSITIVITY_BOOST_MAX_TAGS: 3,
+} as const
+
+const CATEGORY_MAP: Record<string, string[]> = {
+  "Outer": ["Outer"],
+  "Top": ["Top", "Shirts", "Knitwear"],
+  "Bottom": ["Bottom"],
+  "Shoes": ["Shoes"],
+  "Footwear": ["Shoes"],
+  "Bag": ["Bag"],
+  "Accessory": ["Accessories"],
+  "Accessories": ["Accessories"],
+  "Dress": ["Dress"],
+  "Socks": ["Accessories"],
+}
+
+// ─── POST Handler ─────────────────────────────────────────
+
 export async function POST(request: NextRequest) {
   try {
-    const {
-      queries,
-      gender,
-      styleNode,
-      _logId,
-    } = (await request.json()) as {
-      queries: { id: string; category: string; searchQuery: string }[]
-      gender?: string
-      styleNode?: { primary: string; secondary?: string }
-      sensitivityTags?: string[]
-      _logId?: string
-    }
+    const body = await request.json()
+    const queries = body.queries
+    const gender = body.gender as string | undefined
+    const styleNode = body.styleNode as { primary: string; secondary?: string } | undefined
+    const sensitivityTags = body.sensitivityTags as string[] | undefined
+    const _logId = body._logId as string | undefined
 
     const searchStart = Date.now()
 
-    if (!queries?.length) {
-      logger.warn("⚠️ 검색 쿼리 없음")
+    if (!Array.isArray(queries) || queries.length === 0) {
       return NextResponse.json({ error: "No search queries provided" }, { status: 400 })
     }
 
-    const VALID_GENDERS = new Set(["men", "women"])
-    const genderRaw = gender === "female" ? "women" : gender === "male" ? "men" : null
-    const genderFilter = genderRaw && VALID_GENDERS.has(genderRaw) ? genderRaw : null
+    const genderFilter =
+      gender === "female" ? "women" :
+      gender === "male" ? "men" : null
+
     const primaryNode = styleNode?.primary
     const secondaryNode = styleNode?.secondary
 
@@ -45,24 +78,10 @@ export async function POST(request: NextRequest) {
       `🔍 상품 검색 시작 — ${queries.length}개 아이템 | 성별: ${genderFilter || "전체"} | 노드: ${primaryNode || "없음"}→${secondaryNode || "없음"}`
     )
 
-    // 노드 브랜드 목록은 아이템과 무관하므로 한 번만 조회
-    const nodeBoostBrands = await getNodeBrands(primaryNode, secondaryNode)
-
-    const categoryMap: Record<string, string[]> = {
-      "Outer": ["Outer"],
-      "Top": ["Top", "Shirts", "Knitwear"],
-      "Bottom": ["Bottom"],
-      "Shoes": ["Shoes"],
-      "Footwear": ["Shoes"],
-      "Bag": ["Bag"],
-      "Accessory": ["Accessories"],
-      "Accessories": ["Accessories"],
-      "Dress": ["Dress"],
-      "Socks": ["Accessories"],
-    }
+    const nodeBrands = await getNodeBrands(primaryNode, secondaryNode, sensitivityTags)
 
     const results = await Promise.all(
-      queries.map(async (item) => {
+      queries.map(async (item: { id: string; category: string; searchQuery: string }) => {
         logger.info(`   🔎 [${item.category}] "${item.searchQuery}"`)
 
         const keywords = item.searchQuery
@@ -70,22 +89,20 @@ export async function POST(request: NextRequest) {
           .replace(/\b(men|women|unisex)\b/g, "")
           .trim()
           .split(/\s+/)
-          .filter((w) => w.length > 2)
+          .filter((w: string) => w.length > 2)
 
-        const dbCategories = categoryMap[item.category] || null
+        const dbCategories = CATEGORY_MAP[item.category] || null
 
-        // ── 자체 DB: 카테고리 + 성별 기반 검색, 노드는 스코어 부스트 ──
-        const products = await searchProducts(keywords, genderFilter, dbCategories, nodeBoostBrands)
+        const products = await searchProducts(keywords, genderFilter, dbCategories, nodeBrands)
         if (products.length > 0) {
           const fromNode = products.filter((p) => p._nodeMatch).length
           logger.info(`      📌 DB: ${products.length}개 (노드 매칭 ${fromNode}개)`)
         }
 
-        // ── Fallback: SerpApi (DB에서 4개 못 채웠을 때) ──
-
-        if (products.length < 5 && SERPAPI_KEY) {
-          const needed = 5 - products.length
-          logger.info(`      🌐 DB 부족 (${products.length}/4) → SerpApi fallback`)
+        // Fallback: SerpApi
+        if (products.length < TARGET_RESULTS && SERPAPI_KEY) {
+          const needed = TARGET_RESULTS - products.length
+          logger.info(`      🌐 DB 부족 (${products.length}/${TARGET_RESULTS}) → SerpApi fallback`)
           const serpProducts = await searchSerpApi(item.searchQuery, genderFilter, needed)
           const existingUrls = new Set(products.map((p) => p.link))
           const newOnes = serpProducts.filter((p) => !existingUrls.has(p.link))
@@ -94,7 +111,10 @@ export async function POST(request: NextRequest) {
           logger.info(`      🌐 SerpApi: +${newOnes.length}개`)
         }
 
-        const finalProducts: FormattedProduct[] = products.slice(0, 5).map(({ _nodeMatch, ...rest }) => rest)
+        const finalProducts: FormattedProduct[] = products
+          .slice(0, TARGET_RESULTS)
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          .map(({ _nodeMatch, ...rest }) => rest)
 
         logger.info(`   ✅ [${item.category}] 최종 ${finalProducts.length}개`)
         for (const p of finalProducts) {
@@ -124,52 +144,82 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// ─── 노드 브랜드 목록 가져오기 (스코어 부스트용) ────────
+// ─── 노드 브랜드 목록 (병렬 조회) ────────────────────────
 
 async function getNodeBrands(
   primaryNode: string | undefined,
-  secondaryNode: string | undefined
-): Promise<{ primary: Set<string>; secondary: Set<string> }> {
+  secondaryNode: string | undefined,
+  sensitivityTags?: string[]
+): Promise<NodeBrandData> {
   const primary = new Set<string>()
   const secondary = new Set<string>()
+  const brandMeta = new Map<string, { keywords: string[]; tags: string[] }>()
+  const excludedBrands = new Set<string>()
+  const aiTags = (sensitivityTags || []).map((t) => t.toLowerCase())
 
   const nodes = [primaryNode, secondaryNode].filter(Boolean) as string[]
-  if (nodes.length === 0) return { primary, secondary }
 
-  const { data } = await supabase
-    .from("brand_nodes")
-    .select("brand_name, style_node")
-    .in("style_node", nodes)
+  // 두 쿼리 병렬 실행
+  const [excludedResult, nodesResult] = await Promise.all([
+    supabase
+      .from("brand_nodes")
+      .select("brand_name_normalized")
+      .eq("category_type", "제외"),
+    nodes.length > 0
+      ? supabase
+          .from("brand_nodes")
+          .select("brand_name, brand_name_normalized, style_node, brand_keywords, sensitivity_tags")
+          .in("style_node", nodes)
+          .neq("category_type", "제외")
+      : Promise.resolve({ data: null, error: null }),
+  ])
 
-  if (data) {
-    for (const b of data) {
-      const name = b.brand_name.toLowerCase()
-      if (b.style_node === primaryNode) primary.add(name)
-      if (b.style_node === secondaryNode) secondary.add(name)
+  if (excludedResult.error) {
+    logger.error({ error: excludedResult.error }, "brand_nodes excluded query failed")
+  }
+  if (nodesResult.error) {
+    logger.error({ error: nodesResult.error }, "brand_nodes node query failed")
+  }
+
+  if (excludedResult.data) {
+    for (const b of excludedResult.data) {
+      if (b.brand_name_normalized) excludedBrands.add(b.brand_name_normalized.toLowerCase())
     }
   }
 
-  return { primary, secondary }
+  if (nodesResult.data) {
+    for (const b of nodesResult.data) {
+      const name = (b.brand_name_normalized || b.brand_name).toLowerCase()
+      if (b.style_node === primaryNode) primary.add(name)
+      if (b.style_node === secondaryNode) secondary.add(name)
+
+      brandMeta.set(name, {
+        keywords: b.brand_keywords || [],
+        tags: b.sensitivity_tags || [],
+      })
+    }
+  }
+
+  return { primary, secondary, brandMeta, excludedBrands, aiTags }
 }
 
-// ─── 메인 검색: 카테고리 + 성별 기반, 노드는 스코어 부스트 ──
-
-type ScoredProduct = FormattedProduct & { _nodeMatch: boolean }
+// ─── DB 검색 + 스코어링 ──────────────────────────────────
 
 async function searchProducts(
   keywords: string[],
   genderFilter: string | null,
   categories: string[] | null,
-  nodeBoostBrands: { primary: Set<string>; secondary: Set<string> }
+  nodeBrands: NodeBrandData
 ): Promise<ScoredProduct[]> {
-  // 카테고리 + 성별 + 재고로 넓게 가져오기
-  // gender 필터: men이면 ["men"] 또는 ["unisex"] 포함, women이면 ["women"] 또는 ["unisex"] 포함
   let query = supabase
     .from("products")
     .select("brand, name, price, image_url, product_url, platform, category, style_node")
     .eq("in_stock", true)
-    .like("image_url", "http%") // 정상 이미지 URL만
-    .limit(80)
+    .like("image_url", "http%")
+    .not("image_url", "like", "%/icon_%")
+    .not("image_url", "like", "%/logo_%")
+    .not("image_url", "like", "%/badge_%")
+    .limit(100)
 
   if (categories) {
     query = query.in("category", categories)
@@ -182,42 +232,54 @@ async function searchProducts(
   const { data: products } = await query
   if (!products?.length) return []
 
-  // 스코어링: 키워드 매칭 + 노드 부스트
-  const scored = products.map((p) => {
-    const text = `${p.brand} ${p.name}`.toLowerCase()
-    const brandLower = (p.brand || "").toLowerCase()
+  const scored = products
+    .filter((p) => {
+      const brandLower = (p.brand || "").toLowerCase()
+      return !nodeBrands.excludedBrands.has(brandLower)
+    })
+    .map((p) => {
+      const text = `${p.brand} ${p.name}`.toLowerCase()
+      const brandLower = (p.brand || "").toLowerCase()
 
-    // 키워드 매칭 (0~1)
-    const matchCount = keywords.filter((kw) => text.includes(kw)).length
-    const keywordScore = matchCount / Math.max(keywords.length, 1)
+      // 1) 키워드 매칭 (0~1)
+      const matchCount = keywords.filter((kw) => text.includes(kw)).length
+      const keywordScore = matchCount / Math.max(keywords.length, 1)
 
-    // 노드 부스트
-    let nodeBoost = 0
-    let nodeMatch = false
-    if (nodeBoostBrands.primary.has(brandLower)) {
-      nodeBoost = 0.3 // primary 노드 브랜드면 +0.3
-      nodeMatch = true
-    } else if (nodeBoostBrands.secondary.has(brandLower)) {
-      nodeBoost = 0.15 // secondary 노드 브랜드면 +0.15
-      nodeMatch = true
-    }
+      // 2) 노드 부스트
+      let nodeBoost = 0
+      let nodeMatch = false
+      if (nodeBrands.primary.has(brandLower)) {
+        nodeBoost = SCORE_WEIGHTS.PRIMARY_NODE_BOOST
+        nodeMatch = true
+      } else if (nodeBrands.secondary.has(brandLower)) {
+        nodeBoost = SCORE_WEIGHTS.SECONDARY_NODE_BOOST
+        nodeMatch = true
+      }
 
-    const totalScore = keywordScore + nodeBoost
+      // 3) 감도 부스트 — AI sensitivityTags ↔ 브랜드 sensitivity_tags + brand_keywords
+      let sensBoost = 0
+      const meta = nodeBrands.brandMeta.get(brandLower)
+      if (meta && nodeBrands.aiTags.length > 0) {
+        const brandAllKw = [...meta.tags, ...meta.keywords].map((k) => k.toLowerCase())
+        const overlap = nodeBrands.aiTags.filter((t) => brandAllKw.includes(t)).length
+        if (overlap > 0) {
+          sensBoost = SCORE_WEIGHTS.SENSITIVITY_BOOST_PER_TAG *
+            Math.min(overlap, SCORE_WEIGHTS.SENSITIVITY_BOOST_MAX_TAGS)
+        }
+      }
 
-    return { ...p, _score: totalScore, _nodeMatch: nodeMatch }
-  })
+      return { ...p, _score: keywordScore + nodeBoost + sensBoost, _nodeMatch: nodeMatch }
+    })
 
   const filtered = scored.filter((p) => p._score > 0)
   filtered.sort((a, b) => b._score - a._score || (a.price || 0) - (b.price || 0))
 
-  // 브랜드 다양성: 같은 브랜드 최대 2개, 총 5개
+  // 브랜드 다양성
   const result: typeof filtered = []
   const brandCount: Record<string, number> = {}
-  const MAX_PER_BRAND = 2
-  const MAX_RESULTS = 5
 
   for (const p of filtered) {
-    if (result.length >= MAX_RESULTS) break
+    if (result.length >= TARGET_RESULTS) break
     const brand = (p.brand || "unknown").toLowerCase()
     const count = brandCount[brand] || 0
     if (count >= MAX_PER_BRAND) continue
@@ -255,7 +317,7 @@ async function searchSerpApi(
     engine: "google_shopping",
     q: query,
     api_key: SERPAPI_KEY,
-    num: String(Math.min(limit * 2, 10)), // 여유있게 가져와서 필터
+    num: String(Math.min(limit * 2, 10)),
     hl: "en",
   })
 
@@ -268,20 +330,20 @@ async function searchSerpApi(
 
     const data = await res.json()
     const raw: {
-      position: number; title: string; source: string; price: string;
-      extracted_price: number; rating?: number; reviews?: number;
-      thumbnail: string; product_link: string; link?: string
+      position?: number; title?: string; source?: string; price?: string;
+      extracted_price?: number; rating?: number; reviews?: number;
+      thumbnail?: string; product_link?: string; link?: string
     }[] = data.shopping_results ?? []
 
     const filtered = raw
-      .filter((p) => p.thumbnail && p.extracted_price > 0)
+      .filter((p) => p.thumbnail && (p.extracted_price ?? 0) > 0)
       .map((p) => ({
         ...p,
         _score:
           (p.rating ? p.rating * 2 : 0) +
           (p.reviews ? Math.min(p.reviews / 100, 3) : 0) +
           (p.thumbnail ? 2 : 0) +
-          (10 - p.position) * 0.5,
+          (10 - (p.position ?? 10)) * 0.5,
       }))
       .sort((a, b) => b._score - a._score)
       .slice(0, limit)
@@ -299,4 +361,3 @@ async function searchSerpApi(
     return []
   }
 }
-
