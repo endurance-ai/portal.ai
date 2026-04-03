@@ -4,9 +4,8 @@ import {useCallback, useRef, useState} from "react"
 import {AnimatePresence, motion} from "framer-motion"
 import {Header} from "@/components/layout/header"
 import {Footer} from "@/components/layout/footer"
-import {UploadZone} from "@/components/upload/upload-zone"
-import {type Gender, GenderSelector} from "@/components/upload/gender-selector"
-import {StyleChips} from "@/components/upload/style-chips"
+import {type Gender} from "@/components/upload/gender-selector"
+import {SearchBar} from "@/components/search/search-bar"
 import {AnalyzingView} from "@/components/analysis/analyzing-view"
 import type {LookItem, Product} from "@/components/result/look-breakdown"
 import {LookBreakdown} from "@/components/result/look-breakdown"
@@ -73,39 +72,59 @@ export default function Home() {
     style?: { fit: string; aesthetic: string; gender: string }
   }>({})
   const [gender, setGender] = useState<Gender>("male")
+  const [promptText, setPromptText] = useState<string>("")
   const [error, setError] = useState<string | null>(null)
   const [progress, setProgress] = useState(0)
   const [progressLabel, setProgressLabel] = useState("")
   const fileRef = useRef<File | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
-  const handleFileSelect = useCallback(async (file: File) => {
-    // Abort any in-flight product search from a previous session
+  const handleSubmit = useCallback(async (data: { prompt?: string; file?: File }) => {
     abortRef.current?.abort()
     abortRef.current = new AbortController()
     const { signal } = abortRef.current
 
-    const url = URL.createObjectURL(file)
-    setImageUrl(url)
+    const hasImage = !!data.file
+
+    // Set image URL if file exists
+    let url = ""
+    if (data.file) {
+      url = URL.createObjectURL(data.file)
+      setImageUrl(url)
+    } else {
+      setImageUrl("")
+    }
+
+    if (data.prompt) setPromptText(data.prompt)
+    else setPromptText("")
+
     setState("analyzing")
     setError(null)
     setProgress(0)
-    setProgressLabel("Uploading image...")
-    fileRef.current = file
+    setProgressLabel(hasImage ? "Uploading image..." : "Analyzing prompt...")
+    fileRef.current = data.file ?? null
 
-    // Smooth progress simulation for analyze phase
+    // Progress simulation — faster for prompt-only
     let simulated = 5
+    const speed = hasImage ? 3 : 12
+    const cap = hasImage ? 85 : 90
     const ticker = setInterval(() => {
-      simulated += Math.random() * 3 + 0.5
-      if (simulated > 85) simulated = 85
+      simulated += Math.random() * speed + 0.5
+      if (simulated > cap) simulated = cap
       setProgress(Math.round(simulated))
     }, 400)
 
     try {
-      setProgressLabel("Analyzing silhouette & texture...")
+      if (hasImage) {
+        setProgressLabel("Analyzing silhouette & texture...")
+      } else {
+        setProgressLabel("Extracting keywords...")
+      }
 
       const formData = new FormData()
-      formData.append("image", file)
+      if (data.file) formData.append("image", data.file)
+      if (data.prompt) formData.append("prompt", data.prompt)
+      formData.append("gender", gender)
 
       const analyzeRes = await fetch("/api/analyze", {
         method: "POST",
@@ -121,11 +140,11 @@ export default function Home() {
       setProgress(100)
       setProgressLabel("Complete")
 
-      const analysis: AnalysisResult & { _logId?: string } = await analyzeRes.json()
+      const analysis: AnalysisResult & { _logId?: string; _promptOnly?: boolean } =
+        await analyzeRes.json()
       const logId = analysis._logId
 
-      // Build items WITHOUT products — show result immediately
-      const initialItems: LookItem[] = analysis.items.map((item) => ({
+      const initialItems: LookItem[] = (analysis.items || []).map((item) => ({
         id: item.id,
         category: item.category,
         name: item.name,
@@ -134,26 +153,24 @@ export default function Home() {
         color: item.color,
         fit: item.fit,
         position: item.position,
-        products: [], // empty → skeletons shown
+        products: [],
       }))
 
-      // Brief pause at 100% so user sees completion
       await new Promise((r) => setTimeout(r, 300))
 
-      // Set result state IMMEDIATELY — user sees look breakdown with skeletons
-      setMoodTags(analysis.mood.tags)
-      setPalette(analysis.palette)
+      setMoodTags(analysis.mood?.tags || [])
+      setPalette(analysis.palette || [])
       setMoodMeta({
-        summary: analysis.mood.summary,
-        vibe: analysis.mood.vibe,
-        season: analysis.mood.season,
-        occasion: analysis.mood.occasion,
+        summary: analysis.mood?.summary,
+        vibe: analysis.mood?.vibe,
+        season: analysis.mood?.season,
+        occasion: analysis.mood?.occasion,
         style: analysis.style,
       })
       setItems(initialItems)
       setState("result")
 
-      // Background: fetch products and update progressively
+      // Background: fetch products
       fetch("/api/search-products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -162,7 +179,7 @@ export default function Home() {
           gender,
           styleNode: analysis.styleNode,
           _logId: logId,
-          queries: analysis.items.map((item) => ({
+          queries: (analysis.items || []).map((item) => ({
             id: item.id,
             category: item.category,
             searchQuery: item.searchQuery,
@@ -173,14 +190,13 @@ export default function Home() {
         .then((res) => (res.ok ? res.json() : null))
         .then((searchData: ProductSearchResult | null) => {
           if (!searchData) return
-          // Update items with products
           setItems((prev) =>
             prev.map((item) => {
               const found = searchData.results.find((r) => r.id === item.id)
               return found
                 ? { ...item, products: found.products, productsLoaded: true }
                 : { ...item, productsLoaded: true }
-            })
+            }),
           )
         })
         .catch((err) => {
@@ -189,12 +205,12 @@ export default function Home() {
         })
     } catch (err) {
       clearInterval(ticker)
-      URL.revokeObjectURL(url)
+      if (url) URL.revokeObjectURL(url)
       console.error("Analysis error:", err)
       setError(
         err instanceof Error
           ? err.message
-          : "Failed to analyze image. Please try again."
+          : "Failed to analyze. Please try again.",
       )
       setState("upload")
     }
@@ -204,6 +220,7 @@ export default function Home() {
     abortRef.current?.abort()
     if (imageUrl) URL.revokeObjectURL(imageUrl)
     setImageUrl("")
+    setPromptText("")
     setMoodTags([])
     setPalette([])
     setItems([])
@@ -248,8 +265,6 @@ export default function Home() {
                 </p>
               </motion.div>
 
-              <GenderSelector value={gender} onChange={setGender} />
-
               {error && (
                 <motion.p
                   initial={{ opacity: 0 }}
@@ -260,8 +275,11 @@ export default function Home() {
                 </motion.p>
               )}
 
-              <UploadZone onFileSelect={handleFileSelect} />
-              <StyleChips />
+              <SearchBar
+                gender={gender}
+                onGenderChange={setGender}
+                onSubmit={handleSubmit}
+              />
             </motion.div>
           )}
 
@@ -285,6 +303,13 @@ export default function Home() {
               exit={{ opacity: 0 }}
               className="w-full z-10 pt-4"
             >
+              {promptText && (
+                <div className="max-w-4xl mx-auto mb-6 px-4">
+                  <p className="text-sm text-muted-foreground font-mono">
+                    <span className="text-foreground">Search:</span> &quot;{promptText}&quot;
+                  </p>
+                </div>
+              )}
               <LookBreakdown
                 imageUrl={imageUrl}
                 moodTags={moodTags}
