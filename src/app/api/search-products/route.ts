@@ -90,19 +90,30 @@ export async function POST(request: NextRequest) {
     const nodeBrands = await getNodeBrands(primaryNode, secondaryNode)
 
     const results = await Promise.all(
-      queries.map(async (item: { id: string; category: string; searchQuery: string }) => {
+      queries.map(async (item: { id: string; category: string; searchQuery: string; searchQueryKo?: string }) => {
         logger.info(`   🔎 [${item.category}] "${item.searchQuery}"`)
+        if (item.searchQueryKo) logger.info(`      🇰🇷 "${item.searchQueryKo}"`)
 
-        const keywords = item.searchQuery
+        // 영어 키워드 — attrBoost + SerpApi용
+        const enKeywords = item.searchQuery
           .toLowerCase()
           .replace(/\b(men|women|unisex)\b/g, "")
           .trim()
           .split(/\s+/)
           .filter((w: string) => w.length > 2)
 
+        // 한국어 키워드 — 상품명 매칭용 (없으면 영어 폴백)
+        const koKeywords = item.searchQueryKo
+          ? item.searchQueryKo
+              .replace(/남성|여성|유니섹스/g, "")
+              .trim()
+              .split(/\s+/)
+              .filter((w: string) => w.length > 1)
+          : enKeywords
+
         const dbCategories = CATEGORY_MAP[item.category] || null
 
-        const products = await searchProducts(keywords, genderFilter, dbCategories, nodeBrands)
+        const products = await searchProducts(koKeywords, enKeywords, genderFilter, dbCategories, nodeBrands)
         if (products.length > 0) {
           const fromNode = products.filter((p) => p._nodeMatch).length
           logger.info(`      📌 DB: ${products.length}개 (노드 매칭 ${fromNode}개)`)
@@ -218,7 +229,8 @@ async function getNodeBrands(
 // ─── DB 검색 + 스코어링 ──────────────────────────────────
 
 async function searchProducts(
-  keywords: string[],
+  koKeywords: string[],
+  enKeywords: string[],
   genderFilter: string | null,
   categories: string[] | null,
   nodeBrands: NodeBrandData
@@ -253,9 +265,9 @@ async function searchProducts(
       const text = `${p.brand} ${p.name}`.toLowerCase()
       const brandLower = (p.brand || "").toLowerCase()
 
-      // 1) 키워드 매칭 (0~1)
-      const matchCount = keywords.filter((kw) => text.includes(kw)).length
-      const keywordScore = matchCount / Math.max(keywords.length, 1)
+      // 1) 한국어 키워드 → 상품명 매칭 (0~1)
+      const koMatchCount = koKeywords.filter((kw) => text.includes(kw)).length
+      const keywordScore = koMatchCount / Math.max(koKeywords.length, 1)
 
       // 2) 노드 부스트
       let nodeBoost = 0
@@ -268,11 +280,11 @@ async function searchProducts(
         nodeMatch = true
       }
 
-      // 3) Attribute 부스트 — searchQuery 키워드 ↔ 브랜드 attributes (영어↔영어)
+      // 3) Attribute 부스트 — 영어 키워드 ↔ 브랜드 attributes (영어↔영어)
       let attrBoost = 0
       const attrs = nodeBrands.brandAttrs.get(brandLower)
       if (attrs && attrs.size > 0) {
-        const overlap = keywords.filter((kw) => attrs.has(kw)).length
+        const overlap = enKeywords.filter((kw) => attrs.has(kw)).length
         if (overlap > 0) {
           attrBoost = SCORE_WEIGHTS.ATTR_BOOST_PER_MATCH *
             Math.min(overlap, SCORE_WEIGHTS.ATTR_BOOST_MAX)

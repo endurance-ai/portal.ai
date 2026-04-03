@@ -45,6 +45,7 @@ interface AnalysisResult {
     color?: string
     fit?: string
     searchQuery: string
+    searchQueryKo?: string
     position?: { top: number; left: number }
   }[]
 }
@@ -166,6 +167,7 @@ export default function Home() {
             id: item.id,
             category: item.category,
             searchQuery: item.searchQuery,
+            searchQueryKo: item.searchQueryKo,
           })),
         }),
       })
