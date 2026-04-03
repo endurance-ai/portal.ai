@@ -13,6 +13,7 @@ interface ShopifyProduct {
   handle: string
   vendor: string
   product_type: string
+  body_html: string
   tags: string[]
   variants: {
     id: number
@@ -76,6 +77,36 @@ export async function crawlShopify(config: SiteConfig): Promise<CrawlResult> {
           if (!gender.includes("men")) gender.push("men")
         }
 
+        // 상세 데이터 추출 (추가 요청 불필요)
+        const bodyHtml = sp.body_html || ""
+        const description = bodyHtml
+          .replace(/<[^>]*>/g, " ")
+          .replace(/&nbsp;/g, " ")
+          .replace(/&amp;/g, "&")
+          .replace(/&lt;/g, "<")
+          .replace(/&gt;/g, ">")
+          .replace(/&#?\w+;/g, "")
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 2000) || undefined
+
+        // variants → color (option1이 주로 색상)
+        const colorOptions = [...new Set(
+          sp.variants
+            .map((v) => v.title)
+            .filter((t) => t && t !== "Default Title")
+        )]
+        const color = colorOptions.length > 0 ? colorOptions.join(", ") : undefined
+
+        // 다중 이미지
+        const images = sp.images
+          .map((img) => img.src)
+          .filter(Boolean)
+          .slice(0, 10)
+
+        // tags
+        const tags = sp.tags.length > 0 ? sp.tags : undefined
+
         allProducts.push({
           brand: sp.vendor || config.name,
           name: sp.title,
@@ -90,6 +121,11 @@ export async function crawlShopify(config: SiteConfig): Promise<CrawlResult> {
           gender,
           platform: config.key,
           crawledAt: new Date().toISOString(),
+          // 상세 데이터
+          description,
+          color,
+          images: images.length > 0 ? images : undefined,
+          tags,
         })
       }
 
