@@ -177,13 +177,15 @@ export default function Home() {
           setItems((prev) =>
             prev.map((item) => {
               const found = searchData.results.find((r) => r.id === item.id)
-              return found ? { ...item, products: found.products } : item
+              return found
+                ? { ...item, products: found.products, productsLoaded: true }
+                : { ...item, productsLoaded: true }
             })
           )
         })
         .catch((err) => {
           console.error("Product search failed:", err)
-          // Items stay with empty products — skeletons remain, not a fatal error
+          setItems((prev) => prev.map((item) => ({ ...item, productsLoaded: true })))
         })
     } catch (err) {
       clearInterval(ticker)
