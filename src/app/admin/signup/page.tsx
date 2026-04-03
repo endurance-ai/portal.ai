@@ -40,13 +40,13 @@ export default function SignupPage() {
           <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center">
             <Mail className="size-5 text-muted-foreground" />
           </div>
-          <h1 className="text-lg font-bold">Check your email</h1>
+          <h1 className="text-lg font-bold text-balance">이메일을 확인해주세요</h1>
           <p className="text-sm text-muted-foreground">
-            We sent a confirmation link to <strong>{email}</strong>.<br />
-            Click the link to activate your account.
+            <strong>{email}</strong>으로 확인 링크를 보냈습니다.<br />
+            링크를 클릭하여 계정을 활성화하세요.
           </p>
           <Link href="/admin/login">
-            <Button variant="outline" className="mt-4">Back to login</Button>
+            <Button variant="outline" className="mt-4">로그인으로 돌아가기</Button>
           </Link>
         </div>
       </div>
@@ -60,8 +60,8 @@ export default function SignupPage() {
           <div className="mx-auto w-10 h-10 rounded-lg border-2 border-dashed border-muted-foreground flex items-center justify-center mb-2">
             <span className="text-muted-foreground font-bold text-sm">+</span>
           </div>
-          <h1 className="text-xl font-bold tracking-tight">Create account</h1>
-          <p className="text-sm text-muted-foreground">Sign up for portal.ai admin</p>
+          <h1 className="text-xl font-bold tracking-tight text-balance">계정 만들기</h1>
+          <p className="text-sm text-muted-foreground">portal.ai 어드민 계정 만들기</p>
         </div>
         <form onSubmit={handleSignup} className="space-y-4 border border-border rounded-lg p-4">
           <div className="space-y-2">
@@ -69,17 +69,17 @@ export default function SignupPage() {
             <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 6 characters" minLength={6} required />
+            <Label htmlFor="password">비밀번호</Label>
+            <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="6자 이상" minLength={6} required />
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Creating account..." : "Sign up"}
+            {loading ? "생성 중..." : "회원가입"}
           </Button>
         </form>
         <p className="text-center text-sm text-muted-foreground">
-          Already have an account?{" "}
-          <Link href="/admin/login" className="text-foreground underline underline-offset-4 hover:text-primary">Sign in</Link>
+          이미 계정이 있으신가요?{" "}
+          <Link href="/admin/login" className="text-foreground underline underline-offset-4 hover:text-primary">로그인</Link>
         </p>
       </div>
     </div>

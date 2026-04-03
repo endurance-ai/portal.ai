@@ -74,11 +74,11 @@ export function AnalysisTable() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Time</TableHead>
-              <TableHead>Node</TableHead>
-              <TableHead className="hidden sm:table-cell">Items</TableHead>
-              <TableHead className="hidden sm:table-cell">Gender</TableHead>
-              <TableHead className="hidden md:table-cell">Duration</TableHead>
+              <TableHead>시간</TableHead>
+              <TableHead>노드</TableHead>
+              <TableHead className="hidden sm:table-cell">아이템</TableHead>
+              <TableHead className="hidden sm:table-cell">성별</TableHead>
+              <TableHead className="hidden md:table-cell">소요시간</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -139,8 +139,8 @@ export function AnalysisTable() {
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            Page {page + 1} of {totalPages}
+          <p className="text-sm text-muted-foreground tabular-nums">
+            {page + 1} / {totalPages} 페이지
           </p>
           <div className="flex gap-1">
             <Button
@@ -150,7 +150,7 @@ export function AnalysisTable() {
               onClick={() => setPage((p) => p - 1)}
             >
               <ChevronLeft className="size-4" />
-              Previous
+              이전
             </Button>
             <Button
               variant="outline"
@@ -158,7 +158,7 @@ export function AnalysisTable() {
               disabled={page >= totalPages - 1}
               onClick={() => setPage((p) => p + 1)}
             >
-              Next
+              다음
               <ChevronRight className="size-4" />
             </Button>
           </div>

@@ -137,9 +137,9 @@ export function BrandTable() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-balance">Brand Genome DB</h1>
+          <h1 className="text-lg font-semibold text-balance">브랜드 Genome DB</h1>
           <p className="text-sm text-muted-foreground tabular-nums">
-            {total.toLocaleString()} brands
+            {total.toLocaleString()}개 브랜드
           </p>
         </div>
         <a
@@ -169,11 +169,11 @@ export function BrandTable() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Brand</TableHead>
-              <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">Node</TableHead>
-              <TableHead className="hidden md:table-cell text-xs uppercase tracking-wider text-muted-foreground">Attributes</TableHead>
-              <TableHead className="hidden sm:table-cell text-xs uppercase tracking-wider text-muted-foreground">Gender</TableHead>
-              <TableHead className="hidden sm:table-cell text-xs uppercase tracking-wider text-muted-foreground">Price</TableHead>
+              <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">브랜드</TableHead>
+              <TableHead className="text-xs uppercase tracking-wider text-muted-foreground">노드</TableHead>
+              <TableHead className="hidden md:table-cell text-xs uppercase tracking-wider text-muted-foreground">속성</TableHead>
+              <TableHead className="hidden sm:table-cell text-xs uppercase tracking-wider text-muted-foreground">성별</TableHead>
+              <TableHead className="hidden sm:table-cell text-xs uppercase tracking-wider text-muted-foreground">가격대</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -186,14 +186,14 @@ export function BrandTable() {
             ) : brands.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
-                  No brands found
+                  검색 결과가 없습니다
                 </TableCell>
               </TableRow>
             ) : (
               brands.map((b) => (
                 <TableRow
                   key={b.id}
-                  className="cursor-pointer"
+                  className="cursor-pointer hover:bg-muted/50"
                   onClick={() => handleRowClick(b)}
                 >
                   <TableCell className="py-3 text-sm font-medium">{b.brand_name}</TableCell>
@@ -222,7 +222,7 @@ export function BrandTable() {
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground tabular-nums">
-            Page {page + 1} of {totalPages}
+            {page + 1} / {totalPages} 페이지
           </p>
           <div className="flex gap-1">
             <Button
@@ -232,7 +232,7 @@ export function BrandTable() {
               onClick={() => setPage((p) => p - 1)}
             >
               <ChevronLeft className="size-4" />
-              Previous
+              이전
             </Button>
             <Button
               variant="outline"
@@ -240,7 +240,7 @@ export function BrandTable() {
               disabled={page >= totalPages - 1}
               onClick={() => setPage((p) => p + 1)}
             >
-              Next
+              다음
               <ChevronRight className="size-4" />
             </Button>
           </div>

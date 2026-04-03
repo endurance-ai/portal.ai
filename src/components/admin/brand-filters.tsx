@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils"
 import { STYLE_NODE_CONFIG, STYLE_NODE_IDS, NODE_COLOR_CLASSES } from "@/lib/style-nodes"
 
 const CATEGORIES = [
-  { value: "", label: "All Categories" },
+  { value: "", label: "전체 카테고리" },
   { value: "의류", label: "의류" },
   { value: "슈즈", label: "슈즈" },
   { value: "주얼리", label: "주얼리" },
@@ -22,7 +22,7 @@ const CATEGORIES = [
 ]
 
 const GENDERS = [
-  { value: "", label: "All Genders" },
+  { value: "", label: "전체 성별" },
   { value: "men", label: "Men" },
   { value: "women", label: "Women" },
   { value: "unisex", label: "Unisex" },
@@ -105,7 +105,7 @@ export function BrandFilters({
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
-            placeholder="Search brands..."
+            placeholder="브랜드 검색..."
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
             className="pl-8 h-9"
@@ -114,7 +114,7 @@ export function BrandFilters({
 
         <Select value={category} onValueChange={(v) => onCategoryChange(v ?? "")}>
           <SelectTrigger>
-            <SelectValue placeholder="All Categories" />
+            <SelectValue placeholder="전체 카테고리" />
           </SelectTrigger>
           <SelectContent>
             {CATEGORIES.map((c) => (
@@ -127,7 +127,7 @@ export function BrandFilters({
 
         <Select value={gender} onValueChange={(v) => onGenderChange(v ?? "")}>
           <SelectTrigger>
-            <SelectValue placeholder="All Genders" />
+            <SelectValue placeholder="전체 성별" />
           </SelectTrigger>
           <SelectContent>
             {GENDERS.map((g) => (

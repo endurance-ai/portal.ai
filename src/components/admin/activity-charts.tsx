@@ -112,7 +112,7 @@ export function ActivityCharts() {
     <div className="space-y-8">
       {/* Daily analyses */}
       <section>
-        <h3 className="text-sm font-medium mb-3">Daily Analyses (Last 30 Days)</h3>
+        <h3 className="text-sm font-medium mb-3">일별 분석 수 (최근 30일)</h3>
         {dailyData.length === 0 ? (
           <p className="text-sm text-muted-foreground">No data yet</p>
         ) : (
@@ -143,7 +143,7 @@ export function ActivityCharts() {
       {/* Gender + Node distribution */}
       <div className="grid gap-8 md:grid-cols-2">
         <section>
-          <h3 className="text-sm font-medium mb-3">Gender Distribution</h3>
+          <h3 className="text-sm font-medium mb-3">성별 분포</h3>
           {genderData.length === 0 ? (
             <p className="text-sm text-muted-foreground">No data yet</p>
           ) : (
@@ -178,7 +178,7 @@ export function ActivityCharts() {
         </section>
 
         <section>
-          <h3 className="text-sm font-medium mb-3">Node Distribution (Top 15)</h3>
+          <h3 className="text-sm font-medium mb-3">노드 분포 (Top 15)</h3>
           {nodeData.length === 0 ? (
             <p className="text-sm text-muted-foreground">No data yet</p>
           ) : (
@@ -211,7 +211,7 @@ export function ActivityCharts() {
 
       {/* Recent API access logs */}
       <section>
-        <h3 className="text-sm font-medium mb-3">Recent API Calls</h3>
+        <h3 className="text-sm font-medium mb-3">최근 API 호출</h3>
         {recentLogs.length === 0 ? (
           <p className="text-sm text-muted-foreground">No access logs available</p>
         ) : (
@@ -219,8 +219,8 @@ export function ActivityCharts() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Time</TableHead>
-                  <TableHead>Endpoint</TableHead>
+                  <TableHead>시간</TableHead>
+                  <TableHead>엔드포인트</TableHead>
                   <TableHead className="hidden sm:table-cell">Method</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="hidden md:table-cell">Duration</TableHead>

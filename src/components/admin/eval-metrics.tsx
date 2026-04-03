@@ -15,10 +15,10 @@ export function EvalMetrics({ metrics }: { metrics: Metrics }) {
     : null
 
   const cards = [
-    { label: "Total Analyses", value: metrics.totalAnalyses },
-    { label: "Reviewed", value: metrics.reviewed },
-    { label: "Pending", value: metrics.pending },
-    { label: "Pass Rate", value: passRate !== null ? `${passRate}%` : "\u2014" },
+    { label: "전체 분석", value: metrics.totalAnalyses },
+    { label: "리뷰 완료", value: metrics.reviewed },
+    { label: "리뷰 대기", value: metrics.pending },
+    { label: "통과율", value: passRate !== null ? `${passRate}%` : "\u2014" },
   ]
 
   return (

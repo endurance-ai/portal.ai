@@ -27,7 +27,7 @@ export function Header({ email }: { email?: string }) {
         <Button
           variant="ghost"
           size="icon-xs"
-          aria-label="Toggle theme"
+          aria-label="테마 전환"
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
         >
           <Sun className="size-3.5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
@@ -36,7 +36,7 @@ export function Header({ email }: { email?: string }) {
         <Button
           variant="ghost"
           size="icon-xs"
-          aria-label="Log out"
+          aria-label="로그아웃"
           onClick={handleLogout}
         >
           <LogOut className="size-3.5" />

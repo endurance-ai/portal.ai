@@ -9,8 +9,8 @@ export default function AnalyticsPage() {
     <div className="space-y-4">
       <Tabs defaultValue="analyses">
         <TabsList>
-          <TabsTrigger value="analyses">Analyses</TabsTrigger>
-          <TabsTrigger value="activity">Activity</TabsTrigger>
+          <TabsTrigger value="analyses">분석 기록</TabsTrigger>
+          <TabsTrigger value="activity">활동</TabsTrigger>
         </TabsList>
 
         <TabsContent value="analyses" className="mt-4">

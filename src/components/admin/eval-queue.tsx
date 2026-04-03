@@ -4,6 +4,8 @@ import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ArrowRight } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { STYLE_NODE_CONFIG, NODE_COLOR_CLASSES } from "@/lib/style-nodes"
 
 interface QueueItem {
   id: string
@@ -26,7 +28,7 @@ export function EvalQueue({ queue }: { queue: QueueItem[] }) {
   if (queue.length === 0) {
     return (
       <div className="rounded-lg border border-border p-8 text-center text-sm text-muted-foreground">
-        No pending analyses to review.
+        모든 리뷰를 완료했습니다
       </div>
     )
   }
@@ -44,24 +46,31 @@ export function EvalQueue({ queue }: { queue: QueueItem[] }) {
               <span className="text-xs text-muted-foreground font-mono">
                 {formatTime(item.created_at)}
               </span>
-              {item.style_node_primary && (
-                <Badge variant="secondary" className="text-xs">
-                  {item.style_node_primary}
-                  {item.style_node_confidence != null && (
-                    <span className="ml-1 opacity-60">
-                      {Math.round(item.style_node_confidence * 100)}%
-                    </span>
-                  )}
-                </Badge>
-              )}
+              {item.style_node_primary && (() => {
+                const nodeCfg = STYLE_NODE_CONFIG[item.style_node_primary]
+                const nodeColors = nodeCfg ? NODE_COLOR_CLASSES[nodeCfg.color] : null
+                return (
+                  <Badge variant="secondary" className="text-xs gap-1.5">
+                    {nodeColors && (
+                      <span className={cn("size-1.5 rounded-full shrink-0", nodeColors.dot)} />
+                    )}
+                    {item.style_node_primary}
+                    {item.style_node_confidence != null && (
+                      <span className="ml-1 opacity-60">
+                        {Math.round(item.style_node_confidence * 100)}%
+                      </span>
+                    )}
+                  </Badge>
+                )
+              })()}
               {item.detected_gender && (
                 <Badge variant="outline" className="text-xs">
                   {item.detected_gender}
                 </Badge>
               )}
             </div>
-            <span className="text-xs text-muted-foreground">
-              {Array.isArray(item.items) ? item.items.length : 0} items
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {Array.isArray(item.items) ? item.items.length : 0} 아이템
             </span>
           </div>
           <Button variant="ghost" size="icon" className="shrink-0">

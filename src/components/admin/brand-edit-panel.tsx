@@ -25,7 +25,7 @@ import { STYLE_NODE_IDS, STYLE_NODE_CONFIG, NODE_COLOR_CLASSES } from "@/lib/sty
 
 const ATTR_ENUMS: Record<string, { values: string[]; label: string; description: string }> = {
   silhouette: {
-    label: "Silhouette",
+    label: "실루엣 Silhouette",
     description: "Shape & structure",
     values: [
       "structured", "sculptural", "draped", "oversized", "voluminous",
@@ -33,22 +33,22 @@ const ATTR_ENUMS: Record<string, { values: string[]; label: string; description:
     ],
   },
   palette: {
-    label: "Color Palette",
+    label: "색감 Palette",
     description: "Color direction",
     values: ["monochrome", "bold-color"],
   },
   material: {
-    label: "Material Focus",
+    label: "소재 Material",
     description: "Fabric & texture",
     values: ["denim", "leather", "sheer", "technical", "knit", "jersey", "padded"],
   },
   detail: {
-    label: "Detail & Styling",
+    label: "디테일 Detail",
     description: "Surface & construction",
     values: ["graphic", "decorative", "layered", "utility", "military"],
   },
   vibe: {
-    label: "Vibe & Origin",
+    label: "무드 Vibe",
     description: "Cultural reference",
     values: ["bohemian", "heritage", "gorpcore", "outdoor", "trail", "athletic", "japanese"],
   },
@@ -137,7 +137,7 @@ export function BrandEditPanel({ brand, open, onOpenChange, onSaved }: BrandEdit
         <div className="flex-1 space-y-6 px-4">
           {/* Style Node */}
           <div className="space-y-1.5">
-            <Label>Style Node</Label>
+            <Label>스타일 노드</Label>
             <Select value={styleNode} onValueChange={(v) => setStyleNode(v ?? "")}>
               <SelectTrigger className="w-full">
                 <SelectValue>
@@ -201,15 +201,15 @@ export function BrandEditPanel({ brand, open, onOpenChange, onSaved }: BrandEdit
           {/* Read-only info */}
           <div className="space-y-2 text-sm text-muted-foreground border-t pt-4">
             <div className="flex justify-between">
-              <span>Category</span>
+              <span>카테고리</span>
               <span className="text-foreground">{brand.category_type || "—"}</span>
             </div>
             <div className="flex justify-between">
-              <span>Price Band</span>
+              <span>가격대</span>
               <span className="text-foreground tabular-nums">{brand.price_band || "—"}</span>
             </div>
             <div className="flex justify-between">
-              <span>Gender</span>
+              <span>성별</span>
               <span className="text-foreground">{(brand.gender_scope || []).join(", ") || "—"}</span>
             </div>
           </div>
@@ -218,7 +218,7 @@ export function BrandEditPanel({ brand, open, onOpenChange, onSaved }: BrandEdit
         <SheetFooter>
           <Button onClick={handleSave} disabled={saving} className="w-full">
             {saving && <Loader2 className="mr-2 size-4 animate-spin" />}
-            Save Changes
+            저장
           </Button>
         </SheetFooter>
       </SheetContent>

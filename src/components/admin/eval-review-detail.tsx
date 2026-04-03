@@ -60,13 +60,13 @@ export function EvalReviewDetail({ analysis, items, reviews }: Props) {
     <div className="space-y-6">
       {/* Back button */}
       <Button variant="ghost" size="sm" onClick={() => router.push("/admin/eval")}>
-        <ArrowLeft className="size-4 mr-1" /> Back to queue
+        <ArrowLeft className="size-4 mr-1" /> 뒤로
       </Button>
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Left column — Analysis result */}
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold">Analysis Result</h2>
+          <h2 className="text-lg font-semibold">분석 결과</h2>
 
           <Card>
             <CardContent className="p-4 space-y-3">
@@ -115,7 +115,7 @@ export function EvalReviewDetail({ analysis, items, reviews }: Props) {
           </Card>
 
           {/* Items */}
-          <h3 className="text-sm font-semibold">Items ({items.length || (Array.isArray(analysis.items) ? analysis.items.length : 0)})</h3>
+          <h3 className="text-sm font-semibold">아이템 ({items.length || (Array.isArray(analysis.items) ? analysis.items.length : 0)})</h3>
           <div className="space-y-2">
             {(items.length > 0 ? items : (analysis.items || [])).map((item: any, idx: number) => (
               <Card key={item.id || idx}>
@@ -158,7 +158,7 @@ export function EvalReviewDetail({ analysis, items, reviews }: Props) {
           {/* Previous reviews */}
           {reviews.length > 0 && (
             <>
-              <h2 className="text-lg font-semibold">Previous Reviews</h2>
+              <h2 className="text-lg font-semibold">이전 리뷰</h2>
               <div className="space-y-2">
                 {reviews.map((r: any) => {
                   const cfg = VERDICT_CONFIG[r.verdict as Verdict]
@@ -186,12 +186,12 @@ export function EvalReviewDetail({ analysis, items, reviews }: Props) {
             <Card>
               <CardContent className="p-6 flex items-center gap-2 text-green-400">
                 <CheckCircle className="size-5" />
-                <span className="font-medium">Review saved</span>
+                <span className="font-medium">리뷰가 저장되었습니다</span>
               </CardContent>
             </Card>
           ) : (
             <>
-              <h2 className="text-lg font-semibold">New Review</h2>
+              <h2 className="text-lg font-semibold">리뷰</h2>
               <Card>
                 <CardContent className="p-4 space-y-4">
                   {/* Verdict buttons */}
@@ -220,7 +220,7 @@ export function EvalReviewDetail({ analysis, items, reviews }: Props) {
 
                   {/* Comment */}
                   <Textarea
-                    placeholder="Optional comment..."
+                    placeholder="의견을 남겨주세요 (선택)"
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
                     rows={3}
@@ -245,7 +245,7 @@ export function EvalReviewDetail({ analysis, items, reviews }: Props) {
                     className="w-full"
                   >
                     {submitting && <Loader2 className="size-4 mr-1 animate-spin" />}
-                    Submit Review
+                    리뷰 제출
                   </Button>
                 </CardContent>
               </Card>

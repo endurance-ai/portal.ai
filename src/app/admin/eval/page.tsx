@@ -36,7 +36,7 @@ export default function EvalPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-bold tracking-tight">Eval</h1>
+      <h1 className="text-xl font-bold tracking-tight text-balance">품질 평가</h1>
 
       {loading && !metrics ? (
         <div className="flex justify-center py-12">
@@ -48,7 +48,7 @@ export default function EvalPage() {
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-muted-foreground">Review Queue</h2>
+              <h2 className="text-sm font-semibold text-muted-foreground">리뷰 대기</h2>
               {loading && <Loader2 className="size-3 animate-spin text-muted-foreground" />}
             </div>
             <EvalQueue queue={queue} />
@@ -64,7 +64,7 @@ export default function EvalPage() {
             >
               <ChevronLeft className="size-4" />
             </Button>
-            <span className="text-xs text-muted-foreground">Page {page + 1}</span>
+            <span className="text-xs text-muted-foreground tabular-nums">{page + 1} 페이지</span>
             <Button
               variant="outline"
               size="sm"

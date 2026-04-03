@@ -8,20 +8,20 @@ import { cn } from "@/lib/utils"
 const NAV_ITEMS = [
   {
     href: "/admin/genome",
-    label: "Genome",
-    description: "Brand DB",
+    label: "브랜드 DB",
+    description: "브랜드/노드 관리",
     icon: Database,
   },
   {
     href: "/admin/analytics",
-    label: "Analytics",
-    description: "Usage & metrics",
+    label: "분석 로그",
+    description: "분석 기록 & 활동",
     icon: BarChart3,
   },
   {
     href: "/admin/eval",
-    label: "Eval",
-    description: "Model evaluation",
+    label: "품질 평가",
+    description: "품질 평가 허브",
     icon: FlaskConical,
   },
 ] as const
@@ -64,7 +64,7 @@ export function Sidebar() {
       </aside>
 
       {/* Mobile bottom tab bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex border-t border-border bg-sidebar">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex border-t border-border bg-sidebar pb-[env(safe-area-inset-bottom)]">
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => (
           <Link
             key={href}
