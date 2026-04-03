@@ -270,7 +270,7 @@ function printSummary(results: CrawlResult[]) {
 
 async function main() {
   const flags = parseArgs()
-  const detailFlag = process.argv.includes("--detail")
+  const detailFlag = !!flags.detail
 
   // --list: 플랫폼 목록 출력
   if (flags.list) {

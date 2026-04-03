@@ -82,10 +82,7 @@ export async function crawlShopify(config: SiteConfig): Promise<CrawlResult> {
         const description = bodyHtml
           .replace(/<[^>]*>/g, " ")
           .replace(/&nbsp;/g, " ")
-          .replace(/&amp;/g, "&")
-          .replace(/&lt;/g, "<")
-          .replace(/&gt;/g, ">")
-          .replace(/&#?\w+;/g, "")
+          .replace(/&#?\w+;/g, " ")
           .replace(/\s+/g, " ")
           .trim()
           .slice(0, 2000) || undefined
@@ -95,8 +92,8 @@ export async function crawlShopify(config: SiteConfig): Promise<CrawlResult> {
           sp.variants
             .map((v) => v.title)
             .filter((t) => t && t !== "Default Title")
-        )]
-        const color = colorOptions.length > 0 ? colorOptions.join(", ") : undefined
+        )].slice(0, 20)
+        const color = colorOptions.length > 0 ? colorOptions.join(", ").slice(0, 500) : undefined
 
         // 다중 이미지
         const images = sp.images
@@ -105,7 +102,7 @@ export async function crawlShopify(config: SiteConfig): Promise<CrawlResult> {
           .slice(0, 10)
 
         // tags
-        const tags = sp.tags.length > 0 ? sp.tags : undefined
+        const tags = sp.tags.length > 0 ? sp.tags.slice(0, 50).map((t) => t.slice(0, 100)) : undefined
 
         allProducts.push({
           brand: sp.vendor || config.name,

@@ -10,7 +10,6 @@ export interface DetailData {
   color: string | null
   material: string | null
   images: string[]
-  sizeInfo: string | null
   productCode: string | null
 }
 
@@ -70,7 +69,6 @@ export async function parseDetailPage(
     color: null,
     material: null,
     images: [],
-    sizeInfo: null,
     productCode: null,
   }
 
@@ -125,7 +123,7 @@ async function extractColor(page: Page, override?: string): Promise<string | nul
         }
       }
       if (colors.length > 0) {
-        return colors.join(", ")
+        return colors.slice(0, 20).join(", ").slice(0, 500)
       }
     } catch { /* next selector */ }
   }
