@@ -32,6 +32,15 @@ interface CrawledProduct {
   gender: string[]
   platform: string
   crawledAt: string
+  // 상세 페이지 데이터
+  description?: string
+  color?: string
+  material?: string
+  subcategory?: string
+  images?: string[]
+  sizeInfo?: string
+  tags?: string[]
+  productCode?: string
 }
 
 async function main() {
@@ -129,6 +138,14 @@ async function main() {
         gender: p.gender as string[],
         style_node: nodeMap.get(brand.toLowerCase()) || null,
         crawled_at: p.crawledAt as string,
+        description: p.description?.slice(0, 2000) || null,
+        color: p.color?.slice(0, 500) || null,
+        material: p.material?.slice(0, 200) || null,
+        subcategory: p.subcategory || null,
+        images: p.images?.slice(0, 10) || null,
+        size_info: p.sizeInfo?.slice(0, 2000) || null,
+        tags: p.tags?.slice(0, 50) || null,
+        product_code: p.productCode?.slice(0, 100) || null,
         last_seen_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }

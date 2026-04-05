@@ -270,6 +270,7 @@ function printSummary(results: CrawlResult[]) {
 
 async function main() {
   const flags = parseArgs()
+  const detailFlag = !!flags.detail
 
   // --list: 플랫폼 목록 출력
   if (flags.list) {
@@ -337,6 +338,7 @@ async function main() {
   --type=TYPE   cafe24 / shopify
   --probe=KEY   사이트 구조 확인
   --dry-run     카테고리 탐색만 (상품 안 긁음)
+  --detail      상세 페이지 크롤링 (description, color, material 수집)
 `)
     return
   }
@@ -344,6 +346,13 @@ async function main() {
   if (targets.length === 0) {
     console.error("❌ 크롤링 대상이 없습니다")
     return
+  }
+
+  if (detailFlag) {
+    for (const config of targets) {
+      config.crawlDetails = true
+    }
+    console.log("📖 상세 페이지 크롤링 활성화\n")
   }
 
   console.log(`\n🚀 크롤링 시작: ${targets.map((t) => t.name).join(", ")}`)

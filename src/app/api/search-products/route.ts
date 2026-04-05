@@ -263,7 +263,7 @@ async function searchProducts(
 ): Promise<ScoredProduct[]> {
   let query = supabase
     .from("products")
-    .select("brand, name, price, image_url, product_url, platform, category, style_node")
+    .select("brand, name, price, image_url, product_url, platform, category, style_node, description, color, material, subcategory")
     .eq("in_stock", true)
     .like("image_url", "http%")
     .not("image_url", "like", "%/icon_%")
@@ -288,7 +288,7 @@ async function searchProducts(
       return !nodeBrands.excludedBrands.has(brandLower)
     })
     .map((p) => {
-      const text = `${p.brand} ${p.name}`.toLowerCase()
+      const text = `${p.brand} ${p.name} ${p.description || ""} ${p.color || ""} ${p.material || ""}`.toLowerCase()
       const brandLower = (p.brand || "").toLowerCase()
 
       // 1) 한국어 키워드 → 상품명 매칭 (0~1)
