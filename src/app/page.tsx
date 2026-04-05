@@ -9,6 +9,7 @@ import {SearchBar} from "@/components/search/search-bar"
 import {AnalyzingView} from "@/components/analysis/analyzing-view"
 import type {LookItem, Product} from "@/components/result/look-breakdown"
 import {LookBreakdown} from "@/components/result/look-breakdown"
+import {parsePrice} from "@/lib/parse-price"
 
 type AppState = "upload" | "analyzing" | "result"
 
@@ -103,6 +104,9 @@ export default function Home() {
     if (data.prompt) setPromptText(data.prompt)
     else setPromptText("")
 
+    // 가격 필터 파싱 (AI 호출 전에 처리)
+    const { priceFilter } = data.prompt ? parsePrice(data.prompt) : { priceFilter: null }
+
     setState("analyzing")
     setError(null)
     setProgress(0)
@@ -186,6 +190,7 @@ export default function Home() {
           styleNode: analysis.styleNode,
           moodTags: analysis.mood?.tags?.map((t: { label: string }) => t.label) || [],
           _logId: logId,
+          ...(priceFilter && { priceFilter }),
           queries: (analysis.items || []).map((item) => ({
             id: item.id,
             category: item.category,
