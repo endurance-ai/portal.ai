@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
   const styleNode = searchParams.get("styleNode")
   const colorFamily = searchParams.get("colorFamily")
   const aiStatus = searchParams.get("aiStatus") || "all"
+  const stockStatus = searchParams.get("stockStatus") || "all" // all | in_stock | out_of_stock
   const sort = searchParams.get("sort") || "newest"
 
   const from = page * PAGE_SIZE
@@ -69,7 +70,10 @@ export async function GET(request: NextRequest) {
       "id, brand, name, price, image_url, platform, category, in_stock, style_node, gender, created_at",
       { count: "exact" }
     )
-    .eq("in_stock", true)
+
+  // Stock filter (default: show all)
+  if (stockStatus === "in_stock") query = query.eq("in_stock", true)
+  else if (stockStatus === "out_of_stock") query = query.eq("in_stock", false)
 
   // Apply text search
   if (search) {
@@ -172,14 +176,16 @@ export async function GET(request: NextRequest) {
     }
   })
 
-  // Post-filter: ensure aiStatus filters are respected after merge
+  // Post-filter: strictly enforce AI status + stock status after merge
   if (aiStatus === "analyzed") {
     result = result.filter((p) => p.ai !== null)
   } else if (aiStatus === "unanalyzed") {
     result = result.filter((p) => p.ai === null)
   }
 
-  const total = aiStatus !== "all" ? result.length : (count ?? 0)
+  // If post-filtering changed count, use filtered length
+  const needsPostFilterCount = aiStatus !== "all"
+  const total = needsPostFilterCount ? result.length : (count ?? 0)
   const totalPages = Math.ceil(total / PAGE_SIZE)
 
   return NextResponse.json({ products: result, total, page, totalPages })

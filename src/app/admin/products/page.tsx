@@ -76,6 +76,13 @@ function ProductCard({ p }: { p: Product }) {
               <span className="text-xs text-muted-foreground">No Image</span>
             </div>
           )}
+          {!p.inStock && (
+            <div className="absolute top-2 left-2">
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-900/80 border border-red-700/50 text-red-300 font-medium">
+                품절
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Info */}
@@ -136,6 +143,7 @@ export default function ProductsPage() {
   const [styleNode, setStyleNode] = useState("")
   const [colorFamily, setColorFamily] = useState("")
   const [aiStatus, setAiStatus] = useState("all")
+  const [stockStatus, setStockStatus] = useState("all")
   const [sort, setSort] = useState("newest")
 
   // Debounce search
@@ -154,7 +162,7 @@ export default function ProductsPage() {
   // Reset page when filters change
   useEffect(() => {
     setPage(0)
-  }, [category, platform, styleNode, colorFamily, aiStatus, sort])
+  }, [category, platform, styleNode, colorFamily, aiStatus, stockStatus, sort])
 
   const fetchProducts = useCallback(async () => {
     setLoading(true)
@@ -167,6 +175,7 @@ export default function ProductsPage() {
         styleNode,
         colorFamily,
         aiStatus,
+        stockStatus,
         sort,
       })
       const res = await fetch(`/api/admin/products?${params}`)
@@ -179,7 +188,7 @@ export default function ProductsPage() {
     } finally {
       setLoading(false)
     }
-  }, [page, debouncedSearch, category, platform, styleNode, colorFamily, aiStatus, sort])
+  }, [page, debouncedSearch, category, platform, styleNode, colorFamily, aiStatus, stockStatus, sort])
 
   useEffect(() => {
     fetchProducts()
@@ -265,6 +274,17 @@ export default function ProductsPage() {
           <option value="all">AI상태</option>
           <option value="analyzed">분석완료</option>
           <option value="unanalyzed">미분석</option>
+        </select>
+
+        {/* Stock Status */}
+        <select
+          value={stockStatus}
+          onChange={(e) => setStockStatus(e.target.value)}
+          className={SELECT_CLASS}
+        >
+          <option value="all">재고</option>
+          <option value="in_stock">판매중</option>
+          <option value="out_of_stock">품절</option>
         </select>
 
         {/* Sort */}
