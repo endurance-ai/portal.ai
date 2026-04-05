@@ -11,6 +11,7 @@
 
 import type {Page} from "playwright"
 import type {CrawlResult, Product, SiteConfig} from "./types"
+import { parseDetailPage } from "./detail-parser"
 
 // ─── 기본 셀렉터 (폴백 체인) ──────────────────────────
 
@@ -481,6 +482,36 @@ export async function crawlCafe24(
     seen.add(p.productUrl)
     return true
   })
+
+  // ── Step 3: 상세 페이지 크롤링 (2단계) ──
+  if (config.crawlDetails) {
+    console.log(`\n${tag} 🔍 상세 크롤링 시작 — ${uniqueProducts.length}개 상품`)
+    let detailCount = 0
+    const detailDelay = config.crawlDelay || 1500
+
+    for (const product of uniqueProducts) {
+      try {
+        const detail = await parseDetailPage(page, product.productUrl, config.detailSelectors)
+
+        if (detail.description) product.description = detail.description
+        if (detail.color) product.color = detail.color
+        if (detail.material) product.material = detail.material
+        if (detail.images.length > 0) product.images = detail.images
+        if (detail.productCode) product.productCode = detail.productCode
+
+        detailCount++
+        if (detailCount % 20 === 0) {
+          process.stdout.write(`\r${tag}    📖 ${detailCount}/${uniqueProducts.length}`)
+        }
+      } catch {
+        // 개별 실패는 skip
+      }
+
+      await new Promise((r) => setTimeout(r, detailDelay))
+    }
+
+    console.log(`\r${tag} ✅ 상세 크롤링 완료 — ${detailCount}/${uniqueProducts.length}`)
+  }
 
   // 통계
   const uniqueBrands = new Set(uniqueProducts.map((p) => p.brand))

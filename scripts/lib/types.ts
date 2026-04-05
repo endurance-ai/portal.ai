@@ -18,6 +18,15 @@ export interface Product {
   gender: string[]
   platform: string
   crawledAt: string
+  // ── 상세 페이지 데이터 (Phase 2) ──
+  description?: string
+  color?: string
+  material?: string
+  subcategory?: string
+  images?: string[]
+  sizeInfo?: string
+  tags?: string[]
+  productCode?: string
 }
 
 // ─── 사이트 설정 ──────────────────────────────────────
@@ -37,6 +46,17 @@ export interface Cafe24Selectors {
   productImage?: string
   /** 상품 링크 (기본: a[href*="product"]) */
   productLink?: string
+}
+
+export interface Cafe24DetailSelectors {
+  /** 상품 설명 영역 (기본: .cont_detail, #prdDetail) */
+  description?: string
+  /** 색상 옵션 (기본: select[name*="option"] option) */
+  colorOptions?: string
+  /** 이미지 (기본: .product-detail img) */
+  detailImages?: string
+  /** 상품 코드 */
+  productCode?: string
 }
 
 export interface CategoryConfig {
@@ -84,6 +104,10 @@ export interface SiteConfig {
   disabled?: boolean
   /** 메모 */
   notes?: string
+  /** Cafe24 상세 페이지 셀렉터 오버라이드 */
+  detailSelectors?: Cafe24DetailSelectors
+  /** 상세 페이지 크롤링 활성화 (기본: false) */
+  crawlDetails?: boolean
 }
 
 // ─── 크롤 결과 ────────────────────────────────────────
