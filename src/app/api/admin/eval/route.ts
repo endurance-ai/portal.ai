@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
   if (reviewedIds.size > 0) {
     const { data } = await supabase
       .from("analyses")
-      .select("id, created_at, image_filename, style_node_primary, style_node_confidence, detected_gender, items")
+      .select("id, created_at, image_filename, prompt_text, style_node_primary, style_node_confidence, detected_gender, items")
       .not("id", "in", `(${[...reviewedIds].join(",")})`)
       .order("created_at", { ascending: false })
       .range(page * limit, (page + 1) * limit - 1)
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
   } else {
     const { data } = await supabase
       .from("analyses")
-      .select("id, created_at, image_filename, style_node_primary, style_node_confidence, detected_gender, items")
+      .select("id, created_at, image_filename, prompt_text, style_node_primary, style_node_confidence, detected_gender, items")
       .order("created_at", { ascending: false })
       .range(page * limit, (page + 1) * limit - 1)
     queue = data

@@ -119,6 +119,13 @@ export function EvalReviewDetail({ analysis, items, reviews }: Props) {
             )}
           </div>
 
+          {analysis.prompt_text && (
+            <div className="px-3 py-2 rounded-md bg-muted/50 border border-border">
+              <p className="text-[11px] font-mono text-muted-foreground uppercase tracking-wider mb-1">Prompt</p>
+              <p className="text-sm text-foreground">&quot;{analysis.prompt_text}&quot;</p>
+            </div>
+          )}
+
           {analysis.sensitivity_tags && analysis.sensitivity_tags.length > 0 && (
             <div className="flex gap-1 flex-wrap">
               {analysis.sensitivity_tags.map((tag: string) => (
