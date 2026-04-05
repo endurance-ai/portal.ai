@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
 
   // --- Step 3: Batch-fetch AI data for result products ---
   const productIds = filteredProducts.map((p) => p.id)
-  let aiByProductId: Record<string, {
+  const aiByProductId: Record<string, {
     category: string | null
     subcategory: string | null
     fit: string | null
