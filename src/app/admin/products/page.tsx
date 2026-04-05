@@ -1,0 +1,328 @@
+"use client"
+
+import { useCallback, useEffect, useRef, useState } from "react"
+import Image from "next/image"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { Loader2, Search, ChevronLeft, ChevronRight } from "lucide-react"
+
+type ProductAI = {
+  category: string | null
+  subcategory: string | null
+  fit: string | null
+  fabric: string | null
+  colorFamily: string | null
+  styleNode: string | null
+  moodTags: string[] | null
+  confidence: number | null
+}
+
+type Product = {
+  id: string
+  brand: string
+  name: string
+  price: number | null
+  imageUrl: string | null
+  platform: string
+  category: string | null
+  inStock: boolean
+  ai: ProductAI | null
+}
+
+const CATEGORIES = ["Outer", "Top", "Bottom", "Shoes", "Bag", "Dress", "Accessories"]
+const PLATFORMS = [
+  "shopamomento",
+  "adekuver",
+  "etcseoul",
+  "slowsteadyclub",
+  "heights-store",
+  "fr8ight",
+  "8division",
+  "sculpstore",
+  "iamshop-online",
+]
+const STYLE_NODES = [
+  "A-1", "A-2", "A-3", "B", "B-2", "C", "D", "E",
+  "F", "F-2", "F-3", "G", "H", "I", "K",
+]
+const COLOR_FAMILIES = [
+  "BLACK", "WHITE", "GREY", "NAVY", "BLUE", "BEIGE", "BROWN",
+  "GREEN", "RED", "PINK", "PURPLE", "ORANGE", "YELLOW", "CREAM",
+  "KHAKI", "MULTI",
+]
+
+const SELECT_CLASS =
+  "h-8 text-xs border border-border rounded-md bg-background px-2 text-foreground focus:outline-none focus:border-foreground/40"
+
+function ProductCard({ p }: { p: Product }) {
+  const [imgError, setImgError] = useState(false)
+
+  return (
+    <Link href={`/admin/products/${p.id}`}>
+      <div className="border border-border rounded-lg overflow-hidden hover:border-foreground/30 transition-colors cursor-pointer">
+        {/* Image */}
+        <div className="aspect-[3/4] relative bg-muted">
+          {p.imageUrl && !imgError ? (
+            <Image
+              src={p.imageUrl}
+              alt={p.name}
+              fill
+              className="object-cover"
+              unoptimized
+              onError={() => setImgError(true)}
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-xs text-muted-foreground">No Image</span>
+            </div>
+          )}
+        </div>
+
+        {/* Info */}
+        <div className="p-3 space-y-1">
+          <p className="text-xs text-muted-foreground">{p.brand}</p>
+          <p className="text-sm truncate">{p.name}</p>
+          <p className="text-sm font-bold tabular-nums">
+            {p.price != null ? `₩${p.price.toLocaleString()}` : "—"}
+          </p>
+
+          {/* AI section */}
+          {p.ai ? (
+            <div className="border-t border-border pt-2 mt-2">
+              <p className="text-[10px] text-muted-foreground mb-1">AI ANALYSIS</p>
+              <div className="flex flex-wrap gap-1">
+                {[
+                  p.ai.category,
+                  p.ai.subcategory,
+                  p.ai.styleNode,
+                  p.ai.colorFamily,
+                  p.ai.fit,
+                  p.ai.fabric,
+                ]
+                  .filter(Boolean)
+                  .map((tag, i) => (
+                    <span
+                      key={i}
+                      className="text-[10px] px-1.5 py-0.5 rounded bg-green-900/20 border border-green-800/30 text-green-500"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+              </div>
+            </div>
+          ) : (
+            <div className="border-t border-dashed border-orange-400/30 pt-2 mt-2">
+              <p className="text-[10px] text-orange-400/70">NO AI DATA</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </Link>
+  )
+}
+
+export default function ProductsPage() {
+  const [products, setProducts] = useState<Product[]>([])
+  const [total, setTotal] = useState(0)
+  const [totalPages, setTotalPages] = useState(0)
+  const [page, setPage] = useState(0)
+  const [loading, setLoading] = useState(true)
+
+  // Filters
+  const [search, setSearch] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
+  const [category, setCategory] = useState("")
+  const [platform, setPlatform] = useState("")
+  const [styleNode, setStyleNode] = useState("")
+  const [colorFamily, setColorFamily] = useState("")
+  const [aiStatus, setAiStatus] = useState("all")
+  const [sort, setSort] = useState("newest")
+
+  // Debounce search
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      setDebouncedSearch(search)
+      setPage(0)
+    }, 300)
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [search])
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(0)
+  }, [category, platform, styleNode, colorFamily, aiStatus, sort])
+
+  const fetchProducts = useCallback(async () => {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams({
+        page: String(page),
+        search: debouncedSearch,
+        category,
+        platform,
+        styleNode,
+        colorFamily,
+        aiStatus,
+        sort,
+      })
+      const res = await fetch(`/api/admin/products?${params}`)
+      if (res.ok) {
+        const data = await res.json()
+        setProducts(data.products ?? [])
+        setTotal(data.total ?? 0)
+        setTotalPages(data.totalPages ?? 0)
+      }
+    } finally {
+      setLoading(false)
+    }
+  }, [page, debouncedSearch, category, platform, styleNode, colorFamily, aiStatus, sort])
+
+  useEffect(() => {
+    fetchProducts()
+  }, [fetchProducts])
+
+  return (
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold tracking-tight">상품 DB</h1>
+        <span className="text-xs text-muted-foreground tabular-nums">
+          {total.toLocaleString()}개 상품
+        </span>
+      </div>
+
+      {/* Filter bar */}
+      <div className="flex flex-wrap gap-2 items-center">
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+          <input
+            placeholder="검색..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-8 text-xs border border-border rounded-md bg-background pl-8 pr-3 w-48 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-foreground/40"
+          />
+        </div>
+
+        {/* Category */}
+        <select
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          className={SELECT_CLASS}
+        >
+          <option value="">카테고리</option>
+          {CATEGORIES.map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
+
+        {/* Platform */}
+        <select
+          value={platform}
+          onChange={(e) => setPlatform(e.target.value)}
+          className={SELECT_CLASS}
+        >
+          <option value="">플랫폼</option>
+          {PLATFORMS.map((pl) => (
+            <option key={pl} value={pl}>{pl}</option>
+          ))}
+        </select>
+
+        {/* Style Node */}
+        <select
+          value={styleNode}
+          onChange={(e) => setStyleNode(e.target.value)}
+          className={SELECT_CLASS}
+        >
+          <option value="">노드</option>
+          {STYLE_NODES.map((n) => (
+            <option key={n} value={n}>{n}</option>
+          ))}
+        </select>
+
+        {/* Color Family */}
+        <select
+          value={colorFamily}
+          onChange={(e) => setColorFamily(e.target.value)}
+          className={SELECT_CLASS}
+        >
+          <option value="">컬러</option>
+          {COLOR_FAMILIES.map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
+
+        {/* AI Status */}
+        <select
+          value={aiStatus}
+          onChange={(e) => setAiStatus(e.target.value)}
+          className={SELECT_CLASS}
+        >
+          <option value="all">AI상태</option>
+          <option value="analyzed">분석완료</option>
+          <option value="unanalyzed">미분석</option>
+        </select>
+
+        {/* Sort */}
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value)}
+          className={SELECT_CLASS}
+        >
+          <option value="newest">최신순</option>
+          <option value="price_desc">가격↓</option>
+          <option value="price_asc">가격↑</option>
+          <option value="brand_asc">브랜드 A-Z</option>
+        </select>
+
+        {loading && <Loader2 className="size-3.5 animate-spin text-muted-foreground" />}
+      </div>
+
+      {/* Grid */}
+      {loading && products.length === 0 ? (
+        <div className="flex justify-center py-20">
+          <Loader2 className="size-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : products.length === 0 ? (
+        <div className="flex justify-center py-20">
+          <p className="text-sm text-muted-foreground">상품이 없습니다.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {products.map((p) => (
+            <ProductCard key={p.id} p={p} />
+          ))}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 0 && (
+        <div className="flex items-center justify-center gap-2 pt-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page === 0}
+            onClick={() => setPage((p) => p - 1)}
+          >
+            <ChevronLeft className="size-4" />
+          </Button>
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {page + 1} / {totalPages} 페이지
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page >= totalPages - 1}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            <ChevronRight className="size-4" />
+          </Button>
+        </div>
+      )}
+    </div>
+  )
+}
