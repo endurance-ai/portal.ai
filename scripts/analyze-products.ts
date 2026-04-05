@@ -157,20 +157,31 @@ async function main() {
   if (brand) query = query.ilike("brand", brand)
   if (category) query = query.eq("category", category)
 
-  const { data: existingAnalyses } = await supabase
-    .from("product_ai_analysis")
-    .select("product_id, error")
-    .eq("version", version)
-
+  // Fetch ALL existing analyses (paginated — same 1000-row limit)
   const analyzedIds = new Set<string>()
   const failedIds = new Set<string>()
-  if (existingAnalyses) {
-    for (const a of existingAnalyses) {
-      if (a.error) {
-        failedIds.add(a.product_id)
-      } else {
-        analyzedIds.add(a.product_id)
+  let aiOffset = 0
+  let aiDone = false
+
+  while (!aiDone) {
+    const { data: batch } = await supabase
+      .from("product_ai_analysis")
+      .select("product_id, error")
+      .eq("version", version)
+      .range(aiOffset, aiOffset + 999)
+
+    if (!batch?.length) {
+      aiDone = true
+    } else {
+      for (const a of batch) {
+        if (a.error) {
+          failedIds.add(a.product_id)
+        } else {
+          analyzedIds.add(a.product_id)
+        }
       }
+      aiOffset += 1000
+      if (batch.length < 1000) aiDone = true
     }
   }
 
