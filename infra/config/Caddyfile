@@ -1,4 +1,0 @@
-:443 {
-    reverse_proxy litellm:4000
-    tls internal
-}
