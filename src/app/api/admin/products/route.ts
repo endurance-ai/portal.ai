@@ -146,7 +146,7 @@ export async function GET(request: NextRequest) {
   }
 
   // --- Step 4: Merge and format response ---
-  const result = filteredProducts.map((p) => {
+  let result = filteredProducts.map((p) => {
     const ai = aiByProductId[p.id] ?? null
     return {
       id: p.id,
@@ -172,7 +172,14 @@ export async function GET(request: NextRequest) {
     }
   })
 
-  const total = count ?? 0
+  // Post-filter: ensure aiStatus filters are respected after merge
+  if (aiStatus === "analyzed") {
+    result = result.filter((p) => p.ai !== null)
+  } else if (aiStatus === "unanalyzed") {
+    result = result.filter((p) => p.ai === null)
+  }
+
+  const total = aiStatus !== "all" ? result.length : (count ?? 0)
   const totalPages = Math.ceil(total / PAGE_SIZE)
 
   return NextResponse.json({ products: result, total, page, totalPages })
