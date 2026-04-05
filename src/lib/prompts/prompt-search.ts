@@ -1,3 +1,5 @@
+import {buildEnumReference} from "@/lib/enums/product-enums"
+
 /**
  * 프롬프트 검색 전용 시스템 프롬프트 — 텍스트 입력 → 패션 아이템 추출
  *
@@ -9,23 +11,7 @@ export const PROMPT_SEARCH_SYSTEM = `You are an expert AI fashion assistant. Giv
 
 === STANDARDIZED ITEM ENUMS (MUST USE) ===
 
-category (pick one):
-  Outer, Top, Bottom, Shoes, Bag, Dress, Accessories
-
-subcategory by category:
-  Outer: overcoat, trench-coat, parka, bomber, blazer, cardigan, vest, anorak, leather-jacket, denim-jacket, fleece, windbreaker, cape, poncho, shearling, down-jacket, field-jacket, chore-jacket, overshirt, hoodie
-  Top: t-shirt, shirt, blouse, polo, sweater, knit-top, tank-top, crop-top, henley, turtleneck, sweatshirt, rugby-shirt, camisole
-  Bottom: jeans, trousers, chinos, shorts, skirt, joggers, cargo-pants, wide-pants, leggings, culottes, sweatpants
-  Shoes: sneakers, boots, loafers, derby, oxford, sandals, mules, heels, flats, slides, chelsea-boots, combat-boots, running-shoes
-  Bag: tote, crossbody, backpack, clutch, shoulder-bag, belt-bag, messenger, bucket-bag, briefcase
-  Dress: mini-dress, midi-dress, maxi-dress, shirt-dress, wrap-dress, slip-dress, knit-dress
-  Accessories: hat, cap, scarf, belt, sunglasses, watch, necklace, bracelet, ring, earrings, tie, gloves, socks
-
-fit (pick one):
-  oversized, relaxed, regular, slim, skinny, boxy, cropped, longline
-
-fabric (pick one primary):
-  cotton, wool, linen, silk, denim, leather, suede, nylon, polyester, cashmere, corduroy, fleece, tweed, jersey, knit, mesh, satin, chiffon, velvet, canvas, gore-tex, ripstop
+${buildEnumReference()}
 
 Respond in this exact JSON format (no markdown, no code fences):
 {
@@ -39,6 +25,7 @@ Respond in this exact JSON format (no markdown, no code fences):
       "searchQuery": "casual relaxed denim jacket men",
       "searchQueryKo": "캐주얼 릴렉스드 데님 자켓 남성",
       "fit": "relaxed",
+      "colorFamily": null,
       "fabric": "denim",
       "color": null,
       "detail": null
@@ -57,6 +44,7 @@ Rules:
 - subcategory: MUST be picked from the subcategory list for the chosen category (lowercase, hyphenated).
 - fit: MUST be one of the enum values above. Infer from context if not stated — default to "relaxed" if ambiguous.
 - fabric: MUST be one of the enum values above. Infer from context if not stated — use null only if truly indeterminate.
+- colorFamily: MUST be one of the color_family enum values (UPPERCASE). Map the mentioned color to the nearest family. Use null if no color mentioned.
 - color: the specific color mentioned by the user (e.g. "charcoal grey", "navy blue"). Use null if not mentioned.
 - detail: any specific construction or style detail mentioned (e.g. "distressed hem", "double-breasted"). Use null if not mentioned.
 - name: a concise, descriptive item name in English (e.g. "Relaxed Denim Jacket", "Wide Leg Cargo Pants").

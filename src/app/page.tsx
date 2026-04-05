@@ -38,11 +38,13 @@ interface AnalysisResult {
   items: {
     id: string
     category: string
+    subcategory?: string
     name: string
     detail?: string
     fabric?: string
     color?: string
     fit?: string
+    colorFamily?: string
     searchQuery: string
     searchQueryKo?: string
     position?: { top: number; left: number }
@@ -182,10 +184,15 @@ export default function Home() {
         body: JSON.stringify({
           gender,
           styleNode: analysis.styleNode,
+          moodTags: analysis.mood?.tags?.map((t: { label: string }) => t.label) || [],
           _logId: logId,
           queries: (analysis.items || []).map((item) => ({
             id: item.id,
             category: item.category,
+            subcategory: item.subcategory,
+            fit: item.fit,
+            fabric: item.fabric,
+            colorFamily: item.colorFamily,
             searchQuery: item.searchQuery,
             searchQueryKo: item.searchQueryKo,
           })),

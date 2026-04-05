@@ -4,14 +4,33 @@ import {logger} from "@/lib/logger"
 
 // ─── 타입 ─────────────────────────────────────────────────
 
+type SearchQuery = {
+  id: string
+  category: string
+  subcategory?: string
+  fit?: string
+  fabric?: string
+  colorFamily?: string
+  searchQuery: string
+  searchQueryKo?: string
+}
+
+type SearchRequest = {
+  queries: SearchQuery[]
+  gender?: string
+  styleNode?: { primary: string; secondary?: string }
+  moodTags?: string[]
+  _logId?: string
+}
+
 type ScoreBreakdown = {
-  keywordScore: number
-  nodeBoost: number
-  attrBoost: number
+  subcategory: number
+  fit: number
+  fabric: number
+  colorFamily: number
+  styleNode: number
+  moodTags: number
   totalScore: number
-  matchedKoKeywords: string[]
-  matchedEnKeywords: string[]
-  nodeType: "primary" | "secondary" | null
 }
 
 type FormattedProduct = {
@@ -24,30 +43,26 @@ type FormattedProduct = {
   _scoring?: ScoreBreakdown
 }
 
-type ScoredProduct = FormattedProduct & { _nodeMatch: boolean }
-
-type NodeBrandData = {
-  primary: Set<string>
-  secondary: Set<string>
-  brandAttrs: Map<string, Set<string>>
-  excludedBrands: Set<string>
-}
-
 // ─── 상수 ─────────────────────────────────────────────────
 
 const TARGET_RESULTS = 5
 const MAX_PER_BRAND = 2
+const ACTIVE_VERSION = "v1"
 
-const SCORE_WEIGHTS = {
-  PRIMARY_NODE_BOOST: 0.3,
-  SECONDARY_NODE_BOOST: 0.15,
-  ATTR_BOOST_PER_MATCH: 0.08,
-  ATTR_BOOST_MAX: 4,
+const WEIGHTS = {
+  subcategory: 0.25,
+  colorFamily: 0.20,
+  stylePrimary: 0.30,
+  styleSecondary: 0.15,
+  fit: 0.15,
+  fabric: 0.15,
+  moodTagEach: 0.05,
+  moodTagMax: 3,
 } as const
 
-const CATEGORY_MAP: Record<string, string[]> = {
+const CATEGORY_ALIASES: Record<string, string[]> = {
   "Outer": ["Outer"],
-  "Top": ["Top", "Shirts", "Knitwear"],
+  "Top": ["Top"],
   "Bottom": ["Bottom"],
   "Shoes": ["Shoes"],
   "Footwear": ["Shoes"],
@@ -55,6 +70,8 @@ const CATEGORY_MAP: Record<string, string[]> = {
   "Accessory": ["Accessories"],
   "Accessories": ["Accessories"],
   "Dress": ["Dress"],
+  "Knitwear": ["Top"],
+  "Shirts": ["Top"],
   "Socks": ["Accessories"],
 }
 
@@ -73,16 +90,17 @@ export async function POST(request: NextRequest) {
       method: "POST",
     }).then()
 
-    const body = await request.json()
-    const queries = body.queries
-    const gender = body.gender as string | undefined
-    const styleNode = body.styleNode as { primary: string; secondary?: string } | undefined
-    const _logId = body._logId as string | undefined
+    const body = (await request.json()) as SearchRequest
+    const { queries, gender, styleNode, moodTags, _logId } = body
 
     const searchStart = Date.now()
 
     if (!Array.isArray(queries) || queries.length === 0) {
       return NextResponse.json({ error: "No search queries provided" }, { status: 400 })
+    }
+
+    if (queries.length > 10) {
+      return NextResponse.json({ error: "Too many queries. Maximum 10." }, { status: 400 })
     }
 
     const genderFilter =
@@ -93,63 +111,75 @@ export async function POST(request: NextRequest) {
     const secondaryNode = styleNode?.secondary
 
     logger.info(
-      `🔍 상품 검색 시작 — ${queries.length}개 아이템 | 성별: ${genderFilter || "전체"} | 노드: ${primaryNode || "없음"}→${secondaryNode || "없음"}`
+      `🔍 검색 v2 시작 — ${queries.length}개 아이템 | 성별: ${genderFilter || "전체"} | 노드: ${primaryNode || "없음"}→${secondaryNode || "없음"}`
     )
 
-    const nodeBrands = await getNodeBrands(primaryNode, secondaryNode)
-
     const results = await Promise.all(
-      queries.map(async (item: { id: string; category: string; searchQuery: string; searchQueryKo?: string }) => {
+      queries.map(async (item) => {
         logger.info(`   🔎 [${item.category}] "${item.searchQuery}"`)
-        if (item.searchQueryKo) logger.info(`      🇰🇷 "${item.searchQueryKo}"`)
 
-        // 영어 키워드 — attrBoost용
-        const enKeywords = item.searchQuery
-          .toLowerCase()
-          .replace(/\b(men|women|unisex)\b/g, "")
-          .trim()
-          .split(/\s+/)
-          .filter((w: string) => w.length > 2)
+        const dbCategories = CATEGORY_ALIASES[item.category] ?? null
 
-        // 한국어 키워드 — 상품명 매칭용 (없으면 영어 폴백)
-        const koKeywords = item.searchQueryKo
-          ? item.searchQueryKo
-              .replace(/남성|여성|유니섹스/g, "")
-              .trim()
-              .split(/\s+/)
-              .filter((w: string) => w.length > 1)
-          : enKeywords
+        const products = await searchByEnums(item, genderFilter, dbCategories, primaryNode, secondaryNode, moodTags)
 
-        const dbCategories = CATEGORY_MAP[item.category] || null
-
-        const products = await searchProducts(koKeywords, enKeywords, genderFilter, dbCategories, nodeBrands)
-
-        // 상세 로깅
         for (const p of products.slice(0, TARGET_RESULTS)) {
           const s = p._scoring
           logger.info(
             `      📊 ${p.brand} | ${p.title.slice(0, 40)} | ` +
-            `total=${s?.totalScore.toFixed(2)} (kw=${s?.keywordScore.toFixed(2)} node=${s?.nodeBoost.toFixed(2)} attr=${s?.attrBoost.toFixed(2)}) | ` +
-            `ko=[${s?.matchedKoKeywords.join(",")}] en=[${s?.matchedEnKeywords.join(",")}]`
+            `total=${s?.totalScore.toFixed(2)} (sub=${s?.subcategory.toFixed(2)} col=${s?.colorFamily.toFixed(2)} ` +
+            `node=${s?.styleNode.toFixed(2)} fit=${s?.fit.toFixed(2)} fab=${s?.fabric.toFixed(2)} mood=${s?.moodTags.toFixed(2)})`
           )
         }
 
-        const finalProducts = products.slice(0, TARGET_RESULTS).map(({ _nodeMatch, ...rest }) => rest)
+        const finalProducts = products.slice(0, TARGET_RESULTS)
 
         logger.info(`   ✅ [${item.category}] 최종 ${finalProducts.length}개`)
 
         return {
           id: item.id,
-          koKeywords,
-          enKeywords,
           products: finalProducts,
         }
       })
     )
 
+    // Quality logging (fire-and-forget)
+    const qualityRows = results.map((r) => {
+      const query = queries.find((q: SearchQuery) => q.id === r.id)
+      const scores = r.products
+        .map((p) => p._scoring?.totalScore ?? 0)
+        .filter((s) => s > 0)
+
+      return {
+        analysis_id: _logId || null,
+        item_id: r.id,
+        query_category: query?.category,
+        query_subcategory: query?.subcategory,
+        query_fit: query?.fit,
+        query_fabric: query?.fabric,
+        query_color_family: query?.colorFamily,
+        query_style_node: primaryNode,
+        result_count: r.products.length,
+        top_score: scores.length > 0 ? Math.max(...scores) : null,
+        avg_score: scores.length > 0
+          ? scores.reduce((a, b) => a + b, 0) / scores.length
+          : null,
+        score_breakdown: r.products.slice(0, 3).map((p) => p._scoring),
+        is_empty: r.products.length === 0,
+      }
+    })
+
+    if (qualityRows.length > 0) {
+      supabase
+        .from("search_quality_logs")
+        .insert(qualityRows)
+        .then(({ error }) => {
+          if (error) logger.error({ error }, "search_quality_logs insert failed")
+        })
+    }
+
     const searchDuration = Date.now() - searchStart
     const totalProducts = results.reduce((sum, r) => sum + r.products.length, 0)
-    logger.info(`🏁 상품 검색 완료 — ${totalProducts}개 | ${searchDuration}ms`)
+    logger.info(`🏁 검색 v2 완료 — ${totalProducts}개 | ${searchDuration}ms`)
 
     // DB에 검색 상세 로깅 (fire-and-forget)
     if (_logId) {
@@ -159,8 +189,6 @@ export async function POST(request: NextRequest) {
           search_duration_ms: searchDuration,
           search_results: results.map((r) => ({
             id: r.id,
-            koKeywords: r.koKeywords,
-            enKeywords: r.enKeywords,
             products: r.products.map((p) => ({
               brand: p.brand,
               title: p.title,
@@ -181,165 +209,104 @@ export async function POST(request: NextRequest) {
     // 응답에서 _scoring 제거 (프론트에는 안 보냄, DB에만 저장)
     const cleanResults = results.map((r) => ({
       id: r.id,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       products: r.products.map(({ _scoring, ...rest }) => rest),
     }))
 
     return NextResponse.json({ results: cleanResults })
   } catch (error) {
-    logger.error({ error }, "💥 상품 검색 중 예외 발생")
+    logger.error({ error }, "💥 검색 v2 중 예외 발생")
     return NextResponse.json({ error: "Failed to search products" }, { status: 500 })
   }
 }
 
-// ─── 노드 브랜드 목록 (병렬 조회) ────────────────────────
+// ─── PAI 기반 enum 매칭 검색 ──────────────────────────────
 
-async function getNodeBrands(
+async function searchByEnums(
+  item: SearchQuery,
+  genderFilter: string | null,
+  dbCategories: string[] | null,
   primaryNode: string | undefined,
   secondaryNode: string | undefined,
-): Promise<NodeBrandData> {
-  const primary = new Set<string>()
-  const secondary = new Set<string>()
-  const brandAttrs = new Map<string, Set<string>>()
-  const excludedBrands = new Set<string>()
-
-  const nodes = [primaryNode, secondaryNode].filter(Boolean) as string[]
-
-  const [excludedResult, nodesResult] = await Promise.all([
-    supabase
-      .from("brand_nodes")
-      .select("brand_name_normalized")
-      .eq("category_type", "제외"),
-    nodes.length > 0
-      ? supabase
-          .from("brand_nodes")
-          .select("brand_name, brand_name_normalized, style_node, attributes")
-          .in("style_node", nodes)
-          .neq("category_type", "제외")
-      : Promise.resolve({ data: null, error: null }),
-  ])
-
-  if (excludedResult.error) {
-    logger.error({ error: excludedResult.error }, "brand_nodes excluded query failed")
-  }
-  if (nodesResult.error) {
-    logger.error({ error: nodesResult.error }, "brand_nodes node query failed")
-  }
-
-  if (excludedResult.data) {
-    for (const b of excludedResult.data) {
-      if (b.brand_name_normalized) excludedBrands.add(b.brand_name_normalized.toLowerCase())
-    }
-  }
-
-  if (nodesResult.data) {
-    for (const b of nodesResult.data) {
-      const name = (b.brand_name_normalized || b.brand_name).toLowerCase()
-      if (b.style_node === primaryNode) primary.add(name)
-      if (b.style_node === secondaryNode) secondary.add(name)
-
-      const attrs = new Set<string>()
-      if (b.attributes && typeof b.attributes === "object") {
-        for (const values of Object.values(b.attributes as Record<string, string[]>)) {
-          if (Array.isArray(values)) {
-            for (const v of values) attrs.add(v.toLowerCase())
-          }
-        }
-      }
-      brandAttrs.set(name, attrs)
-    }
-  }
-
-  return { primary, secondary, brandAttrs, excludedBrands }
-}
-
-// ─── DB 검색 + 스코어링 ──────────────────────────────────
-
-async function searchProducts(
-  koKeywords: string[],
-  enKeywords: string[],
-  genderFilter: string | null,
-  categories: string[] | null,
-  nodeBrands: NodeBrandData
-): Promise<ScoredProduct[]> {
+  moodTags: string[] | undefined,
+): Promise<(FormattedProduct & { _rawPrice: number })[]> {
   let query = supabase
-    .from("products")
-    .select("brand, name, price, image_url, product_url, platform, category, style_node, description, color, material, subcategory")
-    .eq("in_stock", true)
-    .like("image_url", "http%")
-    .not("image_url", "like", "%/icon_%")
-    .not("image_url", "like", "%/logo_%")
-    .not("image_url", "like", "%/badge_%")
-    .limit(100)
+    .from("product_ai_analysis")
+    .select(`
+      category, subcategory, fit, fabric, color_family, style_node, mood_tags,
+      products!inner (
+        id, brand, name, price, image_url, product_url, platform, gender, in_stock
+      )
+    `)
+    .eq("version", ACTIVE_VERSION)
+    .eq("products.in_stock", true)
+    .limit(200)
 
-  if (categories) {
-    query = query.in("category", categories)
+  if (dbCategories && dbCategories.length > 0) {
+    query = query.in("category", dbCategories)
   }
 
   if (genderFilter) {
-    query = query.or(`gender.cs.{"${genderFilter}"},gender.cs.{"unisex"}`)
+    query = query.or(`gender.eq.${genderFilter},gender.eq.unisex`, { referencedTable: "products" })
   }
 
-  const { data: products } = await query
-  if (!products?.length) return []
+  const { data, error } = await query
 
-  const scored = products
-    .filter((p) => {
-      const brandLower = (p.brand || "").toLowerCase()
-      return !nodeBrands.excludedBrands.has(brandLower)
-    })
-    .map((p) => {
-      const text = `${p.brand} ${p.name} ${p.description || ""} ${p.color || ""} ${p.material || ""}`.toLowerCase()
-      const brandLower = (p.brand || "").toLowerCase()
+  if (error) {
+    logger.error({ error }, `❌ PAI 쿼리 실패 [${item.category}]`)
+    return []
+  }
 
-      // 1) 한국어 키워드 → 상품명 매칭 (0~1)
-      const matchedKo = koKeywords.filter((kw) => text.includes(kw))
-      const keywordScore = matchedKo.length / Math.max(koKeywords.length, 1)
+  if (!data?.length) return []
 
-      // 2) 노드 부스트
-      let nodeBoost = 0
-      let nodeMatch = false
-      let nodeType: "primary" | "secondary" | null = null
-      if (nodeBrands.primary.has(brandLower)) {
-        nodeBoost = SCORE_WEIGHTS.PRIMARY_NODE_BOOST
-        nodeMatch = true
-        nodeType = "primary"
-      } else if (nodeBrands.secondary.has(brandLower)) {
-        nodeBoost = SCORE_WEIGHTS.SECONDARY_NODE_BOOST
-        nodeMatch = true
-        nodeType = "secondary"
+  type RawProduct = {
+    id: string; brand: string; name: string; price: number | null;
+    image_url: string | null; product_url: string; platform: string;
+    gender: string | null; in_stock: boolean
+  }
+
+  const scored = data
+    .map((row) => {
+      // Supabase returns inner join as array; take first element
+      const productRaw = row.products
+      const p: RawProduct = (Array.isArray(productRaw) ? productRaw[0] : productRaw) as unknown as RawProduct
+      if (!p) return null
+
+      // 스코어 계산
+      const subcategoryScore = item.subcategory && row.subcategory === item.subcategory ? WEIGHTS.subcategory : 0
+      const fitScore = item.fit && row.fit === item.fit ? WEIGHTS.fit : 0
+      const fabricScore = item.fabric && row.fabric === item.fabric ? WEIGHTS.fabric : 0
+      const colorFamilyScore = item.colorFamily && row.color_family === item.colorFamily ? WEIGHTS.colorFamily : 0
+      let styleNodeScore = 0
+      if (primaryNode && row.style_node === primaryNode) {
+        styleNodeScore = WEIGHTS.stylePrimary
+      } else if (secondaryNode && row.style_node === secondaryNode) {
+        styleNodeScore = WEIGHTS.styleSecondary
       }
 
-      // 3) Attribute 부스트 — 영어 키워드 ↔ 브랜드 attributes (영어↔영어)
-      let attrBoost = 0
-      const matchedEn: string[] = []
-      const attrs = nodeBrands.brandAttrs.get(brandLower)
-      if (attrs && attrs.size > 0) {
-        for (const kw of enKeywords) {
-          if (attrs.has(kw)) matchedEn.push(kw)
-        }
-        if (matchedEn.length > 0) {
-          attrBoost = SCORE_WEIGHTS.ATTR_BOOST_PER_MATCH *
-            Math.min(matchedEn.length, SCORE_WEIGHTS.ATTR_BOOST_MAX)
-        }
-      }
+      const rowMoodTags = Array.isArray(row.mood_tags) ? (row.mood_tags as string[]) : []
+      const requestMoodTags = moodTags ?? []
+      const overlapCount = rowMoodTags.filter((t) => requestMoodTags.includes(t)).length
+      const moodScore = Math.min(overlapCount, WEIGHTS.moodTagMax) * WEIGHTS.moodTagEach
 
-      const totalScore = keywordScore + nodeBoost + attrBoost
+      const totalScore =
+        subcategoryScore + fitScore + fabricScore + colorFamilyScore +
+        styleNodeScore + moodScore
 
       const scoring: ScoreBreakdown = {
-        keywordScore,
-        nodeBoost,
-        attrBoost,
+        subcategory: subcategoryScore,
+        fit: fitScore,
+        fabric: fabricScore,
+        colorFamily: colorFamilyScore,
+        styleNode: styleNodeScore,
+        moodTags: moodScore,
         totalScore,
-        matchedKoKeywords: matchedKo,
-        matchedEnKeywords: matchedEn,
-        nodeType,
       }
 
       return {
         _score: totalScore,
-        _nodeMatch: nodeMatch,
+        _rawPrice: p.price ?? 0,
         _scoring: scoring,
-        _rawPrice: p.price || 0,
         brand: p.brand,
         price: p.price ? `₩${p.price.toLocaleString()}` : "",
         platform: p.platform,
@@ -348,18 +315,18 @@ async function searchProducts(
         title: `${p.brand} ${p.name}`,
       }
     })
+    .filter((p): p is NonNullable<typeof p> => p !== null && p._score > 0)
 
-  const filtered = scored.filter((p) => p._score > 0)
-  filtered.sort((a, b) => b._score - a._score || a._rawPrice - b._rawPrice)
+  scored.sort((a, b) => b._score - a._score || a._rawPrice - b._rawPrice)
 
-  // 브랜드 다양성
-  const result: typeof filtered = []
+  // 브랜드 다양성: 브랜드당 최대 MAX_PER_BRAND
+  const result: typeof scored = []
   const brandCount: Record<string, number> = {}
 
-  for (const p of filtered) {
+  for (const p of scored) {
     if (result.length >= TARGET_RESULTS) break
     const brand = (p.brand || "unknown").toLowerCase()
-    const count = brandCount[brand] || 0
+    const count = brandCount[brand] ?? 0
     if (count >= MAX_PER_BRAND) continue
     brandCount[brand] = count + 1
     result.push(p)
