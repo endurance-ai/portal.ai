@@ -28,8 +28,7 @@ type ScoreBreakdown = {
   fit: number
   fabric: number
   colorFamily: number
-  stylePrimary: number
-  styleSecondary: number
+  styleNode: number
   moodTags: number
   totalScore: number
 }
@@ -71,6 +70,9 @@ const CATEGORY_ALIASES: Record<string, string[]> = {
   "Accessory": ["Accessories"],
   "Accessories": ["Accessories"],
   "Dress": ["Dress"],
+  "Knitwear": ["Top"],
+  "Shirts": ["Top"],
+  "Socks": ["Accessories"],
 }
 
 // ─── POST Handler ─────────────────────────────────────────
@@ -97,6 +99,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No search queries provided" }, { status: 400 })
     }
 
+    if (queries.length > 10) {
+      return NextResponse.json({ error: "Too many queries. Maximum 10." }, { status: 400 })
+    }
+
     const genderFilter =
       gender === "female" ? "women" :
       gender === "male" ? "men" : null
@@ -121,7 +127,7 @@ export async function POST(request: NextRequest) {
           logger.info(
             `      📊 ${p.brand} | ${p.title.slice(0, 40)} | ` +
             `total=${s?.totalScore.toFixed(2)} (sub=${s?.subcategory.toFixed(2)} col=${s?.colorFamily.toFixed(2)} ` +
-            `node=${s?.stylePrimary.toFixed(2)}+${s?.styleSecondary.toFixed(2)} fit=${s?.fit.toFixed(2)} fab=${s?.fabric.toFixed(2)} mood=${s?.moodTags.toFixed(2)})`
+            `node=${s?.styleNode.toFixed(2)} fit=${s?.fit.toFixed(2)} fab=${s?.fabric.toFixed(2)} mood=${s?.moodTags.toFixed(2)})`
           )
         }
 
@@ -270,8 +276,12 @@ async function searchByEnums(
       const fitScore = item.fit && row.fit === item.fit ? WEIGHTS.fit : 0
       const fabricScore = item.fabric && row.fabric === item.fabric ? WEIGHTS.fabric : 0
       const colorFamilyScore = item.colorFamily && row.color_family === item.colorFamily ? WEIGHTS.colorFamily : 0
-      const stylePrimaryScore = primaryNode && row.style_node === primaryNode ? WEIGHTS.stylePrimary : 0
-      const styleSecondaryScore = secondaryNode && row.style_node === secondaryNode ? WEIGHTS.styleSecondary : 0
+      let styleNodeScore = 0
+      if (primaryNode && row.style_node === primaryNode) {
+        styleNodeScore = WEIGHTS.stylePrimary
+      } else if (secondaryNode && row.style_node === secondaryNode) {
+        styleNodeScore = WEIGHTS.styleSecondary
+      }
 
       const rowMoodTags = Array.isArray(row.mood_tags) ? (row.mood_tags as string[]) : []
       const requestMoodTags = moodTags ?? []
@@ -280,15 +290,14 @@ async function searchByEnums(
 
       const totalScore =
         subcategoryScore + fitScore + fabricScore + colorFamilyScore +
-        stylePrimaryScore + styleSecondaryScore + moodScore
+        styleNodeScore + moodScore
 
       const scoring: ScoreBreakdown = {
         subcategory: subcategoryScore,
         fit: fitScore,
         fabric: fabricScore,
         colorFamily: colorFamilyScore,
-        stylePrimary: stylePrimaryScore,
-        styleSecondary: styleSecondaryScore,
+        styleNode: styleNodeScore,
         moodTags: moodScore,
         totalScore,
       }

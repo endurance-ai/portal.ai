@@ -35,11 +35,17 @@ export default function SearchQualityPage() {
   const [days, setDays] = useState(7)
   const [data, setData] = useState<QualityData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const fetchData = useCallback(async (d: number) => {
     setLoading(true)
+    setError(null)
     try {
       const res = await fetch(`/api/admin/search-quality?days=${d}`)
+      if (!res.ok) {
+        setError(`HTTP ${res.status}`)
+        return
+      }
       const json = await res.json()
       setData(json)
     } finally {
@@ -78,6 +84,13 @@ export default function SearchQualityPage() {
           ))}
         </div>
       </div>
+
+      {error && (
+        <div className="flex items-center gap-2 px-4 py-3 border border-red-500/30 rounded-lg bg-red-500/5 text-sm text-red-400">
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          <span>데이터를 불러오지 못했습니다 ({error})</span>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center py-20">
@@ -127,7 +140,7 @@ export default function SearchQualityPage() {
               <p className="px-4 py-6 text-sm text-muted-foreground text-center">데이터 없음</p>
             ) : (
               <ul className="divide-y divide-border">
-                {data.categories
+                {[...data.categories]
                   .sort((a, b) => b.total - a.total)
                   .map((cat) => {
                     const rate = parseFloat(cat.successRate)

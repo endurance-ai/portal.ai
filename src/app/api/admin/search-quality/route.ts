@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from "next/server"
+import { createSupabaseServer } from "@/lib/supabase-server"
 import { supabase } from "@/lib/supabase"
 
 export async function GET(request: NextRequest) {
+  const authClient = await createSupabaseServer()
+  const { data: { user } } = await authClient.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
   const { searchParams } = new URL(request.url)
   const days = parseInt(searchParams.get("days") || "7", 10)
+
+  if (isNaN(days) || days < 1 || days > 90) {
+    return NextResponse.json({ error: "Invalid days parameter" }, { status: 400 })
+  }
 
   const since = new Date()
   since.setDate(since.getDate() - days)

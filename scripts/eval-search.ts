@@ -25,6 +25,8 @@ const BASE_URL = process.env.EVAL_BASE_URL || "http://localhost:3400"
 const args = process.argv.slice(2)
 const versionFlag = args.find((a) => a.startsWith("--version="))
 const version = versionFlag?.split("=")[1] || "v1"
+const genderFlag = args.find((a) => a.startsWith("--gender="))
+const gender = genderFlag?.split("=")[1] || "male"
 
 // ─── 타입 ─────────────────────────────────────────────────
 
@@ -80,7 +82,7 @@ async function callSearchApi(gs: GoldenSetRow): Promise<SearchResultItem[]> {
       searchQuery: item.searchQuery,
       searchQueryKo: item.searchQueryKo,
     })),
-    gender: "male",
+    gender: gender,
     styleNode: gs.expected_node_primary
       ? {
           primary: gs.expected_node_primary,
