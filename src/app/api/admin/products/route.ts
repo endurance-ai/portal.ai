@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
   }
 
   // --- AI filter: get product_ids from PAI ---
-  const needsAiInclude = styleNode || colorFamily || aiStatus === "analyzed"
+  const needsAiInclude = styleNode || colorFamily || subcategory || aiStatus === "analyzed"
   const needsAiExclude = aiStatus === "unanalyzed"
 
   let aiProductIds: string[] | null = null
@@ -45,6 +45,7 @@ export async function GET(request: NextRequest) {
       .eq("version", "v1")
     if (styleNode) aiQuery = aiQuery.eq("style_node", styleNode)
     if (colorFamily) aiQuery = aiQuery.eq("color_family", colorFamily)
+    if (subcategory) aiQuery = aiQuery.eq("subcategory", subcategory)
 
     const { data: aiRows, error: aiErr } = await aiQuery
     if (aiErr) return NextResponse.json({ error: aiErr.message }, { status: 500 })
@@ -92,7 +93,7 @@ export async function GET(request: NextRequest) {
       else if (stockStatus === "out_of_stock") q = q.eq("in_stock", false)
       if (search) q = q.or(`brand.ilike.%${search}%,name.ilike.%${search}%`)
       if (category) q = q.eq("category", category)
-      if (subcategory) q = q.eq("subcategory", subcategory)
+
       if (platform) q = q.eq("platform", platform)
       if (brand) q = q.ilike("brand", `%${brand}%`)
 
@@ -126,7 +127,6 @@ export async function GET(request: NextRequest) {
     else if (stockStatus === "out_of_stock") query = query.eq("in_stock", false)
     if (search) query = query.or(`brand.ilike.%${search}%,name.ilike.%${search}%`)
     if (category) query = query.eq("category", category)
-    if (subcategory) query = query.eq("subcategory", subcategory)
     if (platform) query = query.eq("platform", platform)
     if (brand) query = query.ilike("brand", `%${brand}%`)
 
