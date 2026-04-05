@@ -48,3 +48,9 @@ next-env.d.ts
 
 # Crawled product data (large JSON files)
 data/
+
+# 배치 분석 결과
+scripts/output/
+
+# 인프라 환경변수 (.env*는 이미 무시되지만 명시)
+infra/.env
