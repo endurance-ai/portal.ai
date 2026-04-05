@@ -11,6 +11,7 @@ interface QueueItem {
   id: string
   created_at: string
   image_filename: string | null
+  prompt_text: string | null
   style_node_primary: string | null
   style_node_confidence: number | null
   detected_gender: string | null
@@ -71,6 +72,9 @@ export function EvalQueue({ queue }: { queue: QueueItem[] }) {
             </div>
             <span className="text-xs text-muted-foreground tabular-nums">
               {Array.isArray(item.items) ? item.items.length : 0} 아이템
+              {item.prompt_text && (
+                <span className="ml-2 text-primary/60">&quot;{item.prompt_text.length > 30 ? item.prompt_text.slice(0, 30) + "…" : item.prompt_text}&quot;</span>
+              )}
             </span>
           </div>
           <Button variant="ghost" size="icon" className="shrink-0">
