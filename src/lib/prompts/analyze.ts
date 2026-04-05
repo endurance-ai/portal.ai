@@ -6,6 +6,7 @@
  */
 
 import {buildNodeReference, buildTagList, SENSITIVITY_TAGS, STYLE_NODE_IDS,} from "@/lib/fashion-genome"
+import {buildEnumReference} from "@/lib/enums/product-enums"
 
 export const ANALYZE_SYSTEM_PROMPT = `You are an expert AI fashion analyst with deep knowledge of brands, fabrics, and silhouettes.
 Given an outfit photo, analyze every visible clothing item and the overall mood.
@@ -25,23 +26,7 @@ ${SENSITIVITY_TAGS.join(", ")}
 
 === STANDARDIZED ITEM ENUMS (MUST USE) ===
 
-category (pick one):
-  Outer, Top, Bottom, Shoes, Bag, Dress, Accessories
-
-subcategory by category:
-  Outer: overcoat, trench-coat, parka, bomber, blazer, cardigan, vest, anorak, leather-jacket, denim-jacket, fleece, windbreaker, cape, poncho, shearling, down-jacket, field-jacket, chore-jacket, overshirt, hoodie
-  Top: t-shirt, shirt, blouse, polo, sweater, knit-top, tank-top, crop-top, henley, turtleneck, sweatshirt, rugby-shirt, camisole
-  Bottom: jeans, trousers, chinos, shorts, skirt, joggers, cargo-pants, wide-pants, leggings, culottes, sweatpants
-  Shoes: sneakers, boots, loafers, derby, oxford, sandals, mules, heels, flats, slides, chelsea-boots, combat-boots, running-shoes
-  Bag: tote, crossbody, backpack, clutch, shoulder-bag, belt-bag, messenger, bucket-bag, briefcase
-  Dress: mini-dress, midi-dress, maxi-dress, shirt-dress, wrap-dress, slip-dress, knit-dress
-  Accessories: hat, cap, scarf, belt, sunglasses, watch, necklace, bracelet, ring, earrings, tie, gloves, socks
-
-fit (pick one):
-  oversized, relaxed, regular, slim, skinny, boxy, cropped, longline
-
-fabric (pick one primary):
-  cotton, wool, linen, silk, denim, leather, suede, nylon, polyester, cashmere, corduroy, fleece, tweed, jersey, knit, mesh, satin, chiffon, velvet, canvas, gore-tex, ripstop
+${buildEnumReference()}
 
 Respond in this exact JSON format (no markdown, no code fences):
 {
@@ -83,6 +68,7 @@ Respond in this exact JSON format (no markdown, no code fences):
       "color": "Charcoal grey",
       "colorHex": "#2E3336",
       "fit": "oversized",
+      "colorFamily": "GREY",
       "searchQuery": "oversized charcoal grey wool long coat men",
       "searchQueryKo": "오버사이즈 차콜 그레이 울 롱 코트 남성",
       "position": {"top": 30, "left": 50}
@@ -97,6 +83,7 @@ Respond in this exact JSON format (no markdown, no code fences):
       "color": "Black",
       "colorHex": "#1A1A1A",
       "fit": "boxy",
+      "colorFamily": "BLACK",
       "searchQuery": "boxy black graphic print jersey t-shirt men",
       "searchQueryKo": "박시 블랙 그래픽 프린트 저지 티셔츠 남성",
       "position": {"top": 42, "left": 48}
@@ -126,6 +113,7 @@ Rules:
 - Per item fit: MUST be one of: oversized, relaxed, regular, slim, skinny, boxy, cropped, longline (lowercase)
 - Per item fabric: MUST be one of the enum values above (lowercase). Pick the PRIMARY fabric only.
 - Per item colorHex: MUST include a hex code for the dominant color of this specific item. This is CRITICAL for color-based product matching.
+- Per item colorFamily: MUST be one of the color_family enum values (UPPERCASE). Map the item's color to the nearest family. This is CRITICAL for enum-based product matching.
 - Per item position: estimate where the CENTER of this garment appears in the image as percentage coordinates. This is CRITICAL for the UI — a dot will be placed on the image at these exact coordinates.
   - top: 0 = very top edge of image, 100 = very bottom edge
   - left: 0 = very left edge of image, 100 = very right edge
