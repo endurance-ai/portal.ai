@@ -209,6 +209,7 @@ export async function POST(request: NextRequest) {
     // 응답에서 _scoring 제거 (프론트에는 안 보냄, DB에만 저장)
     const cleanResults = results.map((r) => ({
       id: r.id,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       products: r.products.map(({ _scoring, ...rest }) => rest),
     }))
 
