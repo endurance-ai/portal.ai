@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
-import { ArrowUp, Camera, X } from "lucide-react"
+import { ArrowUp, Camera, ImagePlus, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { type Gender, GenderSelector } from "@/components/upload/gender-selector"
 
@@ -174,9 +174,9 @@ export function SearchBar({ gender, onGenderChange, onSubmit, disabled }: Search
             : "border-border focus-within:border-primary/30"
         )}
       >
-        {/* Image preview */}
-        <AnimatePresence>
-          {previewUrl && (
+        {/* Image area: drop zone when empty, preview when attached */}
+        <AnimatePresence mode="wait">
+          {previewUrl ? (
             <motion.div
               key="preview"
               initial={{ opacity: 0, height: 0 }}
@@ -196,7 +196,7 @@ export function SearchBar({ gender, onGenderChange, onSubmit, disabled }: Search
                   <button
                     type="button"
                     onClick={handleRemoveImage}
-                    className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-foreground text-background shadow-sm transition-opacity hover:opacity-80"
+                    className="absolute -top-1.5 -right-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-foreground text-background shadow-sm transition-opacity hover:opacity-80"
                     aria-label="Remove image"
                   >
                     <X className="size-3" />
@@ -204,6 +204,42 @@ export function SearchBar({ gender, onGenderChange, onSubmit, disabled }: Search
                 </div>
               </div>
             </motion.div>
+          ) : (
+            <motion.button
+              key="dropzone"
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className={cn(
+                "w-full px-3 pt-3 pb-1 flex items-center gap-3 text-left transition-colors group/drop",
+                "cursor-pointer",
+              )}
+            >
+              <div className={cn(
+                "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-dashed transition-colors duration-150",
+                isDragging
+                  ? "border-primary/60 bg-primary/5"
+                  : "border-border group-hover/drop:border-primary/40 group-hover/drop:bg-primary/5",
+              )}>
+                <ImagePlus className={cn(
+                  "size-5 transition-colors duration-150",
+                  isDragging
+                    ? "text-primary/70"
+                    : "text-muted-foreground group-hover/drop:text-primary/60",
+                )} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-muted-foreground group-hover/drop:text-foreground transition-colors">
+                  Add a photo for better matches
+                </p>
+                <p className="text-[11px] text-on-surface-variant font-mono">
+                  Drop or click — JPG, PNG, HEIC, WEBP
+                </p>
+              </div>
+            </motion.button>
           )}
         </AnimatePresence>
 
@@ -232,19 +268,22 @@ export function SearchBar({ gender, onGenderChange, onSubmit, disabled }: Search
         <div className="flex items-center justify-between px-2 pb-2">
           {/* Left: camera + gender */}
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={disabled}
-              className={cn(
-                "flex h-8 w-8 items-center justify-center rounded-xl transition-colors duration-150",
-                "text-muted-foreground hover:text-foreground hover:bg-surface-dim",
-                "disabled:cursor-not-allowed disabled:opacity-40"
-              )}
-              aria-label="Attach image"
-            >
-              <Camera className="size-4" />
-            </button>
+            {previewUrl && (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={disabled}
+                className={cn(
+                  "flex h-8 items-center gap-1.5 px-2 rounded-xl transition-colors duration-150",
+                  "text-muted-foreground hover:text-foreground hover:bg-surface-dim",
+                  "disabled:cursor-not-allowed disabled:opacity-40"
+                )}
+                aria-label="Change image"
+              >
+                <Camera className="size-3.5" />
+                <span className="text-[11px] font-mono">Change</span>
+              </button>
+            )}
 
             <GenderSelector value={gender} onChange={onGenderChange} />
           </div>
@@ -266,11 +305,6 @@ export function SearchBar({ gender, onGenderChange, onSubmit, disabled }: Search
           </button>
         </div>
       </div>
-
-      {/* Hint */}
-      <p className="text-xs text-on-surface-variant font-mono text-center tracking-wide">
-        Attach an image for more accurate results
-      </p>
 
       {/* Hidden file input */}
       <input
