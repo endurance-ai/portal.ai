@@ -136,6 +136,41 @@ export async function POST(request: NextRequest) {
       })
     )
 
+    // Quality logging (fire-and-forget)
+    const qualityRows = results.map((r) => {
+      const query = queries.find((q: SearchQuery) => q.id === r.id)
+      const scores = r.products
+        .map((p) => p._scoring?.totalScore ?? 0)
+        .filter((s) => s > 0)
+
+      return {
+        analysis_id: _logId || null,
+        item_id: r.id,
+        query_category: query?.category,
+        query_subcategory: query?.subcategory,
+        query_fit: query?.fit,
+        query_fabric: query?.fabric,
+        query_color_family: query?.colorFamily,
+        query_style_node: primaryNode,
+        result_count: r.products.length,
+        top_score: scores.length > 0 ? Math.max(...scores) : null,
+        avg_score: scores.length > 0
+          ? scores.reduce((a, b) => a + b, 0) / scores.length
+          : null,
+        score_breakdown: r.products.slice(0, 3).map((p) => p._scoring),
+        is_empty: r.products.length === 0,
+      }
+    })
+
+    if (qualityRows.length > 0) {
+      supabase
+        .from("search_quality_logs")
+        .insert(qualityRows)
+        .then(({ error }) => {
+          if (error) logger.error({ error }, "search_quality_logs insert failed")
+        })
+    }
+
     const searchDuration = Date.now() - searchStart
     const totalProducts = results.reduce((sum, r) => sum + r.products.length, 0)
     logger.info(`🏁 검색 v2 완료 — ${totalProducts}개 | ${searchDuration}ms`)
