@@ -174,14 +174,32 @@ async function main() {
     }
   }
 
-  const { data: products, error: fetchError } = await query.limit(limit || 50000)
+  // Supabase REST API returns max 1000 rows per request — paginate to get all
+  const FETCH_PAGE = 1000
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const allProducts: any[] = []
+  let fetchOffset = 0
+  let fetchDone = false
 
-  if (fetchError) {
-    console.error("❌ 상품 조회 실패:", fetchError.message)
-    process.exit(1)
+  while (!fetchDone) {
+    const { data: batch, error: fetchError } = await query.range(fetchOffset, fetchOffset + FETCH_PAGE - 1)
+    if (fetchError) {
+      console.error("❌ 상품 조회 실패:", fetchError.message)
+      process.exit(1)
+    }
+    if (!batch?.length) {
+      fetchDone = true
+    } else {
+      allProducts.push(...batch)
+      fetchOffset += FETCH_PAGE
+      if (batch.length < FETCH_PAGE) fetchDone = true
+      if (limit && allProducts.length >= limit) fetchDone = true
+    }
   }
 
-  if (!products?.length) {
+  const products = allProducts
+
+  if (!products.length) {
     console.log("ℹ️ 대상 상품 없음")
     return
   }
