@@ -1,10 +1,11 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Loader2, Search, ChevronLeft, ChevronRight } from "lucide-react"
+import { Loader2, Search, ChevronLeft, ChevronRight, RotateCcw } from "lucide-react"
 
 type ProductAI = {
   category: string | null
@@ -129,22 +130,40 @@ function ProductCard({ p }: { p: Product }) {
 }
 
 export default function ProductsPageInner() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
+  // Read initial state from URL
   const [products, setProducts] = useState<Product[]>([])
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
-  const [page, setPage] = useState(0)
+  const [page, setPage] = useState(() => parseInt(searchParams.get("page") || "0") || 0)
   const [loading, setLoading] = useState(true)
 
-  // Filters
-  const [search, setSearch] = useState("")
-  const [debouncedSearch, setDebouncedSearch] = useState("")
-  const [category, setCategory] = useState("")
-  const [platform, setPlatform] = useState("")
-  const [styleNode, setStyleNode] = useState("")
-  const [colorFamily, setColorFamily] = useState("")
-  const [aiStatus, setAiStatus] = useState("all")
-  const [stockStatus, setStockStatus] = useState("all")
-  const [sort, setSort] = useState("newest")
+  // Filters — init from URL
+  const [search, setSearch] = useState(() => searchParams.get("search") || "")
+  const [debouncedSearch, setDebouncedSearch] = useState(() => searchParams.get("search") || "")
+  const [category, setCategory] = useState(() => searchParams.get("category") || "")
+  const [platform, setPlatform] = useState(() => searchParams.get("platform") || "")
+  const [styleNode, setStyleNode] = useState(() => searchParams.get("styleNode") || "")
+  const [colorFamily, setColorFamily] = useState(() => searchParams.get("colorFamily") || "")
+  const [aiStatus, setAiStatus] = useState(() => searchParams.get("aiStatus") || "all")
+  const [stockStatus, setStockStatus] = useState(() => searchParams.get("stockStatus") || "all")
+  const [sort, setSort] = useState(() => searchParams.get("sort") || "newest")
+
+  // Sync filters to URL
+  const syncUrl = useCallback((overrides: Record<string, string> = {}) => {
+    const state: Record<string, string> = {
+      page: String(page), search: debouncedSearch, category, platform,
+      styleNode, colorFamily, aiStatus, stockStatus, sort, ...overrides,
+    }
+    const params = new URLSearchParams()
+    for (const [k, v] of Object.entries(state)) {
+      if (v && v !== "all" && v !== "newest" && v !== "0") params.set(k, v)
+    }
+    const qs = params.toString()
+    router.replace(`/admin/products${qs ? `?${qs}` : ""}`, { scroll: false })
+  }, [router, page, debouncedSearch, category, platform, styleNode, colorFamily, aiStatus, stockStatus, sort])
 
   // Debounce search
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -163,6 +182,24 @@ export default function ProductsPageInner() {
   useEffect(() => {
     setPage(0)
   }, [category, platform, styleNode, colorFamily, aiStatus, stockStatus, sort])
+
+  // Reset all filters
+  const resetFilters = () => {
+    setSearch("")
+    setDebouncedSearch("")
+    setCategory("")
+    setPlatform("")
+    setStyleNode("")
+    setColorFamily("")
+    setAiStatus("all")
+    setStockStatus("all")
+    setSort("newest")
+    setPage(0)
+    router.replace("/admin/products", { scroll: false })
+  }
+
+  const hasActiveFilters = search || category || platform || styleNode || colorFamily
+    || aiStatus !== "all" || stockStatus !== "all" || sort !== "newest"
 
   const fetchProducts = useCallback(async () => {
     setLoading(true)
@@ -193,6 +230,11 @@ export default function ProductsPageInner() {
   useEffect(() => {
     fetchProducts()
   }, [fetchProducts])
+
+  // Sync URL after fetch (not on every state change to avoid loops)
+  useEffect(() => {
+    syncUrl()
+  }, [page, debouncedSearch, category, platform, styleNode, colorFamily, aiStatus, stockStatus, sort]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="space-y-5">
@@ -300,6 +342,16 @@ export default function ProductsPageInner() {
         </select>
 
         {loading && <Loader2 className="size-3.5 animate-spin text-muted-foreground" />}
+
+        {hasActiveFilters && (
+          <button
+            onClick={resetFilters}
+            className="h-8 text-xs px-3 rounded-md border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors flex items-center gap-1.5 ml-auto"
+          >
+            <RotateCcw className="size-3" />
+            초기화
+          </button>
+        )}
       </div>
 
       {/* Grid */}

@@ -1,5 +1,6 @@
 "use client"
 
+import { Suspense } from "react"
 import dynamic from "next/dynamic"
 import { Loader2 } from "lucide-react"
 
@@ -13,5 +14,9 @@ const ProductsPageInner = dynamic(() => import("@/components/admin/products-page
 })
 
 export default function ProductsPage() {
-  return <ProductsPageInner />
+  return (
+    <Suspense>
+      <ProductsPageInner />
+    </Suspense>
+  )
 }
