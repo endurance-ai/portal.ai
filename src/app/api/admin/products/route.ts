@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
   const page = Math.max(0, parseInt(searchParams.get("page") || "0") || 0)
   const search = searchParams.get("search")?.trim() || ""
   const category = searchParams.get("category") || ""
+  const subcategory = searchParams.get("subcategory") || ""
   const platform = searchParams.get("platform") || ""
   const brand = searchParams.get("brand") || ""
   const styleNode = searchParams.get("styleNode") || ""
@@ -91,6 +92,7 @@ export async function GET(request: NextRequest) {
       else if (stockStatus === "out_of_stock") q = q.eq("in_stock", false)
       if (search) q = q.or(`brand.ilike.%${search}%,name.ilike.%${search}%`)
       if (category) q = q.eq("category", category)
+      if (subcategory) q = q.eq("subcategory", subcategory)
       if (platform) q = q.eq("platform", platform)
       if (brand) q = q.ilike("brand", `%${brand}%`)
 
@@ -124,6 +126,7 @@ export async function GET(request: NextRequest) {
     else if (stockStatus === "out_of_stock") query = query.eq("in_stock", false)
     if (search) query = query.or(`brand.ilike.%${search}%,name.ilike.%${search}%`)
     if (category) query = query.eq("category", category)
+    if (subcategory) query = query.eq("subcategory", subcategory)
     if (platform) query = query.eq("platform", platform)
     if (brand) query = query.ilike("brand", `%${brand}%`)
 

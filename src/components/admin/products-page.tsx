@@ -31,6 +31,15 @@ type Product = {
 }
 
 const CATEGORIES = ["Outer", "Top", "Bottom", "Shoes", "Bag", "Dress", "Accessories"]
+const SUBCATEGORIES: Record<string, string[]> = {
+  Outer: ["overcoat", "trench-coat", "parka", "bomber", "blazer", "cardigan", "vest", "anorak", "leather-jacket", "denim-jacket", "fleece", "windbreaker", "down-jacket", "field-jacket", "chore-jacket", "overshirt", "hoodie"],
+  Top: ["t-shirt", "shirt", "blouse", "polo", "sweater", "knit-top", "tank-top", "crop-top", "henley", "turtleneck", "sweatshirt"],
+  Bottom: ["jeans", "trousers", "chinos", "shorts", "skirt", "joggers", "cargo-pants", "wide-pants", "leggings", "sweatpants"],
+  Shoes: ["sneakers", "boots", "loafers", "derby", "oxford", "sandals", "mules", "heels", "flats", "slides", "chelsea-boots", "combat-boots"],
+  Bag: ["tote", "crossbody", "backpack", "clutch", "shoulder-bag", "belt-bag", "messenger", "bucket-bag"],
+  Dress: ["mini-dress", "midi-dress", "maxi-dress", "shirt-dress", "wrap-dress", "slip-dress", "knit-dress"],
+  Accessories: ["hat", "cap", "scarf", "belt", "sunglasses", "watch", "necklace", "bracelet", "ring", "earrings", "tie", "gloves", "socks"],
+}
 const PLATFORMS = [
   "shopamomento",
   "adekuver",
@@ -144,6 +153,7 @@ export default function ProductsPageInner() {
   const [search, setSearch] = useState(() => searchParams.get("search") || "")
   const [debouncedSearch, setDebouncedSearch] = useState(() => searchParams.get("search") || "")
   const [category, setCategory] = useState(() => searchParams.get("category") || "")
+  const [subcategory, setSubcategory] = useState(() => searchParams.get("subcategory") || "")
   const [platform, setPlatform] = useState(() => searchParams.get("platform") || "")
   const [styleNode, setStyleNode] = useState(() => searchParams.get("styleNode") || "")
   const [colorFamily, setColorFamily] = useState(() => searchParams.get("colorFamily") || "")
@@ -154,7 +164,7 @@ export default function ProductsPageInner() {
   // Sync filters to URL
   const syncUrl = useCallback((overrides: Record<string, string> = {}) => {
     const state: Record<string, string> = {
-      page: String(page), search: debouncedSearch, category, platform,
+      page: String(page), search: debouncedSearch, category, subcategory, platform,
       styleNode, colorFamily, aiStatus, stockStatus, sort, ...overrides,
     }
     const params = new URLSearchParams()
@@ -163,7 +173,7 @@ export default function ProductsPageInner() {
     }
     const qs = params.toString()
     router.replace(`/admin/products${qs ? `?${qs}` : ""}`, { scroll: false })
-  }, [router, page, debouncedSearch, category, platform, styleNode, colorFamily, aiStatus, stockStatus, sort])
+  }, [router, page, debouncedSearch, category, subcategory, platform, styleNode, colorFamily, aiStatus, stockStatus, sort])
 
   // Debounce search
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -178,16 +188,22 @@ export default function ProductsPageInner() {
     }
   }, [search])
 
+  // Reset subcategory when category changes
+  useEffect(() => {
+    setSubcategory("")
+  }, [category])
+
   // Reset page when filters change
   useEffect(() => {
     setPage(0)
-  }, [category, platform, styleNode, colorFamily, aiStatus, stockStatus, sort])
+  }, [category, subcategory, platform, styleNode, colorFamily, aiStatus, stockStatus, sort])
 
   // Reset all filters
   const resetFilters = () => {
     setSearch("")
     setDebouncedSearch("")
     setCategory("")
+    setSubcategory("")
     setPlatform("")
     setStyleNode("")
     setColorFamily("")
@@ -198,7 +214,7 @@ export default function ProductsPageInner() {
     router.replace("/admin/products", { scroll: false })
   }
 
-  const hasActiveFilters = search || category || platform || styleNode || colorFamily
+  const hasActiveFilters = search || category || subcategory || platform || styleNode || colorFamily
     || aiStatus !== "all" || stockStatus !== "all" || sort !== "newest"
 
   const fetchProducts = useCallback(async () => {
@@ -208,6 +224,7 @@ export default function ProductsPageInner() {
         page: String(page),
         search: debouncedSearch,
         category,
+        subcategory,
         platform,
         styleNode,
         colorFamily,
@@ -225,16 +242,16 @@ export default function ProductsPageInner() {
     } finally {
       setLoading(false)
     }
-  }, [page, debouncedSearch, category, platform, styleNode, colorFamily, aiStatus, stockStatus, sort])
+  }, [page, debouncedSearch, category, subcategory, platform, styleNode, colorFamily, aiStatus, stockStatus, sort])
 
   useEffect(() => {
     fetchProducts()
   }, [fetchProducts])
 
-  // Sync URL after fetch (not on every state change to avoid loops)
+  // Sync URL after fetch
   useEffect(() => {
     syncUrl()
-  }, [page, debouncedSearch, category, platform, styleNode, colorFamily, aiStatus, stockStatus, sort]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [page, debouncedSearch, category, subcategory, platform, styleNode, colorFamily, aiStatus, stockStatus, sort]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="space-y-5">
@@ -270,6 +287,20 @@ export default function ProductsPageInner() {
             <option key={c} value={c}>{c}</option>
           ))}
         </select>
+
+        {/* Subcategory — only show when category is selected */}
+        {category && SUBCATEGORIES[category] && (
+          <select
+            value={subcategory}
+            onChange={(e) => setSubcategory(e.target.value)}
+            className={SELECT_CLASS}
+          >
+            <option value="">서브카테고리</option>
+            {SUBCATEGORIES[category].map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+        )}
 
         {/* Platform */}
         <select
