@@ -1,5 +1,6 @@
 import type {Metadata} from "next"
 import {Roboto, Roboto_Mono} from "next/font/google"
+import {Analytics} from "@vercel/analytics/next"
 import "./globals.css"
 
 const roboto = Roboto({
@@ -31,6 +32,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning className={`${roboto.variable} ${robotoMono.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
         {children}
+        <Analytics />
       </body>
     </html>
   )
