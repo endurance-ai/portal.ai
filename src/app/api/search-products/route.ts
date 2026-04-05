@@ -27,6 +27,7 @@ type SearchRequest = {
 
 type ScoreBreakdown = {
   subcategory: number
+  subcategorySimilar: number
   fit: number
   fabric: number
   colorFamily: number
@@ -253,10 +254,10 @@ async function searchByEnums(
   // 성별 필터는 DB 쿼리에서 제외 — 정렬 단계에서 우선순위 적용
   // (여성 → 유니섹스 → 남성 순으로 채움)
 
-  if (priceFilter?.minPrice) {
+  if (priceFilter?.minPrice !== undefined) {
     query = query.gte("products.price", priceFilter.minPrice)
   }
-  if (priceFilter?.maxPrice) {
+  if (priceFilter?.maxPrice !== undefined) {
     query = query.lte("products.price", priceFilter.maxPrice)
   }
 
@@ -283,17 +284,19 @@ async function searchByEnums(
       if (!p) return null
 
       // 스코어 계산
-      let subcategoryScore = 0
+      let subcategoryExact = 0
+      let subcategorySimilar = 0
       if (item.subcategory && row.subcategory) {
         if (row.subcategory === item.subcategory) {
-          subcategoryScore = WEIGHTS.subcategory // 정확 매칭: 0.25
+          subcategoryExact = WEIGHTS.subcategory // 정확 매칭: 0.25
         } else {
           const similars = SIMILAR_SUBCATEGORIES[item.subcategory] ?? []
           if (similars.includes(row.subcategory)) {
-            subcategoryScore = WEIGHTS.subcategorySimilar // 유사 매칭: 0.10
+            subcategorySimilar = WEIGHTS.subcategorySimilar // 유사 매칭: 0.10
           }
         }
       }
+      const subcategoryScore = subcategoryExact + subcategorySimilar
       const fitScore = item.fit && row.fit === item.fit ? WEIGHTS.fit : 0
       const fabricScore = item.fabric && row.fabric === item.fabric ? WEIGHTS.fabric : 0
       const colorFamilyScore = item.colorFamily && row.color_family === item.colorFamily ? WEIGHTS.colorFamily : 0
@@ -314,7 +317,8 @@ async function searchByEnums(
         styleNodeScore + moodScore
 
       const scoring: ScoreBreakdown = {
-        subcategory: subcategoryScore,
+        subcategory: subcategoryExact,
+        subcategorySimilar,
         fit: fitScore,
         fabric: fabricScore,
         colorFamily: colorFamilyScore,
@@ -349,7 +353,7 @@ async function searchByEnums(
       if (!p || p._score <= 0) return false
 
       // subcategory 정확 또는 유사 매칭 필수 (불일치면 제외)
-      if (item.subcategory && p._scoring?.subcategory === 0) return false
+      if (item.subcategory && p._scoring?.subcategory === 0 && p._scoring?.subcategorySimilar === 0) return false
 
       return true
     })

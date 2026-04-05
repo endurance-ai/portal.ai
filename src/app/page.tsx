@@ -104,8 +104,10 @@ export default function Home() {
     if (data.prompt) setPromptText(data.prompt)
     else setPromptText("")
 
-    // 가격 필터 파싱 (AI 호출 전에 처리)
-    const { priceFilter } = data.prompt ? parsePrice(data.prompt) : { priceFilter: null }
+    // 가격 필터 파싱 (AI 호출 전에 처리 — 가격 텍스트 제거한 cleanPrompt를 AI에 전달)
+    const { priceFilter, cleanPrompt } = data.prompt
+      ? parsePrice(data.prompt)
+      : { priceFilter: null, cleanPrompt: "" }
 
     setState("analyzing")
     setError(null)
@@ -132,7 +134,7 @@ export default function Home() {
 
       const formData = new FormData()
       if (data.file) formData.append("image", data.file)
-      if (data.prompt) formData.append("prompt", data.prompt)
+      if (data.prompt) formData.append("prompt", cleanPrompt || data.prompt)
       formData.append("gender", gender)
 
       const analyzeRes = await fetch("/api/analyze", {

@@ -120,10 +120,10 @@ function validateAndNormalize(raw: Record<string, unknown>): AnalysisResult {
 
   return {
     category: isValidCategory(category) ? category : "Accessories",
-    subcategory: subcategory && isValidSubcategory(subcategory) ? subcategory : subcategory,
-    fit: fit && isValidFit(fit) ? fit : fit,
-    fabric: fabric && isValidFabric(fabric) ? fabric : fabric,
-    color_family: colorFamily && isValidColorFamily(colorFamily) ? colorFamily : colorFamily,
+    subcategory: subcategory && isValidSubcategory(subcategory) ? subcategory : null,
+    fit: fit && isValidFit(fit) ? fit : null,
+    fabric: fabric && isValidFabric(fabric) ? fabric : null,
+    color_family: colorFamily && isValidColorFamily(colorFamily) ? colorFamily : null,
     color_detail: raw.color_detail ? String(raw.color_detail) : null,
     style_node: raw.style_node && (STYLE_NODE_IDS as readonly string[]).includes(String(raw.style_node))
       ? String(raw.style_node) : null,
