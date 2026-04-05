@@ -1,16 +1,16 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import {useState} from "react"
+import {useRouter} from "next/navigation"
 import Image from "next/image"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent } from "@/components/ui/card"
-import { CheckCircle, XCircle, AlertCircle, ArrowLeft, Loader2, Search } from "lucide-react"
-import { cn } from "@/lib/utils"
+import {Badge} from "@/components/ui/badge"
+import {Button} from "@/components/ui/button"
+import {Textarea} from "@/components/ui/textarea"
+import {Checkbox} from "@/components/ui/checkbox"
+import {Label} from "@/components/ui/label"
+import {Card, CardContent} from "@/components/ui/card"
+import {AlertCircle, ArrowLeft, CheckCircle, Loader2, Search, XCircle} from "lucide-react"
+import {cn} from "@/lib/utils"
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 interface Props {
@@ -35,14 +35,15 @@ function formatTime(iso: string) {
 }
 
 function ScoreBar({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
-  const pct = Math.min((value / max) * 100, 100)
+  const v = value ?? 0
+  const pct = max > 0 ? Math.min((v / max) * 100, 100) : 0
   return (
     <div className="flex items-center gap-2 text-xs">
-      <span className="w-10 text-muted-foreground shrink-0">{label}</span>
+      <span className="w-12 text-muted-foreground shrink-0 truncate">{label}</span>
       <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-        <div className={cn("h-full rounded-full", color)} style={{ width: `${pct}%` }} />
+        <div className={cn("h-full rounded-full transition-all", color)} style={{ width: `${pct}%` }} />
       </div>
-      <span className="w-8 text-right tabular-nums text-muted-foreground">{value.toFixed(2)}</span>
+      <span className="w-8 text-right tabular-nums text-muted-foreground">{v.toFixed(2)}</span>
     </div>
   )
 }
@@ -240,26 +241,29 @@ export function EvalReviewDetail({ analysis, items, reviews }: Props) {
                           {/* Score breakdown */}
                           {product.scoring && (
                             <div className="space-y-1 pt-1">
-                              <ScoreBar label="키워드" value={product.scoring.keywordScore} max={1} color="bg-blue-400" />
-                              <ScoreBar label="노드" value={product.scoring.nodeBoost} max={0.3} color="bg-green-400" />
-                              <ScoreBar label="속성" value={product.scoring.attrBoost} max={0.32} color="bg-purple-400" />
+                              <ScoreBar label="카테고리" value={product.scoring.subcategory} max={0.25} color="bg-blue-400" />
+                              <ScoreBar label="컬러" value={product.scoring.colorFamily} max={0.20} color="bg-cyan-400" />
+                              <ScoreBar label="노드" value={product.scoring.styleNode} max={0.30} color="bg-green-400" />
+                              <ScoreBar label="핏" value={product.scoring.fit} max={0.15} color="bg-purple-400" />
+                              <ScoreBar label="소재" value={product.scoring.fabric} max={0.15} color="bg-orange-400" />
+                              <ScoreBar label="무드" value={product.scoring.moodTags} max={0.15} color="bg-pink-400" />
 
                               <div className="flex items-center justify-between text-xs pt-0.5">
                                 <div className="flex gap-1 flex-wrap">
-                                  {product.scoring.matchedKoKeywords?.map((kw: string) => (
-                                    <span key={kw} className="px-1 py-0.5 bg-blue-500/10 text-blue-400 rounded text-[10px]">{kw}</span>
-                                  ))}
-                                  {product.scoring.matchedEnKeywords?.map((kw: string) => (
-                                    <span key={kw} className="px-1 py-0.5 bg-purple-500/10 text-purple-400 rounded text-[10px]">{kw}</span>
-                                  ))}
-                                  {product.scoring.nodeType && (
+                                  {product.scoring.subcategory > 0 && (
+                                    <span className="px-1 py-0.5 bg-blue-500/10 text-blue-400 rounded text-[10px]">sub ✓</span>
+                                  )}
+                                  {product.scoring.colorFamily > 0 && (
+                                    <span className="px-1 py-0.5 bg-cyan-500/10 text-cyan-400 rounded text-[10px]">color ✓</span>
+                                  )}
+                                  {product.scoring.styleNode > 0 && (
                                     <span className="px-1 py-0.5 bg-green-500/10 text-green-400 rounded text-[10px]">
-                                      {product.scoring.nodeType} node
+                                      node {product.scoring.styleNode >= 0.3 ? 'primary' : 'secondary'}
                                     </span>
                                   )}
                                 </div>
                                 <span className="font-mono font-semibold tabular-nums">
-                                  {product.scoring.totalScore.toFixed(2)}
+                                  {(product.scoring.totalScore ?? 0).toFixed(2)}
                                 </span>
                               </div>
                             </div>

@@ -48,3 +48,6 @@ next-env.d.ts
 
 # Crawled product data (large JSON files)
 data/
+
+# 배치 분석 결과
+scripts/output/

@@ -8,7 +8,10 @@ import {PROMPT_SEARCH_SYSTEM, PROMPT_SEARCH_USER} from "@/lib/prompts/prompt-sea
 import {uploadImage} from "@/lib/r2"
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.LITELLM_API_KEY || process.env.OPENAI_API_KEY,
+  baseURL: process.env.LITELLM_BASE_URL
+    ? `${process.env.LITELLM_BASE_URL}/v1`
+    : undefined,
 })
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB

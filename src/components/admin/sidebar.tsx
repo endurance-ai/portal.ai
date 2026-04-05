@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Database, BarChart3, FlaskConical } from "lucide-react"
+import { Database, BarChart3, FlaskConical, ShoppingBag } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const NAV_ITEMS = [
@@ -23,6 +23,12 @@ const NAV_ITEMS = [
     label: "품질 평가",
     description: "품질 평가 허브",
     icon: FlaskConical,
+  },
+  {
+    href: "/admin/products",
+    label: "상품 DB",
+    description: "크롤링 상품 & AI 분석",
+    icon: ShoppingBag,
   },
 ] as const
 
