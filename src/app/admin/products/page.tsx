@@ -195,7 +195,7 @@ export default function ProductsPage() {
   }, [fetchProducts])
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5" suppressHydrationWarning>
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold tracking-tight">상품 DB</h1>
