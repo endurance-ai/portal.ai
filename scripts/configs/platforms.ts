@@ -268,6 +268,90 @@ export const PLATFORMS: SiteConfig[] = [
     notes: "마켓플레이스 (100+ 셀러). 구조 다름",
   },
 
+  // ─── 3차 확장: 디자이너 브랜드몰 ─────────────────
+
+  {
+    key: "eastlogue",
+    name: "이스트로그",
+    type: "cafe24",
+    baseUrl: "https://eastlogue.com",
+    paginate: true,
+    maxPages: 15,
+    category: {
+      discovery: "manual",
+      categories: [
+        // Men
+        {name: "Top", cateNo: 226, gender: ["men"]},       // t-shirts
+        {name: "Top", cateNo: 227, gender: ["men"]},       // sweats
+        {name: "Shirts", cateNo: 228, gender: ["men"]},
+        {name: "Top", cateNo: 229, gender: ["men"]},       // vests
+        {name: "Knitwear", cateNo: 230, gender: ["men"]},
+        {name: "Outer", cateNo: 231, gender: ["men"]},     // jackets
+        {name: "Outer", cateNo: 232, gender: ["men"]},     // leather
+        {name: "Outer", cateNo: 233, gender: ["men"]},     // coats
+        {name: "Outer", cateNo: 234, gender: ["men"]},     // down jackets
+        {name: "Bottom", cateNo: 235, gender: ["men"]},    // pants
+        {name: "Bottom", cateNo: 236, gender: ["men"]},    // shorts
+        {name: "Shoes", cateNo: 241, gender: ["men"]},
+        {name: "Accessories", cateNo: 237, gender: ["men"]}, // headwear
+        {name: "Accessories", cateNo: 238, gender: ["men"]},
+        // Women
+        {name: "Top", cateNo: 207, gender: ["women"]},     // t-shirts
+        {name: "Top", cateNo: 208, gender: ["women"]},     // sweats
+        {name: "Shirts", cateNo: 209, gender: ["women"]},
+      ],
+    },
+    notes: "밀리터리/아웃도어 자사 브랜드. Men 14 + Women 3 = 17개 카테고리. 10~40만원대",
+  },
+  {
+    key: "sienneboutique",
+    name: "시엔느",
+    type: "cafe24",
+    baseUrl: "https://sienneboutique.com",
+    paginate: true,
+    maxPages: 10,
+    defaultGender: ["women"],
+    category: {
+      discovery: "manual",
+      categories: [
+        {name: "Outer", cateNo: 54, gender: ["women"]},
+        {name: "Top", cateNo: 44, gender: ["women"]},
+        {name: "Knitwear", cateNo: 78, gender: ["women"]},
+        {name: "Bottom", cateNo: 49, gender: ["women"]},
+        {name: "Dress", cateNo: 55, gender: ["women"]},
+        {name: "Bag", cateNo: 183, gender: ["women"]},
+        {name: "Accessories", cateNo: 56, gender: ["women"]},
+      ],
+    },
+    notes: "리파인드 빈티지 컨템포러리 여성복. 7개 카테고리. 10~50만원대",
+  },
+  {
+    key: "mardimercredi",
+    name: "마르디메크르디",
+    type: "cafe24",
+    baseUrl: "https://mardimercredi.com",
+    paginate: true,
+    maxPages: 15,
+    defaultGender: ["women"],
+    category: {
+      discovery: "manual",
+      categories: [
+        {name: "Top", cateNo: 519, gender: ["women"]},      // TSHIRT
+        {name: "Top", cateNo: 520, gender: ["women"]},      // TOPS
+        {name: "Shirts", cateNo: 522, gender: ["women"]},
+        {name: "Top", cateNo: 521, gender: ["women"]},      // SWEATSHIRT
+        {name: "Bottom", cateNo: 525, gender: ["women"]},
+        {name: "Dress", cateNo: 526, gender: ["women"]},
+        {name: "Knitwear", cateNo: 523, gender: ["women"]},
+        {name: "Outer", cateNo: 524, gender: ["women"]},
+        {name: "Accessories", cateNo: 527, gender: ["women"]},
+        {name: "Bag", cateNo: 528, gender: ["women"]},
+        {name: "Shoes", cateNo: 553, gender: ["women"]},
+      ],
+    },
+    notes: "프렌치 데일리 캐주얼 여성복. WOMEN 11개 카테고리 (KIDS/PET 제외). 5~25만원대",
+  },
+
   // ─── 캐주얼/스트릿 편집샵 (2차 확장) ──────────────
 
   {
@@ -277,9 +361,33 @@ export const PLATFORMS: SiteConfig[] = [
     baseUrl: "https://triplestore.co.kr",
     paginate: true,
     maxPages: 15,
-    category: { discovery: "auto" },
-    defaultGender: ["unisex"],
-    notes: "제주 기반 편집샵. Carhartt WIP, Gramicci, Andersson Bell 등 100+ 브랜드. 5~40만원대",
+    category: {
+      discovery: "manual",
+      categories: [
+        // Men
+        {name: "Outer", cateNo: 1500, gender: ["men"]},
+        {name: "Knitwear", cateNo: 1546, gender: ["men"]},
+        {name: "Top", cateNo: 1547, gender: ["men"]},       // Sweatshirt
+        {name: "Shirts", cateNo: 1556, gender: ["men"]},
+        {name: "Top", cateNo: 1574, gender: ["men"]},       // T-Shirt
+        {name: "Bottom", cateNo: 1499, gender: ["men"]},
+        {name: "Bottom", cateNo: 1577, gender: ["men"]},    // Shorts
+        {name: "Bag", cateNo: 1548, gender: ["men"]},
+        {name: "Shoes", cateNo: 1776, gender: ["men"]},
+        {name: "Accessories", cateNo: 1501, gender: ["men"]}, // Headgear
+        // Women
+        {name: "Outer", cateNo: 1508, gender: ["women"]},
+        {name: "Knitwear", cateNo: 1568, gender: ["women"]},
+        {name: "Top", cateNo: 1569, gender: ["women"]},     // Sweatshirt
+        {name: "Top", cateNo: 1593, gender: ["women"]},
+        {name: "Dress", cateNo: 1725, gender: ["women"]},
+        {name: "Bottom", cateNo: 1507, gender: ["women"]},
+        {name: "Bag", cateNo: 1558, gender: ["women"]},
+        {name: "Shoes", cateNo: 1778, gender: ["women"]},
+        {name: "Accessories", cateNo: 1505, gender: ["women"]}, // Headgear
+      ],
+    },
+    notes: "제주 기반 편집샵. Men 10 + Women 9 = 19개 카테고리. 5~40만원대",
   },
   {
     key: "noclaim",
@@ -290,7 +398,8 @@ export const PLATFORMS: SiteConfig[] = [
     maxPages: 15,
     category: { discovery: "auto" },
     defaultGender: ["unisex"],
-    notes: "부산 기반 편집샵. EG, Needles, Nanamica, Gramicci 등 100+ 브랜드. 10~50만원대",
+    disabled: true,
+    notes: "부산 기반 편집샵. 브랜드 기반 구조라 의류 카테고리 없음. 수동 설정 필요",
   },
   {
     key: "swallowlounge",
@@ -310,9 +419,19 @@ export const PLATFORMS: SiteConfig[] = [
     baseUrl: "https://takeastreet.com",
     paginate: true,
     maxPages: 10,
-    category: { discovery: "auto" },
-    defaultGender: ["unisex"],
-    notes: "합정 편집샵. Nomanual, Ourselves 등 40+ 브랜드. 3~20만원대",
+    category: {
+      discovery: "manual",
+      categories: [
+        {name: "Outer", cateNo: 137, gender: ["unisex"]},
+        {name: "Top", cateNo: 135, gender: ["unisex"]},
+        {name: "Bottom", cateNo: 136, gender: ["unisex"]},
+        {name: "Bag", cateNo: 138, gender: ["unisex"]},
+        {name: "Accessories", cateNo: 139, gender: ["unisex"]}, // 모자
+        {name: "Accessories", cateNo: 141, gender: ["unisex"]},
+        {name: "Shoes", cateNo: 1111, gender: ["unisex"]},
+      ],
+    },
+    notes: "합정 편집샵. 7개 카테고리. 3~20만원대",
   },
   {
     key: "chanceclothing",
@@ -321,9 +440,19 @@ export const PLATFORMS: SiteConfig[] = [
     baseUrl: "https://chanceclothing.co.kr",
     paginate: true,
     maxPages: 10,
-    category: { discovery: "auto" },
-    defaultGender: ["unisex"],
-    notes: "국내외 브랜드 편집샵. 캐주얼/스트릿. 5~30만원대",
+    category: {
+      discovery: "manual",
+      categories: [
+        {name: "Outer", cateNo: 29, gender: ["unisex"]},
+        {name: "Top", cateNo: 30, gender: ["unisex"]},
+        {name: "Bottom", cateNo: 31, gender: ["unisex"]},
+        {name: "Shoes", cateNo: 42, gender: ["unisex"]},
+        {name: "Bag", cateNo: 43, gender: ["unisex"]},
+        {name: "Accessories", cateNo: 44, gender: ["unisex"]}, // Hats
+        {name: "Accessories", cateNo: 45, gender: ["unisex"]},
+      ],
+    },
+    notes: "국내외 브랜드 편집샵. 7개 카테고리. 5~30만원대",
   },
   {
     key: "havati",
@@ -332,9 +461,37 @@ export const PLATFORMS: SiteConfig[] = [
     baseUrl: "https://havatishop.com",
     paginate: true,
     maxPages: 10,
-    category: { discovery: "auto" },
-    defaultGender: ["unisex"],
-    notes: "캐주얼 편집샵",
+    category: {
+      discovery: "manual",
+      categories: [
+        // Outer 하위
+        {name: "Outer", cateNo: 131, gender: ["unisex"]},  // Jacket/Blouson
+        {name: "Outer", cateNo: 132, gender: ["unisex"]},  // Jumper/Parka
+        {name: "Outer", cateNo: 323, gender: ["unisex"]},  // Leather
+        {name: "Outer", cateNo: 133, gender: ["unisex"]},  // Coat
+        {name: "Outer", cateNo: 135, gender: ["unisex"]},  // Vest
+        {name: "Outer", cateNo: 136, gender: ["unisex"]},  // Padding
+        {name: "Knitwear", cateNo: 137, gender: ["unisex"]}, // Cardigan
+        // Tops 하위
+        {name: "Top", cateNo: 32, gender: ["unisex"]},     // Tee
+        {name: "Shirts", cateNo: 33, gender: ["unisex"]},   // Shirt
+        {name: "Top", cateNo: 125, gender: ["unisex"]},    // Sweatshirt
+        {name: "Knitwear", cateNo: 126, gender: ["unisex"]}, // Knitwear
+        // Bottoms 하위
+        {name: "Bottom", cateNo: 138, gender: ["unisex"]},  // Denim
+        {name: "Bottom", cateNo: 280, gender: ["unisex"]},  // Chino
+        {name: "Bottom", cateNo: 281, gender: ["unisex"]},  // Trousers
+        {name: "Bottom", cateNo: 282, gender: ["unisex"]},  // Easy Pants
+        {name: "Bottom", cateNo: 283, gender: ["unisex"]},  // Work Pants
+        {name: "Bottom", cateNo: 284, gender: ["unisex"]},  // Shorts
+        // 나머지
+        {name: "Shoes", cateNo: 28, gender: ["unisex"]},
+        {name: "Bag", cateNo: 80, gender: ["unisex"]},
+        {name: "Accessories", cateNo: 79, gender: ["unisex"]}, // Hats
+        {name: "Accessories", cateNo: 42, gender: ["unisex"]},
+      ],
+    },
+    notes: "캐주얼 편집샵. 하위 카테고리 21개",
   },
 
   // ─── 캐주얼 자사 브랜드몰 (2차 확장) ────────────────
@@ -348,7 +505,8 @@ export const PLATFORMS: SiteConfig[] = [
     maxPages: 10,
     category: { discovery: "auto" },
     defaultGender: ["unisex"],
-    notes: "컨템포러리 캐주얼. 셔츠/베이직 중심. 5~30만원대",
+    disabled: true,
+    notes: "컨템포러리 캐주얼. 커스텀 셀렉터 필요 (기본 셀렉터로 상품 못 찾음). 5~30만원대",
   },
   {
     key: "beslow",
@@ -356,10 +514,17 @@ export const PLATFORMS: SiteConfig[] = [
     type: "cafe24",
     baseUrl: "https://beslow.co.kr",
     paginate: true,
-    maxPages: 10,
-    category: { discovery: "auto" },
-    defaultGender: ["men"],
-    notes: "미니멀 클래식 남성복. 5~30만원대",
+    maxPages: 20,
+    category: {
+      discovery: "manual",
+      categories: [
+        {name: "Beslow", cateNo: 126, gender: ["men"]},          // 자사 메인 (6p)
+        {name: "Beslow Purple", cateNo: 76, gender: ["men"]},    // 퍼플 라인 (2p)
+        {name: "Slowboy", cateNo: 133, gender: ["men"]},         // 슬로우보이 (1p)
+        {name: "Selected Brands", cateNo: 127, gender: ["men"]}, // 셀렉 브랜드 (16p)
+      ],
+    },
+    notes: "미니멀 클래식 남성복. 브랜드 기반 카테고리 4개. 5~30만원대",
   },
   {
     key: "anotheroffice",
@@ -368,9 +533,22 @@ export const PLATFORMS: SiteConfig[] = [
     baseUrl: "https://anotheroffice.co.kr",
     paginate: true,
     maxPages: 10,
-    category: { discovery: "auto" },
-    defaultGender: ["unisex"],
-    notes: "컨템포러리 캐주얼, 테일러드 베이직. 7~38만원대",
+    category: {
+      discovery: "manual",
+      categories: [
+        // Men
+        {name: "Outer", cateNo: 44, gender: ["men"]},
+        {name: "Top", cateNo: 45, gender: ["men"]},
+        {name: "Bottom", cateNo: 46, gender: ["men"]},
+        {name: "Accessories", cateNo: 47, gender: ["men"]},
+        // Women
+        {name: "Top", cateNo: 80, gender: ["women"]},
+        {name: "Bottom", cateNo: 81, gender: ["women"]},
+        {name: "Dress", cateNo: 95, gender: ["women"]},
+        {name: "Accessories", cateNo: 82, gender: ["women"]},
+      ],
+    },
+    notes: "컨템포러리 캐주얼, 테일러드 베이직. Men 4 + Women 4 = 8개 카테고리. 7~38만원대",
   },
   {
     key: "bastong",
@@ -379,9 +557,13 @@ export const PLATFORMS: SiteConfig[] = [
     baseUrl: "https://bastong.co.kr",
     paginate: true,
     maxPages: 10,
-    category: { discovery: "auto" },
-    defaultGender: ["men"],
-    notes: "클래식 남성복, 미니멀. 7~50만원대",
+    category: {
+      discovery: "manual",
+      categories: [
+        {name: "Top", cateNo: 64, gender: ["men"]}, // SHOPNOW (전체 상품)
+      ],
+    },
+    notes: "클래식 남성복. 단일 카테고리 (379개). 7~50만원대",
   },
   {
     key: "roughside",
@@ -390,9 +572,27 @@ export const PLATFORMS: SiteConfig[] = [
     baseUrl: "https://roughside.co.kr",
     paginate: true,
     maxPages: 10,
-    category: { discovery: "auto" },
-    defaultGender: ["men"],
-    notes: "컨템포러리 캐주얼 남성복. 5~25만원대",
+    category: {
+      discovery: "manual",
+      categories: [
+        // Men
+        {name: "Outer", cateNo: 62, gender: ["men"]},
+        {name: "Outer", cateNo: 63, gender: ["men"]},       // 재킷
+        {name: "Bottom", cateNo: 27, gender: ["men"]},
+        {name: "Shirts", cateNo: 64, gender: ["men"]},
+        {name: "Knitwear", cateNo: 65, gender: ["men"]},
+        {name: "Top", cateNo: 66, gender: ["men"]},         // 컷앤소운
+        {name: "Accessories", cateNo: 53, gender: ["men"]},
+        // Women
+        {name: "Outer", cateNo: 81, gender: ["women"]},
+        {name: "Top", cateNo: 86, gender: ["women"]},
+        {name: "Bottom", cateNo: 83, gender: ["women"]},
+        {name: "Knitwear", cateNo: 85, gender: ["women"]},
+        {name: "Dress", cateNo: 84, gender: ["women"]},
+        {name: "Accessories", cateNo: 87, gender: ["women"]},
+      ],
+    },
+    notes: "컨템포러리 캐주얼. Men 7 + Women 6 = 13개 카테고리. 5~25만원대",
   },
   {
     key: "blankroom",
@@ -401,20 +601,30 @@ export const PLATFORMS: SiteConfig[] = [
     baseUrl: "https://blankroom.house",
     paginate: true,
     maxPages: 10,
-    category: { discovery: "auto" },
-    defaultGender: ["unisex"],
-    notes: "미니멀 라이프스타일",
+    category: {
+      discovery: "manual",
+      categories: [
+        {name: "Outer", cateNo: 87, gender: ["unisex"]},
+        {name: "Knitwear", cateNo: 51, gender: ["unisex"]},
+        {name: "Shirts", cateNo: 80, gender: ["unisex"]},
+        {name: "Top", cateNo: 30, gender: ["unisex"]},
+        {name: "Bottom", cateNo: 31, gender: ["unisex"]},
+        {name: "Bottom", cateNo: 188, gender: ["unisex"]}, // Denim
+      ],
+    },
+    notes: "미니멀 라이프스타일. 6개 카테고리 (Home 제외)",
   },
   {
     key: "steadyeverywear",
     name: "스테디에브리웨어",
     type: "cafe24",
     baseUrl: "https://steadyeverywear.com",
+    disabled: true,
     paginate: true,
     maxPages: 10,
     category: { discovery: "auto" },
     defaultGender: ["unisex"],
-    notes: "데일리 캐주얼",
+    notes: "데일리 캐주얼. JS 렌더링 심해서 카테고리 구조 파악 불가",
   },
 
   // ─── 카테고리 적음 / 구조 미약 → 보류 ─────────────
