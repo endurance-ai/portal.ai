@@ -1,11 +1,17 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { Database, BarChart3, FlaskConical, ShoppingBag } from "lucide-react"
-import { cn } from "@/lib/utils"
+import {usePathname} from "next/navigation"
+import {BarChart3, Database, FlaskConical, GitCompareArrows, LayoutDashboard, Search, ShoppingBag} from "lucide-react"
+import {cn} from "@/lib/utils"
 
 const NAV_ITEMS = [
+  {
+    href: "/admin/home",
+    label: "Home",
+    description: "파이프라인 현황",
+    icon: LayoutDashboard,
+  },
   {
     href: "/admin/genome",
     label: "브랜드 DB",
@@ -29,6 +35,18 @@ const NAV_ITEMS = [
     label: "상품 DB",
     description: "크롤링 상품 & AI 분석",
     icon: ShoppingBag,
+  },
+  {
+    href: "/admin/search-quality",
+    label: "검색 품질",
+    description: "검색 결과 모니터링",
+    icon: Search,
+  },
+  {
+    href: "/admin/gap-report",
+    label: "Gap Report",
+    description: "수요 vs 공급 분석",
+    icon: GitCompareArrows,
   },
 ] as const
 

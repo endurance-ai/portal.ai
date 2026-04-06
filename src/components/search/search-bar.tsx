@@ -1,10 +1,18 @@
 "use client"
 
-import { useCallback, useRef, useState } from "react"
-import { AnimatePresence, motion } from "framer-motion"
-import { ArrowUp, Camera, ImagePlus, X } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { type Gender, GenderSelector } from "@/components/upload/gender-selector"
+import {useCallback, useEffect, useRef, useState} from "react"
+import {AnimatePresence, motion} from "framer-motion"
+import {ArrowUp, Camera, ImagePlus, X} from "lucide-react"
+import {cn} from "@/lib/utils"
+import {type Gender, GenderSelector} from "@/components/upload/gender-selector"
+
+const GHOST_PROMPTS = [
+  "black minimal coat under 200K for office...",
+  "summer vacation dress, blue tone, relaxed fit...",
+  "oversized knit 50-100K casual daily wear...",
+  "leather chelsea boots street style under 300K...",
+  "linen shirt resort vacation clean look...",
+]
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 const TARGET_MAX_DIMENSION = 1280
@@ -64,9 +72,16 @@ export function SearchBar({ gender, onGenderChange, onSubmit, disabled }: Search
   const [image, setImage] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
+  const [ghostIdx, setGhostIdx] = useState(0)
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (prompt) return
+    const timer = setInterval(() => setGhostIdx((i) => (i + 1) % GHOST_PROMPTS.length), 3000)
+    return () => clearInterval(timer)
+  }, [prompt])
 
   const canSubmit = !disabled && (prompt.trim().length > 0 || image !== null)
 
@@ -251,7 +266,7 @@ export function SearchBar({ gender, onGenderChange, onSubmit, disabled }: Search
             onChange={handleTextareaChange}
             onKeyDown={handleKeyDown}
             disabled={disabled}
-            placeholder="What style are you looking for?"
+            placeholder={GHOST_PROMPTS[ghostIdx]}
             maxLength={500}
             rows={1}
             className={cn(

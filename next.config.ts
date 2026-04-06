@@ -11,7 +11,7 @@ const nextConfig: NextConfig = {
       // Cafe24 이미지 CDN
       { protocol: "https", hostname: "cafe24img.poxo.com" },
       { protocol: "https", hostname: "cafe24.poxo.com" },
-      { protocol: "https", hostname: "ecimg.cafe24img.com" },
+      { protocol: "https", hostname: "**.cafe24img.com" },
       { protocol: "https", hostname: "**.cafe24.com" },
       // 편집샵/브랜드몰
       { protocol: "https", hostname: "shopamomento.com" },

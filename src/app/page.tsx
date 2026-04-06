@@ -277,16 +277,12 @@ export default function Home() {
                 transition={{ duration: 0.6 }}
               >
                 <h1 className="text-4xl md:text-6xl font-extrabold text-foreground tracking-[-0.03em] leading-tight">
-                  One photo.
+                  Describe your style.
                   <br />
                   <span className="text-muted-foreground">
-                    Every option.
+                    We find every piece.
                   </span>
                 </h1>
-                <p className="text-on-surface-variant text-base md:text-lg max-w-md mx-auto font-medium leading-relaxed">
-                  Drop an outfit — we break down every piece and find it
-                  across platforms.
-                </p>
               </motion.div>
 
               {error && (
@@ -304,6 +300,36 @@ export default function Home() {
                 onGenderChange={setGender}
                 onSubmit={handleSubmit}
               />
+
+              {/* Platform logos + Stats */}
+              <div className="space-y-6 pt-4">
+                <div className="flex items-center justify-center gap-5 flex-wrap">
+                  {["AMOMENTO", "Slow Steady Club", "ETC Seoul", "SCULP Store", "Freight"].map((name) => (
+                    <span key={name} className="text-[11px] font-mono font-semibold text-white/20 tracking-wide">
+                      {name}
+                    </span>
+                  ))}
+                  <span className="text-[11px] font-mono font-medium text-white/12 tracking-wide">
+                    +17 more
+                  </span>
+                </div>
+                <div className="flex items-center justify-center gap-8">
+                  <div className="flex flex-col items-center gap-0.5">
+                    <span className="text-base font-mono font-bold text-white/30">26,000+</span>
+                    <span className="text-[10px] font-mono text-white/15 tracking-widest">products</span>
+                  </div>
+                  <div className="w-px h-6 bg-white/10" />
+                  <div className="flex flex-col items-center gap-0.5">
+                    <span className="text-base font-mono font-bold text-white/30">22</span>
+                    <span className="text-[10px] font-mono text-white/15 tracking-widest">platforms</span>
+                  </div>
+                  <div className="w-px h-6 bg-white/10" />
+                  <div className="flex flex-col items-center gap-0.5">
+                    <span className="text-base font-mono font-bold text-white/30">15</span>
+                    <span className="text-[10px] font-mono text-white/15 tracking-widest">style nodes</span>
+                  </div>
+                </div>
+              </div>
             </motion.div>
           )}
 
