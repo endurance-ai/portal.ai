@@ -23,20 +23,24 @@ export async function GET(request: NextRequest) {
   }
 
   if (tab === "activity") {
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString()
+    const days = Math.min(parseInt(searchParams.get("days") || "30"), 365)
+    const sinceDate = new Date(Date.now() - days * 86400000).toISOString()
 
-    const { data: analyses } = await supabase
-      .from("analyses")
-      .select("created_at, style_node_primary, detected_gender")
-      .gte("created_at", thirtyDaysAgo)
+    const [analysesRes, searchQualityRes] = await Promise.all([
+      supabase
+        .from("analyses")
+        .select("created_at, style_node_primary, detected_gender, analysis_duration_ms, search_duration_ms, image_filename, items")
+        .gte("created_at", sinceDate),
+      supabase
+        .from("search_quality_logs")
+        .select("category, subcategory, result_count, top_score, avg_score, is_empty, created_at")
+        .gte("created_at", sinceDate),
+    ])
 
-    const { data: logs } = await supabase
-      .from("api_access_logs")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(100)
-
-    return NextResponse.json({ analyses: analyses || [], accessLogs: logs || [] })
+    return NextResponse.json({
+      analyses: analysesRes.data || [],
+      searchQuality: searchQualityRes.data || [],
+    })
   }
 
   return NextResponse.json({ error: "Invalid tab" }, { status: 400 })
