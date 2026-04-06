@@ -560,7 +560,7 @@ export const PLATFORMS: SiteConfig[] = [
     category: {
       discovery: "manual",
       categories: [
-        {name: "Top", cateNo: 64, gender: ["men"]}, // SHOPNOW (전체 상품)
+        {name: "All", cateNo: 64, gender: ["men"]}, // SHOPNOW (전체 상품 — 단일 카테고리)
       ],
     },
     notes: "클래식 남성복. 단일 카테고리 (379개). 7~50만원대",

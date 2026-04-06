@@ -88,7 +88,7 @@ async function discoverCategories(
     "all", "전체", "홈", "로그인", "장바구니",
   ]
 
-  await page.goto(discoveryUrl, {waitUntil: "load", timeout: 30000})
+  await page.goto(discoveryUrl, {waitUntil: "domcontentloaded", timeout: 60000})
   // Cafe24는 JS 렌더링이 필요한 경우가 많음
   await page.waitForTimeout(2000)
 
