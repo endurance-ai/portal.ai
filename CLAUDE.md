@@ -21,7 +21,7 @@ src/components/       → UI 컴포넌트 (shadcn/ui 기반)
 src/lib/              → 유틸리티 (supabase.ts, r2.ts, fashion-genome.ts, style-nodes.ts, prompts/)
 src/lib/enums/        → 공유 enum 정의 (product-enums.ts — 프론트/배치/검색 공통)
 scripts/              → 크롤러 (crawl.ts), 임포트 (import-*.ts), 평가 (eval-search.ts), 플랫폼 설정
-scripts/configs/      → 9개 편집샵 플랫폼 설정 (Cafe24/Shopify)
+scripts/configs/      → 22개 편집샵/브랜드몰 플랫폼 설정 (Cafe24)
 scripts/lib/          → 크롤 엔진 (cafe24-engine.ts, shopify-engine.ts, detail-parser.ts)
 supabase/migrations/  → DB 스키마 (001~014)
 docs/                 → 참조 문서, 디자인 시스템, 리서치, 스펙
@@ -39,7 +39,7 @@ docs/                 → 참조 문서, 디자인 시스템, 리서치, 스펙
 | 상품 검색 | 검색 엔진 v2 (Enum 매칭) | product_ai_analysis JOIN products, 가중치 스코어링 |
 | 이미지 저장 | Cloudflare R2 | 분석 원본 이미지 저장, @aws-sdk/client-s3 |
 | 어드민 인증 | Supabase Auth (이메일/비번) | 이메일 인증 기반 |
-| 크롤러 | Playwright (Cafe24/Shopify) | 9개 편집샵, ~15,000 상품 |
+| 크롤러 | Playwright (Cafe24) | 22개 편집샵/브랜드몰, ~26,000 상품 |
 | DB/로깅 | Supabase (PostgreSQL) | 분석 결과 + 검색 쿼리/결과 전체 로깅 |
 | 배포 | Vercel | |
 

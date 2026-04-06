@@ -2,14 +2,14 @@
 
 import Image from "next/image"
 import Link from "next/link"
-import { ChevronLeft, ArrowUpRight } from "lucide-react"
+import {ArrowUpRight, ChevronLeft} from "lucide-react"
 
 type ProductDetailProps = {
   product: {
     id: string
     brand: string
     name: string
-    price: number
+    price: number | null
     original_price: number | null
     sale_price: number | null
     image_url: string | null
@@ -45,8 +45,8 @@ type ProductDetailProps = {
 }
 
 export function ProductDetail({ product, ai }: ProductDetailProps) {
-  const formatPrice = (price: number) =>
-    `₩${price.toLocaleString("ko-KR")}`
+  const formatPrice = (price: number | null) =>
+    price != null ? `₩${price.toLocaleString("ko-KR")}` : "—"
 
   return (
     <div className="p-6 space-y-4">

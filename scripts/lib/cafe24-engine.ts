@@ -11,7 +11,7 @@
 
 import type {Page} from "playwright"
 import type {CrawlResult, Product, SiteConfig} from "./types"
-import { parseDetailPage } from "./detail-parser"
+import {parseDetailPage} from "./detail-parser"
 
 // ─── 기본 셀렉터 (폴백 체인) ──────────────────────────
 
@@ -88,7 +88,7 @@ async function discoverCategories(
     "all", "전체", "홈", "로그인", "장바구니",
   ]
 
-  await page.goto(discoveryUrl, {waitUntil: "load", timeout: 30000})
+  await page.goto(discoveryUrl, {waitUntil: "domcontentloaded", timeout: 60000})
   // Cafe24는 JS 렌더링이 필요한 경우가 많음
   await page.waitForTimeout(2000)
 
@@ -364,8 +364,8 @@ async function crawlCategory(
       : `${category.url}${separator}page=${pageNum}`
 
     try {
-      await page.goto(url, {waitUntil: "load", timeout: 30000})
-      await page.waitForTimeout(1500) // JS 렌더링 대기
+      await page.goto(url, {waitUntil: "domcontentloaded", timeout: 60000})
+      await page.waitForTimeout(2000) // JS 렌더링 대기
 
       const products = await collectProductsFromPage(
         page,
