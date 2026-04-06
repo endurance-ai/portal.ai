@@ -134,7 +134,7 @@ function ProductCard({ p }: { p: Product }) {
                   .map((tag, i) => (
                     <span
                       key={i}
-                      className="text-[10px] px-1.5 py-0.5 rounded bg-green-900/20 border border-green-800/30 text-green-500"
+                      className="text-[10px] px-1.5 py-0.5 rounded bg-turquoise/10 border border-turquoise/20 text-turquoise"
                     >
                       {tag}
                     </span>
@@ -290,7 +290,7 @@ export default function ProductsPageInner() {
           </div>
           <div className="h-2 rounded-full bg-secondary overflow-hidden">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-blue-500 transition-all duration-500"
+              className="h-full rounded-full bg-turquoise transition-all duration-500"
               style={{ width: `${total > 0 ? (aiAnalyzed / total) * 100 : 0}%` }}
             />
           </div>

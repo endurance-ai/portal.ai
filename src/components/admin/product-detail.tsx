@@ -109,15 +109,15 @@ export function ProductDetail({ product, ai }: ProductDetailProps) {
 
           {/* AI Analysis */}
           {ai ? (
-            <div className="bg-green-950/30 border border-green-800/30 rounded-lg p-4 space-y-3">
+            <div className="bg-turquoise/5 border border-turquoise/20 rounded-lg p-4 space-y-3">
               {/* Header */}
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-bold text-green-500 text-sm">AI ANALYSIS</span>
-                <span className="text-xs bg-green-900/40 text-green-400 px-2 py-0.5 rounded">
+                <span className="font-bold text-turquoise text-sm">AI ANALYSIS</span>
+                <span className="text-xs bg-turquoise/15 text-turquoise px-2 py-0.5 rounded">
                   {ai.version}
                 </span>
                 {ai.confidence != null && (
-                  <span className="text-xs bg-green-900/40 text-green-400 px-2 py-0.5 rounded">
+                  <span className="text-xs bg-turquoise/15 text-turquoise px-2 py-0.5 rounded">
                     confidence: {ai.confidence.toFixed(2)}
                   </span>
                 )}
@@ -128,41 +128,41 @@ export function ProductDetail({ product, ai }: ProductDetailProps) {
                 <div>
                   <span className="text-muted-foreground text-xs">category</span>
                   <br />
-                  <span className="text-green-400">{ai.category}</span>
+                  <span className="text-turquoise">{ai.category}</span>
                 </div>
                 {ai.subcategory && (
                   <div>
                     <span className="text-muted-foreground text-xs">subcategory</span>
                     <br />
-                    <span className="text-green-400">{ai.subcategory}</span>
+                    <span className="text-turquoise">{ai.subcategory}</span>
                   </div>
                 )}
                 {ai.fit && (
                   <div>
                     <span className="text-muted-foreground text-xs">fit</span>
                     <br />
-                    <span className="text-green-400">{ai.fit}</span>
+                    <span className="text-turquoise">{ai.fit}</span>
                   </div>
                 )}
                 {ai.fabric && (
                   <div>
                     <span className="text-muted-foreground text-xs">fabric</span>
                     <br />
-                    <span className="text-green-400">{ai.fabric}</span>
+                    <span className="text-turquoise">{ai.fabric}</span>
                   </div>
                 )}
                 {ai.color_family && (
                   <div>
                     <span className="text-muted-foreground text-xs">color</span>
                     <br />
-                    <span className="text-green-400 uppercase">{ai.color_family}</span>
+                    <span className="text-turquoise uppercase">{ai.color_family}</span>
                   </div>
                 )}
                 {ai.style_node && (
                   <div>
                     <span className="text-muted-foreground text-xs">node</span>
                     <br />
-                    <span className="text-green-400">{ai.style_node}</span>
+                    <span className="text-turquoise">{ai.style_node}</span>
                   </div>
                 )}
               </div>
@@ -175,7 +175,7 @@ export function ProductDetail({ product, ai }: ProductDetailProps) {
                     {ai.mood_tags.map((tag) => (
                       <span
                         key={tag}
-                        className="bg-green-900/30 text-green-400 text-xs px-2 py-0.5 rounded"
+                        className="bg-turquoise/10 text-turquoise text-xs px-2 py-0.5 rounded"
                       >
                         {tag}
                       </span>
@@ -188,13 +188,13 @@ export function ProductDetail({ product, ai }: ProductDetailProps) {
               {ai.keywords_ko && ai.keywords_ko.length > 0 && (
                 <div>
                   <span className="text-muted-foreground text-xs">keywords_ko</span>
-                  <p className="text-green-400 text-sm">{ai.keywords_ko.join(", ")}</p>
+                  <p className="text-turquoise text-sm">{ai.keywords_ko.join(", ")}</p>
                 </div>
               )}
               {ai.keywords_en && ai.keywords_en.length > 0 && (
                 <div>
                   <span className="text-muted-foreground text-xs">keywords_en</span>
-                  <p className="text-green-400 text-sm">{ai.keywords_en.join(", ")}</p>
+                  <p className="text-turquoise text-sm">{ai.keywords_en.join(", ")}</p>
                 </div>
               )}
 
