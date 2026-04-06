@@ -1,11 +1,11 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import {useCallback, useEffect, useRef, useState} from "react"
+import {useRouter, useSearchParams} from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Loader2, Search, ChevronLeft, ChevronRight, RotateCcw } from "lucide-react"
+import {Button} from "@/components/ui/button"
+import {ChevronLeft, ChevronRight, Loader2, RotateCcw, Search} from "lucide-react"
 
 type ProductAI = {
   category: string | null
@@ -159,6 +159,7 @@ export default function ProductsPageInner() {
   // Read initial state from URL
   const [products, setProducts] = useState<Product[]>([])
   const [total, setTotal] = useState(0)
+  const [aiAnalyzed, setAiAnalyzed] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
   const [page, setPage] = useState(() => parseInt(searchParams.get("page") || "0") || 0)
   const [loading, setLoading] = useState(true)
@@ -252,6 +253,7 @@ export default function ProductsPageInner() {
         setProducts(data.products ?? [])
         setTotal(data.total ?? 0)
         setTotalPages(data.totalPages ?? 0)
+        if (data.aiAnalyzed != null) setAiAnalyzed(data.aiAnalyzed)
       }
     } finally {
       setLoading(false)
@@ -276,6 +278,24 @@ export default function ProductsPageInner() {
           {total.toLocaleString()}개 상품
         </span>
       </div>
+
+      {/* AI Coverage Bar */}
+      {total > 0 && (
+        <div className="rounded-lg border border-border bg-card p-4 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">AI 분석 완료</span>
+            <span className="text-sm font-mono font-semibold">
+              {aiAnalyzed.toLocaleString()} / {total.toLocaleString()} ({total > 0 ? ((aiAnalyzed / total) * 100).toFixed(1) : 0}%)
+            </span>
+          </div>
+          <div className="h-2 rounded-full bg-secondary overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-blue-500 transition-all duration-500"
+              style={{ width: `${total > 0 ? (aiAnalyzed / total) * 100 : 0}%` }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Filter bar */}
       <div className="flex flex-wrap gap-2 items-center">

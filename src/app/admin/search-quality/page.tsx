@@ -1,7 +1,8 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
-import { Loader2, AlertTriangle, CheckCircle2, XCircle } from "lucide-react"
+import {useCallback, useEffect, useState} from "react"
+import {AlertTriangle, ArrowRight, CheckCircle2, Loader2, XCircle} from "lucide-react"
+import Link from "next/link"
 
 type QualityData = {
   period: string
@@ -170,6 +171,49 @@ export default function SearchQualityPage() {
               </ul>
             )}
           </div>
+
+          {/* Categories Needing Attention */}
+          {(() => {
+            const attentionCats = data.categories
+              .filter((c) => parseFloat(c.successRate) < 75)
+              .sort((a, b) => parseFloat(a.successRate) - parseFloat(b.successRate))
+            if (attentionCats.length === 0) return null
+            return (
+              <div className="border border-border rounded-lg p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="size-4 text-red-500" />
+                  <h3 className="text-sm font-bold">Categories Needing Attention</h3>
+                </div>
+                <div className="space-y-2">
+                  {attentionCats.map((cat) => {
+                    const rate = parseFloat(cat.successRate)
+                    return (
+                      <Link
+                        key={cat.category}
+                        href="/admin/eval"
+                        className={`flex items-center justify-between rounded-md p-3 transition-colors hover:opacity-80 ${
+                          rate < 60 ? "bg-red-500/10" : "bg-amber-500/10"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold">{cat.category}</span>
+                          <span className={`text-xs font-mono ${rate < 60 ? "text-red-500" : "text-amber-500"}`}>
+                            empty rate {(100 - rate).toFixed(1)}%
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] text-foreground bg-secondary px-2 py-0.5 rounded">
+                            Eval 큐 보기
+                          </span>
+                          <ArrowRight className="size-3 text-muted-foreground" />
+                        </div>
+                      </Link>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })()}
 
           {/* Recent empties */}
           <div className="border border-border rounded-lg overflow-hidden">

@@ -3,7 +3,7 @@
 import {useRef, useState} from "react"
 import {AnimatePresence, motion} from "framer-motion"
 import Image from "next/image"
-import {ArrowUpRight, ChevronDown} from "lucide-react"
+import {ArrowUpRight, ChevronDown, Sparkles} from "lucide-react"
 import {cn} from "@/lib/utils"
 
 export interface Product {
@@ -132,6 +132,25 @@ export function LookBreakdown({
           )}
         </motion.section>
       )}
+
+      {/* Refine Rail — AI-suggested refinement capsules */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.5 }}
+        className="flex items-center gap-2 overflow-x-auto"
+      >
+        <span className="text-[11px] font-mono font-semibold text-muted-foreground shrink-0">Refine:</span>
+        {["under 100K", "brighter", "more casual", "linen only", "oversized"].map((label) => (
+          <button
+            key={label}
+            disabled
+            className="shrink-0 px-2.5 py-1 rounded-full border border-white/15 text-[11px] font-mono text-white/40 cursor-not-allowed"
+          >
+            {label}
+          </button>
+        ))}
+      </motion.div>
 
       {/* Main layout: image left + accordion right */}
       <div className={cn("grid grid-cols-1 gap-6 items-start", hasImage && "lg:grid-cols-12")}>
@@ -357,6 +376,20 @@ export function LookBreakdown({
                             )}
                           </div>
                         )}
+
+                        {/* Item refine capsules */}
+                        <div className="flex items-center gap-1.5">
+                          <Sparkles className="size-3 text-muted-foreground shrink-0" />
+                          {["cheaper", "different color", "slimmer fit", "shorter"].map((label) => (
+                            <button
+                              key={label}
+                              disabled
+                              className="px-2 py-0.5 rounded-full bg-secondary border border-border text-[10px] font-mono text-muted-foreground cursor-not-allowed"
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
 
                         {/* Horizontal scroll product cards */}
                         {hasProducts ? (

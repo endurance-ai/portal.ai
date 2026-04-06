@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server"
-import { createSupabaseServer } from "@/lib/supabase-server"
-import { supabase } from "@/lib/supabase"
+import {NextRequest, NextResponse} from "next/server"
+import {createSupabaseServer} from "@/lib/supabase-server"
+import {supabase} from "@/lib/supabase"
 
 const PAGE_SIZE = 20
 const CHUNK_SIZE = 150 // Supabase .in() safe batch size
@@ -205,5 +205,10 @@ export async function GET(request: NextRequest) {
     }
   })
 
-  return NextResponse.json({ products: result, total: totalCount, page, totalPages })
+  const { count: aiCount } = await supabase
+    .from("product_ai_analysis")
+    .select("id", { count: "exact", head: true })
+    .eq("version", "v1")
+
+  return NextResponse.json({ products: result, total: totalCount, page, totalPages, aiAnalyzed: aiCount ?? 0 })
 }
