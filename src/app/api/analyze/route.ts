@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData()
     const imageFile = formData.get("image") as File | null
     const prompt = formData.get("prompt") as string | null
+    const originalPrompt = (formData.get("originalPrompt") as string) || prompt
     const gender = (formData.get("gender") as string) || "male"
 
     if (!imageFile && !prompt) {
@@ -61,14 +62,20 @@ export async function POST(request: NextRequest) {
 
     // ── 프롬프트 전용 (이미지 없음) ─────────────────────
     if (!imageFile && prompt) {
-      logger.info(`💬 프롬프트 전용 검색 — "${prompt}" (${gender})`)
+      // 프롬프트 텍스트에서 성별 키워드 감지 → UI 셀렉터 오버라이드
+      const promptLower = prompt.toLowerCase()
+      const effectiveGender =
+        /여자|여성|women|woman|female/.test(promptLower) ? "female" :
+        /남자|남성|\bmen\b|\bman\b|\bmale\b/.test(promptLower) ? "male" :
+        gender
+      logger.info(`💬 프롬프트 전용 검색 — "${prompt}" (UI: ${gender} → effective: ${effectiveGender})`)
       const aiStart = Date.now()
 
       const response = await openai.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
           { role: "system", content: PROMPT_SEARCH_SYSTEM },
-          { role: "user", content: PROMPT_SEARCH_USER(prompt, gender) },
+          { role: "user", content: PROMPT_SEARCH_USER(prompt, effectiveGender) },
         ],
         max_tokens: 800,
         temperature: 0.3,
@@ -107,9 +114,9 @@ export async function POST(request: NextRequest) {
       const { data: logRow, error: logError } = await supabase
         .from("analyses")
         .insert({
-          prompt_text: prompt,
+          prompt_text: originalPrompt,
           ai_raw_response: analysis,
-          detected_gender: gender,
+          detected_gender: effectiveGender,
           items: analysis.items,
           search_queries: analysis.items?.map((item: { id: string; searchQuery: string }) => ({
             id: item.id,
@@ -126,6 +133,7 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         ...analysis,
+        detectedGender: effectiveGender,
         _logId: logRow?.id ?? null,
         _promptOnly: true,
       })

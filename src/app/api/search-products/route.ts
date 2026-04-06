@@ -28,6 +28,8 @@ type SearchRequest = {
 type ScoreBreakdown = {
   subcategory: number
   subcategorySimilar: number
+  nameMatch: number
+  keywords: number
   fit: number
   fabric: number
   colorFamily: number
@@ -51,10 +53,14 @@ type FormattedProduct = {
 const TARGET_RESULTS = 5
 const MAX_PER_BRAND = 2
 const ACTIVE_VERSION = "v1"
+const MIN_VALID_PRICE = 1000 // ₩1,000 미만은 비정상 데이터
 
 const WEIGHTS = {
   subcategory: 0.25,
   subcategorySimilar: 0.10,
+  nameMatch: 0.20,
+  keywordsEach: 0.05,
+  keywordsMax: 3,
   colorFamily: 0.20,
   stylePrimary: 0.30,
   styleSecondary: 0.15,
@@ -63,6 +69,49 @@ const WEIGHTS = {
   moodTagEach: 0.05,
   moodTagMax: 3,
 } as const
+
+// 서브카테고리 → 상품명 매칭 키워드 (EN + KO)
+const SUBCATEGORY_NAME_KEYWORDS: Record<string, string[]> = {
+  blazer: ["blazer", "블레이저"],
+  "denim-jacket": ["denim", "데님"],
+  bomber: ["bomber", "봄버", "항공"],
+  "field-jacket": ["field", "필드"],
+  "leather-jacket": ["leather", "레더", "가죽"],
+  overcoat: ["coat", "코트"],
+  parka: ["parka", "파카"],
+  "rain-jacket": ["rain", "레인"],
+  vest: ["vest", "베스트", "조끼"],
+  overshirt: ["overshirt", "오버셔츠"],
+  cardigan: ["cardigan", "가디건"],
+  shirt: ["shirt", "셔츠"],
+  "t-shirt": ["t-shirt", "tee", "티셔츠", "반팔"],
+  sweater: ["sweater", "knit", "니트", "스웨터"],
+  hoodie: ["hoodie", "후디", "후드"],
+  sweatshirt: ["sweatshirt", "스웻", "맨투맨"],
+  "crop-top": ["crop", "크롭"],
+  "tank-top": ["tank", "탱크", "나시", "슬리브리스"],
+  polo: ["polo", "폴로"],
+  jeans: ["jeans", "jean", "청바지"],
+  "wide-pants": ["wide", "와이드"],
+  "straight-pants": ["straight", "스트레이트"],
+  "tapered-pants": ["taper", "테이퍼"],
+  shorts: ["shorts", "short", "반바지", "쇼츠"],
+  skirt: ["skirt", "스커트"],
+  sneakers: ["sneaker", "스니커즈"],
+  boots: ["boots", "boot", "부츠"],
+  loafers: ["loafer", "로퍼"],
+  sandals: ["sandal", "샌들"],
+  heels: ["heel", "힐"],
+  mules: ["mule", "뮬"],
+  derby: ["derby", "더비"],
+  tote: ["tote", "토트"],
+  crossbody: ["crossbody", "크로스바디", "숄더"],
+  backpack: ["backpack", "백팩"],
+  clutch: ["clutch", "클러치"],
+  "mini-dress": ["dress", "원피스", "드레스"],
+  "midi-dress": ["dress", "원피스", "드레스"],
+  "maxi-dress": ["dress", "원피스", "드레스"],
+}
 
 const CATEGORY_ALIASES: Record<string, string[]> = {
   "Outer": ["Outer"],
@@ -118,33 +167,50 @@ export async function POST(request: NextRequest) {
       `🔍 검색 v2 시작 — ${queries.length}개 아이템 | 성별: ${genderFilter || "전체"} | 노드: ${primaryNode || "없음"}→${secondaryNode || "없음"}${priceFilter ? ` | 가격: ${priceFilter.minPrice || 0}~${priceFilter.maxPrice || "∞"}원` : ""}`
     )
 
-    const results = await Promise.all(
-      queries.map(async (item) => {
-        logger.info(`   🔎 [${item.category}] "${item.searchQuery}"`)
+    // 아이템 간 중복 제거용 — 같은 상품이 여러 아이템에서 나오면 먼저 나온 쪽에만 포함
+    const globalSeenProducts = new Set<string>()
 
-        const dbCategories = CATEGORY_ALIASES[item.category] ?? null
+    const results: { id: string; products: (FormattedProduct & { _rawPrice: number })[] }[] = []
 
-        const products = await searchByEnums(item, genderFilter, dbCategories, primaryNode, secondaryNode, moodTags, priceFilter)
+    for (const item of queries) {
+      logger.info(`   🔎 [${item.category}] "${item.searchQuery}"`)
 
-        for (const p of products.slice(0, TARGET_RESULTS)) {
-          const s = p._scoring
-          logger.info(
-            `      📊 ${p.brand} | ${p.title.slice(0, 40)} | ` +
-            `total=${s?.totalScore.toFixed(2)} (sub=${s?.subcategory.toFixed(2)} col=${s?.colorFamily.toFixed(2)} ` +
-            `node=${s?.styleNode.toFixed(2)} fit=${s?.fit.toFixed(2)} fab=${s?.fabric.toFixed(2)} mood=${s?.moodTags.toFixed(2)})`
-          )
-        }
+      const dbCategories = CATEGORY_ALIASES[item.category] ?? null
 
-        const finalProducts = products.slice(0, TARGET_RESULTS)
+      const itemKeywords: string[] = []
+      if (item.searchQuery) itemKeywords.push(...item.searchQuery.toLowerCase().split(/\s+/))
+      if (item.searchQueryKo) itemKeywords.push(...item.searchQueryKo.split(/\s+/))
 
-        logger.info(`   ✅ [${item.category}] 최종 ${finalProducts.length}개`)
+      const products = await searchByEnums(item, genderFilter, dbCategories, primaryNode, secondaryNode, moodTags, priceFilter, itemKeywords)
 
-        return {
-          id: item.id,
-          products: finalProducts,
-        }
+      // 이전 아이템에서 이미 사용된 상품 제외
+      const deduped = products.filter((p) => {
+        const key = `${p.brand}::${p.title}`.toLowerCase()
+        if (globalSeenProducts.has(key)) return false
+        return true
       })
-    )
+
+      const finalProducts = deduped.slice(0, TARGET_RESULTS)
+
+      for (const p of finalProducts) {
+        const key = `${p.brand}::${p.title}`.toLowerCase()
+        globalSeenProducts.add(key)
+
+        const s = p._scoring
+        logger.info(
+          `      📊 ${p.brand} | ${p.title.slice(0, 40)} | ` +
+          `total=${s?.totalScore.toFixed(2)} (sub=${s?.subcategory.toFixed(2)} name=${s?.nameMatch.toFixed(2)} kw=${s?.keywords.toFixed(2)} col=${s?.colorFamily.toFixed(2)} ` +
+          `node=${s?.styleNode.toFixed(2)} fit=${s?.fit.toFixed(2)} fab=${s?.fabric.toFixed(2)} mood=${s?.moodTags.toFixed(2)})`
+        )
+      }
+
+      logger.info(`   ✅ [${item.category}] 최종 ${finalProducts.length}개`)
+
+      results.push({
+        id: item.id,
+        products: finalProducts,
+      })
+    }
 
     // Quality logging (fire-and-forget)
     const qualityRows = results.map((r) => {
@@ -186,7 +252,8 @@ export async function POST(request: NextRequest) {
     logger.info(`🏁 검색 v2 완료 — ${totalProducts}개 | ${searchDuration}ms`)
 
     // DB에 검색 상세 로깅 (fire-and-forget)
-    if (_logId) {
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    if (_logId && UUID_RE.test(_logId)) {
       supabase
         .from("analyses")
         .update({
@@ -233,30 +300,40 @@ async function searchByEnums(
   primaryNode: string | undefined,
   secondaryNode: string | undefined,
   moodTags: string[] | undefined,
-  priceFilter?: { minPrice?: number; maxPrice?: number },
+  priceFilter: { minPrice?: number; maxPrice?: number } | undefined,
+  itemKeywords: string[],
 ): Promise<(FormattedProduct & { _rawPrice: number })[]> {
+  // ─── 경로 1: AI analysis 기반 검색 ───
+  // subcategory + 유사 subcategory를 DB 단계에서 필터 (limit 200 내 누락 방지)
+  const targetSubcategories: string[] = []
+  if (item.subcategory) {
+    targetSubcategories.push(item.subcategory)
+    const similars = SIMILAR_SUBCATEGORIES[item.subcategory] ?? []
+    targetSubcategories.push(...similars)
+  }
+
   let query = supabase
     .from("product_ai_analysis")
     .select(`
       category, subcategory, fit, fabric, color_family, style_node, mood_tags,
+      keywords_ko, keywords_en,
       products!inner (
         id, brand, name, price, image_url, product_url, platform, gender, in_stock
       )
     `)
     .eq("version", ACTIVE_VERSION)
     .eq("products.in_stock", true)
+    .gte("products.price", priceFilter?.minPrice ? Math.max(priceFilter.minPrice, MIN_VALID_PRICE) : MIN_VALID_PRICE)
     .limit(200)
 
   if (dbCategories && dbCategories.length > 0) {
     query = query.in("category", dbCategories)
   }
 
-  // 성별 필터는 DB 쿼리에서 제외 — 정렬 단계에서 우선순위 적용
-  // (여성 → 유니섹스 → 남성 순으로 채움)
-
-  if (priceFilter?.minPrice !== undefined) {
-    query = query.gte("products.price", priceFilter.minPrice)
+  if (targetSubcategories.length > 0) {
+    query = query.in("subcategory", targetSubcategories)
   }
+
   if (priceFilter?.maxPrice !== undefined) {
     query = query.lte("products.price", priceFilter.maxPrice)
   }
@@ -268,7 +345,58 @@ async function searchByEnums(
     return []
   }
 
-  if (!data?.length) return []
+  // ─── 경로 2: 상품명 텍스트 검색 (AI 오분류 보정) ───
+  const nameKeywords = item.subcategory ? (SUBCATEGORY_NAME_KEYWORDS[item.subcategory] ?? []) : []
+  let nameData: typeof data = []
+
+  if (nameKeywords.length > 0) {
+    const nameFilters = nameKeywords.map((kw) => `products.name.ilike.%${kw}%`).join(",")
+    let nameQuery = supabase
+      .from("product_ai_analysis")
+      .select(`
+        category, subcategory, fit, fabric, color_family, style_node, mood_tags,
+        keywords_ko, keywords_en,
+        products!inner (
+          id, brand, name, price, image_url, product_url, platform, gender, in_stock
+        )
+      `)
+      .eq("version", ACTIVE_VERSION)
+      .eq("products.in_stock", true)
+      .gte("products.price", priceFilter?.minPrice ? Math.max(priceFilter.minPrice, MIN_VALID_PRICE) : MIN_VALID_PRICE)
+      .or(nameFilters, { referencedTable: "products" })
+      .limit(50)
+
+    if (dbCategories && dbCategories.length > 0) {
+      nameQuery = nameQuery.in("category", dbCategories)
+    }
+
+    if (priceFilter?.maxPrice !== undefined) {
+      nameQuery = nameQuery.lte("products.price", priceFilter.maxPrice)
+    }
+
+    const { data: nd, error: ne } = await nameQuery
+    if (!ne && nd) {
+      nameData = nd
+      logger.info(`   📝 상품명 검색: ${nd.length}개 (키워드: ${nameKeywords.join(", ")})`)
+    }
+  }
+
+  // ─── 병합: AI 결과 + 상품명 결과 (중복 제거) ───
+  const seenIds = new Set<string>()
+  const merged = [...(data || [])]
+  for (const row of merged) {
+    const p = Array.isArray(row.products) ? row.products[0] : row.products
+    if (p) seenIds.add((p as { id: string }).id)
+  }
+  for (const row of nameData) {
+    const p = Array.isArray(row.products) ? row.products[0] : row.products
+    if (p && !seenIds.has((p as { id: string }).id)) {
+      seenIds.add((p as { id: string }).id)
+      merged.push(row)
+    }
+  }
+
+  if (!merged.length) return []
 
   type RawProduct = {
     id: string; brand: string; name: string; price: number | null;
@@ -276,30 +404,55 @@ async function searchByEnums(
     gender: string | null; in_stock: boolean
   }
 
-  const scored = data
+  const scored = merged
     .map((row) => {
-      // Supabase returns inner join as array; take first element
       const productRaw = row.products
       const p: RawProduct = (Array.isArray(productRaw) ? productRaw[0] : productRaw) as unknown as RawProduct
       if (!p) return null
 
-      // 스코어 계산
+      // 비정상 가격 필터
+      if (p.price !== null && p.price < MIN_VALID_PRICE) return null
+
+      // ── subcategory 스코어 ──
       let subcategoryExact = 0
       let subcategorySimilar = 0
       if (item.subcategory && row.subcategory) {
         if (row.subcategory === item.subcategory) {
-          subcategoryExact = WEIGHTS.subcategory // 정확 매칭: 0.25
+          subcategoryExact = WEIGHTS.subcategory
         } else {
           const similars = SIMILAR_SUBCATEGORIES[item.subcategory] ?? []
           if (similars.includes(row.subcategory)) {
-            subcategorySimilar = WEIGHTS.subcategorySimilar // 유사 매칭: 0.10
+            subcategorySimilar = WEIGHTS.subcategorySimilar
           }
         }
       }
       const subcategoryScore = subcategoryExact + subcategorySimilar
+
+      // ── 상품명 텍스트 매칭 ──
+      let nameMatchScore = 0
+      if (item.subcategory) {
+        const nameLower = (p.name || "").toLowerCase()
+        const keywords = SUBCATEGORY_NAME_KEYWORDS[item.subcategory] ?? [item.subcategory]
+        if (keywords.some((kw) => nameLower.includes(kw.toLowerCase()))) {
+          nameMatchScore = WEIGHTS.nameMatch
+        }
+      }
+
+      // ── keywords_ko/keywords_en 매칭 (정성적 표현: 꽃무늬, 워싱 등) ──
+      const rowKeywordsKo = Array.isArray(row.keywords_ko) ? (row.keywords_ko as string[]) : []
+      const rowKeywordsEn = Array.isArray(row.keywords_en) ? (row.keywords_en as string[]).map((k) => k.toLowerCase()) : []
+      const allRowKeywords = [...rowKeywordsKo, ...rowKeywordsEn]
+      const kwOverlap = itemKeywords.filter((kw) =>
+        allRowKeywords.some((rk) => rk.includes(kw) || kw.includes(rk))
+      ).length
+      const keywordsScore = Math.min(kwOverlap, WEIGHTS.keywordsMax) * WEIGHTS.keywordsEach
+
+      // ── 기본 enum 매칭 ──
       const fitScore = item.fit && row.fit === item.fit ? WEIGHTS.fit : 0
       const fabricScore = item.fabric && row.fabric === item.fabric ? WEIGHTS.fabric : 0
       const colorFamilyScore = item.colorFamily && row.color_family === item.colorFamily ? WEIGHTS.colorFamily : 0
+
+      // ── 스타일 노드 ──
       let styleNodeScore = 0
       if (primaryNode && row.style_node === primaryNode) {
         styleNodeScore = WEIGHTS.stylePrimary
@@ -307,18 +460,22 @@ async function searchByEnums(
         styleNodeScore = WEIGHTS.styleSecondary
       }
 
+      // ── 무드 태그 ──
       const rowMoodTags = Array.isArray(row.mood_tags) ? (row.mood_tags as string[]) : []
       const requestMoodTags = moodTags ?? []
       const overlapCount = rowMoodTags.filter((t) => requestMoodTags.includes(t)).length
       const moodScore = Math.min(overlapCount, WEIGHTS.moodTagMax) * WEIGHTS.moodTagEach
 
       const totalScore =
-        subcategoryScore + fitScore + fabricScore + colorFamilyScore +
+        subcategoryScore + nameMatchScore + keywordsScore +
+        fitScore + fabricScore + colorFamilyScore +
         styleNodeScore + moodScore
 
       const scoring: ScoreBreakdown = {
         subcategory: subcategoryExact,
         subcategorySimilar,
+        nameMatch: nameMatchScore,
+        keywords: keywordsScore,
         fit: fitScore,
         fabric: fabricScore,
         colorFamily: colorFamilyScore,
@@ -327,19 +484,26 @@ async function searchByEnums(
         totalScore,
       }
 
-      // 성별 우선순위: 요청 성별과 일치 → unisex → 반대 성별
+      // ── 성별 우선순위 ──
       const genderArr: string[] = Array.isArray(p.gender) ? p.gender : []
-      let genderPriority = 2 // 반대 성별 (lowest)
+      let genderPriority = 2
       if (genderFilter && genderArr.includes(genderFilter)) {
-        genderPriority = 0 // 일치 (highest)
+        genderPriority = 0
       } else if (genderArr.includes("unisex")) {
-        genderPriority = 1 // unisex (middle)
+        genderPriority = 1
       }
+
+      // ── subcategory 매칭 tier ──
+      const subTier =
+        subcategoryExact > 0 ? 0 :
+        nameMatchScore > 0 ? 1 :
+        subcategorySimilar > 0 ? 2 : 3
 
       return {
         _score: totalScore,
         _rawPrice: p.price ?? 0,
         _genderPriority: genderPriority,
+        _subTier: subTier,
         _scoring: scoring,
         brand: p.brand,
         price: p.price ? `₩${p.price.toLocaleString()}` : "",
@@ -352,34 +516,46 @@ async function searchByEnums(
     .filter((p): p is NonNullable<typeof p> => {
       if (!p || p._score <= 0) return false
 
-      // subcategory 정확 또는 유사 매칭 필수 (불일치면 제외)
-      if (item.subcategory && p._scoring?.subcategory === 0 && p._scoring?.subcategorySimilar === 0) return false
+      // subcategory 정확/유사 매칭 또는 상품명 매칭 중 하나는 필수
+      if (item.subcategory
+        && p._scoring?.subcategory === 0
+        && p._scoring?.subcategorySimilar === 0
+        && p._scoring?.nameMatch === 0) return false
 
       return true
     })
 
-  // 정렬: 성별 우선순위 → 스코어 → 가격
-  scored.sort((a, b) =>
-    a._genderPriority - b._genderPriority ||
-    b._score - a._score ||
-    a._rawPrice - b._rawPrice
-  )
+  // 정렬: subTier → 컬러 매칭 → 성별 → 스코어 → 가격
+  const hasColorQuery = !!item.colorFamily
+  scored.sort((a, b) => {
+    // 1. subcategory 매칭 tier
+    const subDiff = a._subTier - b._subTier
+    if (subDiff !== 0) return subDiff
 
-  // 컬러 우선 선택: color_family 일치 우선, 2개 미만이면 불일치도 채움
-  const colorMatched = item.colorFamily
-    ? scored.filter((p) => p._scoring?.colorFamily > 0)
-    : scored
-  const colorUnmatched = item.colorFamily
-    ? scored.filter((p) => p._scoring?.colorFamily === 0)
-    : []
+    // 2. 컬러 매칭 (요청에 컬러가 있을 때만)
+    if (hasColorQuery) {
+      const aColor = (a._scoring?.colorFamily ?? 0) > 0 ? 0 : 1
+      const bColor = (b._scoring?.colorFamily ?? 0) > 0 ? 0 : 1
+      if (aColor !== bColor) return aColor - bColor
+    }
 
-  const pool = [...colorMatched, ...colorUnmatched]
+    // 3. 성별 우선순위
+    const genderDiff = a._genderPriority - b._genderPriority
+    if (genderDiff !== 0) return genderDiff
+
+    // 4. 총점
+    const scoreDiff = b._score - a._score
+    if (scoreDiff !== 0) return scoreDiff
+
+    // 5. 가격 낮은 순
+    return a._rawPrice - b._rawPrice
+  })
 
   // 브랜드 다양성: 브랜드당 최대 MAX_PER_BRAND
-  const result: typeof pool = []
+  const result: typeof scored = []
   const brandCount: Record<string, number> = {}
 
-  for (const p of pool) {
+  for (const p of scored) {
     if (result.length >= TARGET_RESULTS) break
     const brand = (p.brand || "unknown").toLowerCase()
     const count = brandCount[brand] ?? 0
