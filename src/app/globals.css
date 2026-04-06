@@ -21,6 +21,12 @@
   --color-outline-variant: #27272A;
   --color-outline-focus: #FFFFFF20;
 
+  /* Turquoise accent system */
+  --color-turquoise: var(--turquoise);
+  --color-turquoise-dim: var(--turquoise-dim);
+  --color-turquoise-muted: var(--turquoise-muted);
+  --color-turquoise-foreground: var(--turquoise-foreground);
+
   /* shadcn defaults */
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -95,23 +101,29 @@
   --ring: #FFFFFF;
 
   /* Charts */
-  --chart-1: #FFFFFF;
+  --chart-1: #55B4A8;
   --chart-2: #A1A1AA;
   --chart-3: #71717A;
-  --chart-4: #52525B;
+  --chart-4: #3D9B8F;
   --chart-5: #27272A;
 
   --radius: 0.75rem;
 
+  /* Turquoise accent */
+  --turquoise: #55B4A8;
+  --turquoise-dim: #3D9B8F;
+  --turquoise-muted: #55B4A815;
+  --turquoise-foreground: #FFFFFF;
+
   /* Sidebar */
   --sidebar: #18181B;
   --sidebar-foreground: #FAFAFA;
-  --sidebar-primary: #FFFFFF;
+  --sidebar-primary: #55B4A8;
   --sidebar-primary-foreground: #09090B;
-  --sidebar-accent: #27272A;
+  --sidebar-accent: #55B4A818;
   --sidebar-accent-foreground: #FAFAFA;
   --sidebar-border: #27272A;
-  --sidebar-ring: #FFFFFF;
+  --sidebar-ring: #55B4A8;
 }
 
 .light {

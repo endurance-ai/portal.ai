@@ -1,6 +1,8 @@
 import type {Metadata} from "next"
 import {Roboto, Roboto_Mono} from "next/font/google"
 import {Analytics} from "@vercel/analytics/next"
+import {ThemeProvider} from "@/components/admin/theme-provider"
+import {Toaster} from "@/components/ui/sonner"
 import "./globals.css"
 
 const roboto = Roboto({
@@ -31,7 +33,10 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className={`${roboto.variable} ${robotoMono.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
-        {children}
+        <ThemeProvider>
+          {children}
+        </ThemeProvider>
+        <Toaster richColors position="bottom-right" />
         <Analytics />
       </body>
     </html>
