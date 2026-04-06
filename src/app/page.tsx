@@ -83,7 +83,7 @@ export default function Home() {
   const abortRef = useRef<AbortController | null>(null)
 
   const handleSubmit = useCallback(async (data: { prompt?: string; file?: File }) => {
-    abortRef.current?.abort()
+    try { abortRef.current?.abort() } catch { /* ignore previous abort */ }
     abortRef.current = new AbortController()
     const { signal } = abortRef.current
 
@@ -135,6 +135,7 @@ export default function Home() {
       const formData = new FormData()
       if (data.file) formData.append("image", data.file)
       if (data.prompt) formData.append("prompt", cleanPrompt || data.prompt)
+      if (data.prompt) formData.append("originalPrompt", data.prompt)
       formData.append("gender", gender)
 
       const analyzeRes = await fetch("/api/analyze", {
@@ -152,7 +153,7 @@ export default function Home() {
       setProgress(100)
       setProgressLabel("Complete")
 
-      const analysis: AnalysisResult & { _logId?: string; _promptOnly?: boolean } =
+      const analysis: AnalysisResult & { _logId?: string; _promptOnly?: boolean; detectedGender?: string } =
         await analyzeRes.json()
       const logId = analysis._logId
 
@@ -183,12 +184,14 @@ export default function Home() {
       setState("result")
 
       // Background: fetch products
+      // GPT detected_gender가 있으면 우선 사용, 없으면 UI 셀렉터 값
+      const effectiveGender = analysis.style?.detectedGender || analysis.detectedGender || gender
       fetch("/api/search-products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         signal,
         body: JSON.stringify({
-          gender,
+          gender: effectiveGender,
           styleNode: analysis.styleNode,
           moodTags: analysis.mood?.tags?.map((t: { label: string }) => t.label) || [],
           _logId: logId,
@@ -222,6 +225,8 @@ export default function Home() {
           setItems((prev) => prev.map((item) => ({ ...item, productsLoaded: true })))
         })
     } catch (err) {
+      // AbortError는 새 요청 시 이전 요청 취소로 발생 — UI 상태 건드리지 않음
+      if (err instanceof Error && err.name === "AbortError") return
       clearInterval(ticker)
       setImageUrl("")
       setState("upload")

@@ -30,6 +30,9 @@ function toWon(num: number, unit: string): number {
   return num * 10000 // 기본: 만원
 }
 
+// 대략적 환율 (2026-04 기준) — 정확한 변환이 아닌 가격대 필터 용도
+const KRW_PER_USD = 1400
+
 export function parsePrice(prompt: string): ParsedPrompt {
   let cleanPrompt = prompt
   let priceFilter: PriceFilter | null = null
@@ -48,14 +51,30 @@ export function parsePrice(prompt: string): ParsedPrompt {
     return { cleanPrompt: cleanPrompt.replace(/[,\s]+$/, "").trim(), priceFilter }
   }
 
+  // "N만원대 이하/이내/미만" → 해당 만원대 상한까지 (20만원대 이하 → maxPrice: 299999)
+  const bandBoundPattern = /(\d+(?:\.\d+)?)\s*(만원|만|천원|천)대\s*(이하|이내|미만)/g
+  const bandBoundMatch = bandBoundPattern.exec(prompt)
+  if (bandBoundMatch) {
+    const base = toWon(parseFloat(bandBoundMatch[1]), bandBoundMatch[2])
+    const dir = bandBoundMatch[3]
+    const bandStep = toWon(10, bandBoundMatch[2]) // 만원대 → 10만원 단위
+    const bandTop = base + bandStep - 1 // 20만원대 → 200000 + 100000 - 1 = 299999
+    priceFilter = {
+      maxPrice: dir === "미만" ? base - 1 : bandTop,
+    }
+    cleanPrompt = cleanPrompt.replace(bandBoundMatch[0], "").trim()
+    return { cleanPrompt: cleanPrompt.replace(/[,\s]+$/, "").trim(), priceFilter }
+  }
+
   // "N만원대" → 범위
   const bandPattern = /(\d+(?:\.\d+)?)\s*(만원|만|천원|천)대/g
   const bandMatch = bandPattern.exec(prompt)
   if (bandMatch) {
     const base = toWon(parseFloat(bandMatch[1]), bandMatch[2])
+    const bandStep = toWon(10, bandMatch[2]) // 만원대 → 10만원 단위
     priceFilter = {
       minPrice: base,
-      maxPrice: base + toWon(1, bandMatch[2]) - 1, // 10만원대 → 100000~199999
+      maxPrice: base + bandStep - 1, // 10만원대 → 100000~199999, 20만원대 → 200000~299999
     }
     cleanPrompt = cleanPrompt.replace(bandMatch[0], "").trim()
     return { cleanPrompt: cleanPrompt.replace(/[,\s]+$/, "").trim(), priceFilter }
@@ -77,6 +96,27 @@ export function parsePrice(prompt: string): ParsedPrompt {
     }
 
     cleanPrompt = cleanPrompt.replace(boundMatch[0], "").trim()
+    return { cleanPrompt: cleanPrompt.replace(/[,\s]+$/, "").trim(), priceFilter }
+  }
+
+  // 영어/달러: "$400 under", "under $400", "$200-$500"
+  const dollarRangePattern = /\$(\d+)\s*[-~]\s*\$(\d+)/g
+  const dollarRangeMatch = dollarRangePattern.exec(prompt)
+  if (dollarRangeMatch) {
+    priceFilter = {
+      minPrice: parseInt(dollarRangeMatch[1]) * KRW_PER_USD,
+      maxPrice: parseInt(dollarRangeMatch[2]) * KRW_PER_USD,
+    }
+    cleanPrompt = cleanPrompt.replace(dollarRangeMatch[0], "").trim()
+    return { cleanPrompt: cleanPrompt.replace(/[,\s]+$/, "").trim(), priceFilter }
+  }
+
+  const dollarUnderPattern = /(?:\$(\d+)\s*(?:under|below|이하|max)|(?:under|below|max)\s*\$(\d+))/gi
+  const dollarUnderMatch = dollarUnderPattern.exec(prompt)
+  if (dollarUnderMatch) {
+    const amount = parseInt(dollarUnderMatch[1] || dollarUnderMatch[2])
+    priceFilter = { maxPrice: amount * KRW_PER_USD }
+    cleanPrompt = cleanPrompt.replace(dollarUnderMatch[0], "").trim()
     return { cleanPrompt: cleanPrompt.replace(/[,\s]+$/, "").trim(), priceFilter }
   }
 
