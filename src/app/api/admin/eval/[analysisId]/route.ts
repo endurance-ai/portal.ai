@@ -59,15 +59,22 @@ export async function POST(
     return NextResponse.json({ error: "invalid verdict" }, { status: 400 })
   }
 
-  const { error: reviewError } = await supabase.from("eval_reviews").insert({
+  // Build insert payload — only include columns that exist in DB
+  // prompt_version / is_pinned require migration 015
+  const insertPayload: Record<string, unknown> = {
     analysis_id: analysisId,
     reviewer_email: user.email,
     verdict,
     comment: comment || null,
-    prompt_version: prompt_version || null,
-  })
+  }
+  if (prompt_version) insertPayload.prompt_version = prompt_version
 
-  if (reviewError) return NextResponse.json({ error: reviewError.message }, { status: 500 })
+  const { error: reviewError } = await supabase.from("eval_reviews").insert(insertPayload)
+
+  if (reviewError) {
+    console.error("eval_reviews insert error:", reviewError)
+    return NextResponse.json({ error: reviewError.message }, { status: 500 })
+  }
 
   if (addToGoldenSet) {
     const { data: analysis } = await supabase
@@ -113,16 +120,34 @@ export async function PATCH(
   const updates: any = { reviewer_email: user.email }
   if (verdict !== undefined) updates.verdict = verdict
   if (comment !== undefined) updates.comment = comment || null
+
+  // is_pinned / prompt_version require migration 015 — try with them, fallback without
   if (is_pinned !== undefined) updates.is_pinned = is_pinned
   if (prompt_version !== undefined) updates.prompt_version = prompt_version || null
 
-  const { error } = await supabase
+  let { error } = await supabase
     .from("eval_reviews")
     .update(updates)
     .eq("id", reviewId)
     .eq("analysis_id", analysisId)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  // Fallback: if column doesn't exist, retry without optional columns
+  if (error && error.code === "PGRST204") {
+    console.warn("eval_reviews update fallback — removing optional columns:", error.message)
+    delete updates.is_pinned
+    delete updates.prompt_version
+    const retry = await supabase
+      .from("eval_reviews")
+      .update(updates)
+      .eq("id", reviewId)
+      .eq("analysis_id", analysisId)
+    error = retry.error
+  }
+
+  if (error) {
+    console.error("eval_reviews update error:", error)
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
 
   return NextResponse.json({ success: true })
 }

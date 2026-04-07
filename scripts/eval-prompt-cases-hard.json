@@ -1,0 +1,238 @@
+[
+  {
+    "id": "H-01",
+    "label": "복합 부정 + 대체 요청",
+    "prompt": "후드 말고 맨투맨도 아닌 가을 상의 남자 네이비 계열",
+    "gender": "male",
+    "expected": {
+      "minItems": 1,
+      "items": [
+        { "category": "Top", "subcategory": ["shirt", "knit-top", "sweater", "rugby-shirt", "henley"], "colorFamily": ["NAVY"] }
+      ],
+      "negativeSubcategory": ["hoodie", "sweatshirt"],
+      "styleNode": ["D", "A-3"],
+      "adjacentNodes": ["C", "I", "K"],
+      "gender": "male"
+    }
+  },
+  {
+    "id": "H-02",
+    "label": "이중 레이어 + 색상 조합 지정",
+    "prompt": "크림 니트 가디건에 차콜 터틀넥 레이어드 여자",
+    "gender": "female",
+    "expected": {
+      "minItems": 2,
+      "items": [
+        { "category": "Outer", "subcategory": ["cardigan"], "colorFamily": ["CREAM", "BEIGE"], "fabric": ["knit"] },
+        { "category": "Top", "subcategory": ["turtleneck"], "colorFamily": ["GREY", "BLACK"], "fabric": ["knit", "wool", "cotton"] }
+      ],
+      "styleNode": ["D", "C"],
+      "adjacentNodes": ["F", "A-3", "K"],
+      "gender": "female"
+    }
+  },
+  {
+    "id": "H-03",
+    "label": "영어 혼용 + 슬랭",
+    "prompt": "힙한 Y2K 바이브 크롭탑이랑 로우라이즈 데님 여자",
+    "gender": "female",
+    "expected": {
+      "minItems": 2,
+      "items": [
+        { "category": "Top", "subcategory": ["crop-top", "tank-top", "camisole", "t-shirt"], "colorFamily": ["WHITE", "BLACK", "PINK", "BLUE"] },
+        { "category": "Bottom", "subcategory": ["jeans"], "colorFamily": ["BLUE", "BLACK"], "fabric": ["denim"] }
+      ],
+      "styleNode": ["K", "H"],
+      "adjacentNodes": ["B-2", "F-2"],
+      "gender": "female"
+    }
+  },
+  {
+    "id": "H-04",
+    "label": "세 아이템 동시 지정",
+    "prompt": "오버사이즈 블랙 울 코트에 그레이 캐시미어 머플러랑 첼시부츠 남자",
+    "gender": "male",
+    "expected": {
+      "minItems": 3,
+      "items": [
+        { "category": "Outer", "subcategory": ["overcoat"], "colorFamily": ["BLACK"], "fabric": ["wool"], "fit": ["oversized"] },
+        { "category": "Accessories", "subcategory": ["scarf"], "colorFamily": ["GREY"], "fabric": ["cashmere"] },
+        { "category": "Shoes", "subcategory": ["chelsea-boots"], "colorFamily": ["BLACK", "BROWN"] }
+      ],
+      "styleNode": ["C", "D"],
+      "adjacentNodes": ["B", "A-3"],
+      "gender": "male"
+    }
+  },
+  {
+    "id": "H-05",
+    "label": "모순적 요청 — 캐주얼+포멀",
+    "prompt": "면접인데 너무 딱딱하지 않게 스마트 캐주얼 남자 50만원",
+    "gender": "male",
+    "expected": {
+      "minItems": 2,
+      "items": [
+        { "category": "Top", "subcategory": ["shirt", "polo"], "colorFamily": ["WHITE", "BLUE", "NAVY"] },
+        { "category": "Bottom", "subcategory": ["trousers", "chinos"], "colorFamily": ["NAVY", "GREY", "BLACK", "BEIGE"] }
+      ],
+      "styleNode": ["D", "C"],
+      "adjacentNodes": ["A-3", "K"],
+      "gender": "male"
+    }
+  },
+  {
+    "id": "H-06",
+    "label": "극도로 짧은 요청",
+    "prompt": "남자 봄 자켓",
+    "gender": "male",
+    "expected": {
+      "minItems": 1,
+      "items": [
+        { "category": "Outer", "subcategory": ["bomber", "blazer", "field-jacket", "windbreaker", "denim-jacket", "chore-jacket", "overshirt"], "colorFamily": ["NAVY", "BEIGE", "BLACK", "KHAKI", "GREY", "GREEN", "BROWN", "BLUE", "CREAM"] }
+      ],
+      "styleNode": ["D", "H", "A-3"],
+      "adjacentNodes": ["C", "K", "I", "G"],
+      "gender": "male"
+    }
+  },
+  {
+    "id": "H-07",
+    "label": "감성 묘사만 — 아이템 미언급",
+    "prompt": "도쿄 골목길 산책하는 느낌 빈티지하면서 정돈된 남자",
+    "gender": "male",
+    "expected": {
+      "minItems": 2,
+      "items": [
+        { "category": "Top", "subcategory": ["shirt", "knit-top", "sweater", "t-shirt", "henley"], "colorFamily": ["BEIGE", "CREAM", "BROWN", "NAVY", "WHITE", "GREY"] },
+        { "category": "Bottom", "subcategory": ["trousers", "chinos", "wide-pants", "jeans"], "colorFamily": ["NAVY", "BLACK", "BROWN", "BEIGE", "GREY", "KHAKI"] }
+      ],
+      "styleNode": ["I", "A-3"],
+      "adjacentNodes": ["D", "C"],
+      "gender": "male"
+    }
+  },
+  {
+    "id": "H-08",
+    "label": "소재 중심 — 전부 니트",
+    "prompt": "니트 셋업 코디 통일감 있게 여자 겨울 브라운",
+    "gender": "female",
+    "expected": {
+      "minItems": 2,
+      "items": [
+        { "category": "Top", "subcategory": ["sweater", "knit-top", "turtleneck"], "colorFamily": ["BROWN"], "fabric": ["knit", "wool", "cashmere"] },
+        { "category": "Bottom", "subcategory": ["trousers", "wide-pants", "skirt"], "colorFamily": ["BROWN"], "fabric": ["knit", "wool"] }
+      ],
+      "styleNode": ["D", "F", "C"],
+      "adjacentNodes": ["K", "A-3"],
+      "gender": "female"
+    }
+  },
+  {
+    "id": "H-09",
+    "label": "상반된 키워드 혼합",
+    "prompt": "스트릿인데 깔끔하게 남자 블랙 화이트 투톤",
+    "gender": "male",
+    "expected": {
+      "minItems": 2,
+      "items": [
+        { "category": "Top", "subcategory": ["t-shirt", "sweatshirt", "hoodie", "shirt"], "colorFamily": ["WHITE", "BLACK"] },
+        { "category": "Bottom", "subcategory": ["jeans", "cargo-pants", "joggers", "trousers", "wide-pants"], "colorFamily": ["BLACK", "WHITE"] }
+      ],
+      "styleNode": ["H", "D"],
+      "adjacentNodes": ["B-2", "K", "C"],
+      "gender": "male"
+    }
+  },
+  {
+    "id": "H-10",
+    "label": "특정 신발만 요청",
+    "prompt": "봄에 신기 좋은 로퍼 추천 여자 브라운",
+    "gender": "female",
+    "expected": {
+      "minItems": 1,
+      "items": [
+        { "category": "Shoes", "subcategory": ["loafers"], "colorFamily": ["BROWN"], "fabric": ["leather", "suede"] }
+      ],
+      "styleNode": ["D", "F", "C"],
+      "adjacentNodes": ["A-3", "K"],
+      "gender": "female"
+    }
+  },
+  {
+    "id": "H-11",
+    "label": "체형/핏 중심 요청",
+    "prompt": "마른 체형인데 보기 좋게 볼륨감 있는 코디 남자 겨울",
+    "gender": "male",
+    "expected": {
+      "minItems": 2,
+      "items": [
+        { "category": "Outer", "subcategory": ["overcoat", "parka", "down-jacket", "fleece", "shearling", "bomber"], "colorFamily": ["BLACK", "NAVY", "GREY", "BEIGE", "BROWN", "CREAM"], "fit": ["oversized", "relaxed", "boxy"] },
+        { "category": "Top", "subcategory": ["sweater", "knit-top", "sweatshirt", "hoodie", "turtleneck"], "colorFamily": ["GREY", "CREAM", "BEIGE", "WHITE", "NAVY", "BLACK", "BROWN"] }
+      ],
+      "styleNode": ["D", "H", "A-3"],
+      "adjacentNodes": ["C", "I", "K"],
+      "gender": "male"
+    }
+  },
+  {
+    "id": "H-12",
+    "label": "드레스 코드 지정 — 웨딩 게스트",
+    "prompt": "친구 결혼식 하객룩 너무 튀지 않게 여자",
+    "gender": "female",
+    "expected": {
+      "minItems": 1,
+      "items": [
+        { "category": "Dress", "subcategory": ["midi-dress", "wrap-dress", "slip-dress", "shirt-dress"], "colorFamily": ["BEIGE", "NAVY", "CREAM", "BLUE", "PINK", "GREEN", "GREY"] }
+      ],
+      "styleNode": ["F", "F-3", "C"],
+      "adjacentNodes": ["D", "F-2", "K"],
+      "gender": "female"
+    }
+  },
+  {
+    "id": "H-13",
+    "label": "한국어 줄임말 + 은어",
+    "prompt": "놈코어 데일리 갬성 쿨톤 남자",
+    "gender": "male",
+    "expected": {
+      "minItems": 2,
+      "items": [
+        { "category": "Top", "subcategory": ["t-shirt", "shirt", "sweatshirt", "polo"], "colorFamily": ["GREY", "NAVY", "WHITE", "BLUE", "BLACK"] },
+        { "category": "Bottom", "subcategory": ["jeans", "chinos", "trousers"], "colorFamily": ["NAVY", "GREY", "BLACK", "BLUE"] }
+      ],
+      "styleNode": ["D"],
+      "adjacentNodes": ["C", "H", "K"],
+      "gender": "male"
+    }
+  },
+  {
+    "id": "H-14",
+    "label": "가방만 요청 + 상황 맥락",
+    "prompt": "대학생 노트북 들고 다닐 가방 남자 블랙",
+    "gender": "male",
+    "expected": {
+      "minItems": 1,
+      "items": [
+        { "category": "Bag", "subcategory": ["backpack", "messenger", "tote", "briefcase"], "colorFamily": ["BLACK"] }
+      ],
+      "styleNode": ["D", "H"],
+      "adjacentNodes": ["G", "K", "C"],
+      "gender": "male"
+    }
+  },
+  {
+    "id": "H-15",
+    "label": "다중 시즌 + 다용도",
+    "prompt": "사계절 쓸 수 있는 아우터 하나만 추천 여자 미니멀하게",
+    "gender": "female",
+    "expected": {
+      "minItems": 1,
+      "items": [
+        { "category": "Outer", "subcategory": ["blazer", "trench-coat", "cardigan", "overshirt", "field-jacket", "chore-jacket"], "colorFamily": ["BLACK", "NAVY", "BEIGE", "GREY", "CREAM"] }
+      ],
+      "styleNode": ["C", "D"],
+      "adjacentNodes": ["F", "I"],
+      "gender": "female"
+    }
+  }
+]

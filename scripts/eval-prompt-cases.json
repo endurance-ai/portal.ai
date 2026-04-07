@@ -1,0 +1,242 @@
+[
+  {
+    "id": "P-01",
+    "label": "모호한 무드 — 꾸안꾸",
+    "prompt": "카페에서 입기 좋은 꾸안꾸 봄 데일리룩 남자",
+    "gender": "male",
+    "expected": {
+      "minItems": 2,
+      "items": [
+        { "category": "Top", "subcategory": ["shirt", "knit-top", "t-shirt", "polo"], "colorFamily": ["BEIGE", "CREAM", "WHITE", "GREY"] },
+        { "category": "Bottom", "subcategory": ["chinos", "trousers", "jeans"], "colorFamily": ["BEIGE", "CREAM", "KHAKI", "GREY", "NAVY"] }
+      ],
+      "styleNode": ["D"],
+      "adjacentNodes": ["A-3", "K", "C"],
+      "gender": "male"
+    }
+  },
+  {
+    "id": "P-02",
+    "label": "복합 조건 — 소재+실루엣+시즌",
+    "prompt": "린넨 셔츠에 와이드 치노 여름 코디 30만원대",
+    "gender": "male",
+    "expected": {
+      "minItems": 2,
+      "items": [
+        { "category": "Top", "subcategory": ["shirt"], "colorFamily": ["BEIGE", "WHITE", "CREAM"], "fabric": ["linen"] },
+        { "category": "Bottom", "subcategory": ["chinos", "wide-pants"], "colorFamily": ["BEIGE", "CREAM", "KHAKI", "WHITE"], "fit": ["relaxed", "oversized"] }
+      ],
+      "styleNode": ["D", "I"],
+      "adjacentNodes": ["A-3", "C"],
+      "gender": "male"
+    }
+  },
+  {
+    "id": "P-03",
+    "label": "서브컬처 레퍼런스 — 그런지",
+    "prompt": "90년대 그런지 감성 데님 자켓 코디 여자",
+    "gender": "female",
+    "expected": {
+      "minItems": 2,
+      "items": [
+        { "category": "Outer", "subcategory": ["denim-jacket"], "colorFamily": ["BLUE", "BLACK"], "fabric": ["denim"] },
+        { "category": "Top", "subcategory": ["t-shirt", "tank-top", "camisole"], "colorFamily": ["BLACK", "WHITE", "GREY"] }
+      ],
+      "styleNode": ["B-2", "A-3"],
+      "adjacentNodes": ["B", "H"],
+      "gender": "female"
+    }
+  },
+  {
+    "id": "P-04",
+    "label": "상의 고정 — 하의 매칭",
+    "prompt": "네이비 블레이저에 어울리는 캐주얼 하의 뭐가 좋을까 남자 40만원",
+    "gender": "male",
+    "expected": {
+      "minItems": 1,
+      "items": [
+        { "category": "Bottom", "subcategory": ["chinos", "trousers", "jeans"], "colorFamily": ["BEIGE", "GREY", "CREAM", "KHAKI", "WHITE"] }
+      ],
+      "styleNode": ["D", "C"],
+      "adjacentNodes": ["A-3", "I"],
+      "gender": "male"
+    }
+  },
+  {
+    "id": "P-05",
+    "label": "TPO — 미술관 데이트",
+    "prompt": "주말 미술관 데이트 코디 여자 깔끔하게",
+    "gender": "female",
+    "expected": {
+      "minItems": 2,
+      "items": [
+        { "category": "Top", "subcategory": ["blouse", "knit-top", "shirt", "turtleneck"], "colorFamily": ["WHITE", "CREAM", "BEIGE", "BLACK", "NAVY"] },
+        { "category": "Bottom", "subcategory": ["trousers", "skirt", "wide-pants"], "colorFamily": ["BLACK", "NAVY", "BEIGE", "CREAM", "WHITE"] }
+      ],
+      "styleNode": ["F", "D"],
+      "adjacentNodes": ["C", "F-2", "K"],
+      "gender": "female"
+    }
+  },
+  {
+    "id": "P-06",
+    "label": "구체적 아이템 나열",
+    "prompt": "블랙 가죽 자켓이랑 화이트 티셔츠 남자",
+    "gender": "male",
+    "expected": {
+      "minItems": 2,
+      "items": [
+        { "category": "Outer", "subcategory": ["leather-jacket"], "colorFamily": ["BLACK"], "fabric": ["leather"] },
+        { "category": "Top", "subcategory": ["t-shirt"], "colorFamily": ["WHITE"], "fabric": ["cotton", "jersey"] }
+      ],
+      "styleNode": ["B", "H"],
+      "adjacentNodes": ["B-2", "A-3", "D"],
+      "gender": "male"
+    }
+  },
+  {
+    "id": "P-07",
+    "label": "계절 전환 — 간절기",
+    "prompt": "환절기에 입기 좋은 레이어드룩 가디건 코디 여자",
+    "gender": "female",
+    "expected": {
+      "minItems": 2,
+      "items": [
+        { "category": "Outer", "subcategory": ["cardigan"], "colorFamily": ["BEIGE", "GREY", "CREAM", "NAVY", "BLACK", "BROWN"] },
+        { "category": "Top", "subcategory": ["t-shirt", "knit-top", "camisole", "tank-top", "blouse"], "colorFamily": ["WHITE", "CREAM", "BEIGE", "GREY"] }
+      ],
+      "styleNode": ["D", "F", "K"],
+      "adjacentNodes": ["C", "A-3"],
+      "gender": "female"
+    }
+  },
+  {
+    "id": "P-08",
+    "label": "직업/상황 맥락 — 출근룩",
+    "prompt": "IT 스타트업 출근룩 캐주얼하게 남자",
+    "gender": "male",
+    "expected": {
+      "minItems": 2,
+      "items": [
+        { "category": "Top", "subcategory": ["shirt", "polo", "t-shirt", "sweatshirt"], "colorFamily": ["WHITE", "NAVY", "BLUE", "GREY", "BLACK"] },
+        { "category": "Bottom", "subcategory": ["chinos", "trousers", "jeans"], "colorFamily": ["NAVY", "BLACK", "GREY", "BEIGE", "KHAKI"] }
+      ],
+      "styleNode": ["D"],
+      "adjacentNodes": ["C", "H", "K"],
+      "gender": "male"
+    }
+  },
+  {
+    "id": "P-09",
+    "label": "색상 중심 요청",
+    "prompt": "올 블랙 코디 모노톤 시크하게 여자",
+    "gender": "female",
+    "expected": {
+      "minItems": 2,
+      "items": [
+        { "category": "Top", "subcategory": ["t-shirt", "blouse", "knit-top", "turtleneck", "tank-top"], "colorFamily": ["BLACK"] },
+        { "category": "Bottom", "subcategory": ["trousers", "jeans", "skirt", "wide-pants"], "colorFamily": ["BLACK"] }
+      ],
+      "styleNode": ["C", "F"],
+      "adjacentNodes": ["B", "D", "F-3"],
+      "gender": "female"
+    }
+  },
+  {
+    "id": "P-10",
+    "label": "트렌드 키워드 — 고프코어",
+    "prompt": "고프코어 느낌 등산 가는 것처럼 근데 도시에서 입을 수 있게 남자",
+    "gender": "male",
+    "expected": {
+      "minItems": 2,
+      "items": [
+        { "category": "Outer", "subcategory": ["fleece", "windbreaker", "anorak", "field-jacket"], "colorFamily": ["BEIGE", "GREEN", "KHAKI", "BROWN", "NAVY", "BLACK"] },
+        { "category": "Bottom", "subcategory": ["cargo-pants", "chinos", "trousers", "joggers"], "colorFamily": ["KHAKI", "BEIGE", "GREY", "BLACK", "BROWN", "GREEN"] }
+      ],
+      "styleNode": ["G"],
+      "adjacentNodes": ["A-1", "D", "I"],
+      "gender": "male"
+    }
+  },
+  {
+    "id": "P-11",
+    "label": "혼합 한/영 + 브랜드 암시",
+    "prompt": "아미 느낌 미니멀 프렌치 캐주얼 봄 여자",
+    "gender": "female",
+    "expected": {
+      "minItems": 2,
+      "items": [
+        { "category": "Top", "subcategory": ["t-shirt", "knit-top", "shirt", "blouse"], "colorFamily": ["WHITE", "NAVY", "BLACK", "CREAM", "BEIGE"] },
+        { "category": "Bottom", "subcategory": ["jeans", "trousers", "wide-pants"], "colorFamily": ["NAVY", "BLUE", "BLACK", "BEIGE"] }
+      ],
+      "styleNode": ["C", "D", "F"],
+      "adjacentNodes": ["K", "F-2"],
+      "gender": "female"
+    }
+  },
+  {
+    "id": "P-12",
+    "label": "부정형 요청 — ~말고",
+    "prompt": "청바지 말고 편한 하의 베이지 계열 남자 20만원",
+    "gender": "male",
+    "expected": {
+      "minItems": 1,
+      "items": [
+        { "category": "Bottom", "subcategory": ["chinos", "trousers", "joggers", "sweatpants", "cargo-pants", "wide-pants"], "colorFamily": ["BEIGE", "CREAM", "KHAKI"] }
+      ],
+      "negativeSubcategory": ["jeans"],
+      "styleNode": ["D", "H"],
+      "adjacentNodes": ["K", "A-3", "I"],
+      "gender": "male"
+    }
+  },
+  {
+    "id": "P-13",
+    "label": "액세서리 포함 요청",
+    "prompt": "여름 바캉스 코디 린넨 셔츠에 샌들이랑 토트백 남자",
+    "gender": "male",
+    "expected": {
+      "minItems": 3,
+      "items": [
+        { "category": "Top", "subcategory": ["shirt"], "fabric": ["linen"], "colorFamily": ["WHITE", "BEIGE", "CREAM", "BLUE"] },
+        { "category": "Shoes", "subcategory": ["sandals", "slides"], "colorFamily": ["BROWN", "BEIGE", "BLACK", "WHITE"] },
+        { "category": "Bag", "subcategory": ["tote"], "colorFamily": ["BEIGE", "BROWN", "BLACK", "WHITE", "CREAM"] }
+      ],
+      "styleNode": ["D", "I"],
+      "adjacentNodes": ["A-3", "K"],
+      "gender": "male"
+    }
+  },
+  {
+    "id": "P-14",
+    "label": "추상적 무드 — 분위기 묘사",
+    "prompt": "비 오는 날 감성적인 느낌 코디 좀 어두운 톤으로 여자",
+    "gender": "female",
+    "expected": {
+      "minItems": 2,
+      "items": [
+        { "category": "Outer", "subcategory": ["trench-coat", "overcoat", "cardigan", "hoodie", "field-jacket"], "colorFamily": ["BLACK", "GREY", "NAVY", "BROWN"] },
+        { "category": "Bottom", "subcategory": ["jeans", "trousers", "wide-pants"], "colorFamily": ["BLACK", "GREY", "NAVY"] }
+      ],
+      "styleNode": ["D", "C", "B-2"],
+      "adjacentNodes": ["B", "A-3", "F"],
+      "gender": "female"
+    }
+  },
+  {
+    "id": "P-15",
+    "label": "스포츠 믹스 — 애슬레저",
+    "prompt": "운동하고 바로 밥 먹으러 갈 수 있는 애슬레저 코디 남자",
+    "gender": "male",
+    "expected": {
+      "minItems": 2,
+      "items": [
+        { "category": "Top", "subcategory": ["t-shirt", "sweatshirt", "hoodie"], "colorFamily": ["BLACK", "GREY", "WHITE", "NAVY"] },
+        { "category": "Bottom", "subcategory": ["joggers", "sweatpants", "shorts", "cargo-pants"], "colorFamily": ["BLACK", "GREY", "NAVY"] }
+      ],
+      "styleNode": ["H", "G"],
+      "adjacentNodes": ["D", "K", "A-1"],
+      "gender": "male"
+    }
+  }
+]

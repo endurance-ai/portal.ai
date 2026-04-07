@@ -20,7 +20,7 @@ src/components/       → UI 컴포넌트 (shadcn/ui 기반)
   result/             → LookBreakdown (accordion + hotspot + horizontal scroll)
 src/lib/              → 유틸리티 (supabase.ts, r2.ts, fashion-genome.ts, style-nodes.ts, prompts/)
 src/lib/enums/        → 공유 enum 정의 (product-enums.ts — 프론트/배치/검색 공통)
-scripts/              → 크롤러 (crawl.ts), 임포트 (import-*.ts), 평가 (eval-search.ts), 플랫폼 설정
+scripts/              → 크롤러 (crawl.ts), 임포트 (import-*.ts), 평가 (eval-search.ts, eval-prompt.ts, eval-prompt-v2.ts), 플랫폼 설정
 scripts/configs/      → 22개 편집샵/브랜드몰 플랫폼 설정 (Cafe24)
 scripts/lib/          → 크롤 엔진 (cafe24-engine.ts, shopify-engine.ts, detail-parser.ts)
 supabase/migrations/  → DB 스키마 (001~014)
@@ -79,6 +79,7 @@ pnpm lint         # ESLint
 | `src/app/api/search-products/route.ts` | 검색 엔진 v2 — product_ai_analysis enum 매칭 (category/subcategory/fit/fabric/colorFamily/styleNode/moodTags) |
 | `src/lib/enums/product-enums.ts` | 공유 enum 정의 + validation + buildEnumReference() 프롬프트 빌더 |
 | `scripts/eval-search.ts` | 검색 품질 자동 평가 스크립트 (골든셋 기반) |
+| `scripts/eval-prompt-v2.ts` | 프롬프트 분석 품질 자동 평가 v2 (일관성/베이스라인/회귀감지) |
 | `src/app/admin/search-quality/page.tsx` | 어드민 검색 품질 대시보드 |
 | `src/lib/fashion-genome.ts` | 15개 스타일 노드 + 12개 감도 태그 정의 + 프롬프트 빌더 |
 | `src/lib/style-nodes.ts` | 노드 컬러/레이블/설명 설정 (어드민 UI용) |
@@ -139,6 +140,8 @@ pnpm lint         # ESLint
 | `docs/superpowers/specs/2026-04-03-admin-dashboard-design.md` | 어드민 대시보드 디자인 스펙 |
 | `docs/superpowers/specs/2026-04-03-prompt-search-design.md` | 프롬프트 기반 검색 디자인 스펙 |
 | `docs/superpowers/specs/2026-04-03-crawler-enhancement-spec.md` | 크롤러 데이터 보강 스펙 |
+| `docs/eval/26-04-07-eval-pipeline-architecture.md` | 프롬프트 평가 파이프라인 아키텍처 |
+| `docs/eval/26-04-07-prompt-eval-report.md` | 프롬프트 분석 품질 평가 리포트 |
 
 ## 브레인스토밍 & 플래닝 보충 규칙
 
