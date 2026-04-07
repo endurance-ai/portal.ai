@@ -216,7 +216,7 @@ function scoreCase(tc: TestCase, actual: AnalysisResponse, latencyMs: number): C
   if (tc.expected.negativeSubcategory) {
     for (const neg of tc.expected.negativeSubcategory) {
       if (actualItems.find(a => a.subcategory === neg)) {
-        breakdown.negative = -10
+        breakdown.negative -= 10
         details.push(`NEGATIVE: "${neg}" should not appear`)
       }
     }

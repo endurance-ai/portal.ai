@@ -220,7 +220,7 @@ function scoreCase(tc: TestCase, actual: AnalysisResponse): CaseResult {
     for (const neg of tc.expected.negativeSubcategory) {
       const found = actualItems.find(a => a.subcategory === neg)
       if (found) {
-        breakdown.negative = -10
+        breakdown.negative -= 10
         details.push(`NEGATIVE: "${neg}" should not appear but found in ${found.category}`)
       }
     }
