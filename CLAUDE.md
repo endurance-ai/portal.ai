@@ -23,7 +23,7 @@ src/lib/enums/        → 공유 enum 정의 (product-enums.ts — 프론트/배
 scripts/              → 크롤러 (crawl.ts), 임포트 (import-*.ts), 평가 (eval-search.ts, eval-prompt.ts, eval-prompt-v2.ts), 플랫폼 설정
 scripts/configs/      → 22개 편집샵/브랜드몰 플랫폼 설정 (Cafe24)
 scripts/lib/          → 크롤 엔진 (cafe24-engine.ts, shopify-engine.ts, detail-parser.ts)
-supabase/migrations/  → DB 스키마 (001~014)
+supabase/migrations/  → DB 스키마 (001~016)
 docs/                 → 참조 문서, 디자인 시스템, 리서치, 스펙
 ```
 
@@ -97,7 +97,7 @@ pnpm lint         # ESLint
 | `src/components/upload/upload-zone.tsx` | 이미지 드래그 & 드롭 업로드 + 클라이언트 압축 (1280px, JPEG 0.8) |
 | `src/lib/supabase.ts` | Supabase 서버 클라이언트 (service role) |
 | `src/app/globals.css` | M3 테마 + B&W Minimal 토큰 |
-| `supabase/migrations/001~014` | analyses, brand_nodes, products, eval_reviews, eval_golden_set, api_access_logs, product_ai_analysis, search_quality_logs 스키마 |
+| `supabase/migrations/001~016` | analyses, brand_nodes, products, eval_reviews, eval_golden_set, api_access_logs, product_ai_analysis, search_quality_logs, analyses.is_pinned 스키마 |
 
 ## 비즈니스 규칙
 
@@ -142,6 +142,7 @@ pnpm lint         # ESLint
 | `docs/superpowers/specs/2026-04-03-crawler-enhancement-spec.md` | 크롤러 데이터 보강 스펙 |
 | `docs/eval/26-04-07-eval-pipeline-architecture.md` | 프롬프트 평가 파이프라인 아키텍처 |
 | `docs/eval/26-04-07-prompt-eval-report.md` | 프롬프트 분석 품질 평가 리포트 |
+| `docs/superpowers/specs/2026-04-08-eval-page-improvements.md` | 품질 평가 페이지 개선 스펙 (v2) |
 
 ## 브레인스토밍 & 플래닝 보충 규칙
 

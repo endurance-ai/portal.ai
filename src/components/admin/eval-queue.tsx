@@ -20,11 +20,19 @@ import {
   Clock,
   Loader2,
   Package,
+  Pin,
   Trash2,
   XCircle,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { STYLE_NODE_CONFIG, NODE_COLOR_CLASSES } from "@/lib/style-nodes"
+
+interface ReviewSummary {
+  verdict: string
+  comment: string | null
+  reviewer_email: string
+  created_at: string
+}
 
 interface QueueItem {
   id: string
@@ -37,10 +45,12 @@ interface QueueItem {
   items: unknown[] | null
   verdict: "pass" | "fail" | "partial" | null
   review_comment: string | null
+  reviews?: ReviewSummary[]
+  is_pinned?: boolean
 }
 
 const VERDICT_CONFIG = {
-  pass:    { icon: CheckCircle,  label: "Pass",    textCls: "text-turquoise",  bgCls: "bg-turquoise/10",  borderCls: "border-l-turquoise/60" },
+  pass:    { icon: CheckCircle,  label: "Pass",    textCls: "text-turquoise",  bgCls: "bg-turquoise/15",  borderCls: "border-l-turquoise/80" },
   fail:    { icon: XCircle,      label: "Fail",    textCls: "text-red-400",    bgCls: "bg-red-500/10",    borderCls: "border-l-red-500/60" },
   partial: { icon: AlertCircle,  label: "Partial", textCls: "text-yellow-400", bgCls: "bg-yellow-500/10", borderCls: "border-l-yellow-500/60" },
 }
@@ -57,7 +67,23 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("ko-KR", { month: "short", day: "numeric", year: "2-digit" })
 }
 
-export function EvalQueue({ queue, onRefresh }: { queue: QueueItem[]; onRefresh: () => void }) {
+function shortEmail(email: string) {
+  return email.split("@")[0]
+}
+
+const VERDICT_ICON: Record<string, typeof CheckCircle> = {
+  pass: CheckCircle,
+  fail: XCircle,
+  partial: AlertCircle,
+}
+
+const VERDICT_TEXT_CLS: Record<string, string> = {
+  pass: "text-turquoise",
+  fail: "text-red-400",
+  partial: "text-yellow-400",
+}
+
+export function EvalQueue({ queue, filter, onRefresh }: { queue: QueueItem[]; filter: string; onRefresh: () => void }) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const [singleDeleteId, setSingleDeleteId] = useState<string | null>(null)
@@ -101,6 +127,29 @@ export function EvalQueue({ queue, onRefresh }: { queue: QueueItem[]; onRefresh:
     }
   }
 
+  async function togglePin(e: React.MouseEvent, id: string, current: boolean) {
+    e.preventDefault()
+    e.stopPropagation()
+    const next = !current
+    try {
+      const res = await fetch("/api/admin/eval", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ analysisId: id, is_pinned: next }),
+      })
+      if (res.ok) {
+        toast.success(next ? "고정되었습니다" : "고정 해제되었습니다")
+        onRefresh()
+      } else {
+        const data = await res.json().catch(() => ({}))
+        toast.error(`고정 실패: ${data.error || res.statusText}`)
+      }
+    } catch (err) {
+      toast.error("고정 요청에 실패했습니다")
+      console.error("togglePin error:", err)
+    }
+  }
+
   if (queue.length === 0) {
     return (
       <div className="rounded-lg border border-border p-8 text-center text-sm text-muted-foreground">
@@ -110,6 +159,11 @@ export function EvalQueue({ queue, onRefresh }: { queue: QueueItem[]; onRefresh:
   }
 
   const singleDeleteItem = singleDeleteId ? queue.find(i => i.id === singleDeleteId) : null
+
+  // Separate pinned items (visible in reviewed + all filters)
+  const showPinSection = filter === "reviewed" || filter === "all"
+  const pinnedItems = showPinSection ? queue.filter(i => i.is_pinned) : []
+  const normalItems = showPinSection ? queue.filter(i => !i.is_pinned) : queue
 
   return (
     <>
@@ -142,97 +196,45 @@ export function EvalQueue({ queue, onRefresh }: { queue: QueueItem[]; onRefresh:
         )}
       </div>
 
-      {/* List */}
+      {/* Pinned section */}
+      {pinnedItems.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-xs text-turquoise">
+            <Pin className="size-3" />
+            <span className="font-medium">고정됨 {pinnedItems.length}개</span>
+          </div>
+          <div className="space-y-2">
+            {pinnedItems.map((item) => (
+              <QueueCard
+                key={item.id}
+                item={item}
+                isSelected={selected.has(item.id)}
+                isPinned
+                showPin={filter === "reviewed" || filter === "all"}
+                onToggle={() => toggleItem(item.id)}
+                onDelete={() => setSingleDeleteId(item.id)}
+                onTogglePin={(e) => togglePin(e, item.id, true)}
+              />
+            ))}
+          </div>
+          {normalItems.length > 0 && <div className="border-t border-border" />}
+        </div>
+      )}
+
+      {/* Normal list */}
       <div className="space-y-2">
-        {queue.map((item) => {
-          const statusCfg = item.verdict ? VERDICT_CONFIG[item.verdict] : PENDING_CONFIG
-          const StatusIcon = statusCfg.icon
-          const itemCount = Array.isArray(item.items) ? item.items.length : 0
-          const isSelected = selected.has(item.id)
-
-          const nodeCfg = item.style_node_primary ? STYLE_NODE_CONFIG[item.style_node_primary] : null
-          const nodeColors = nodeCfg ? NODE_COLOR_CLASSES[nodeCfg.color] : null
-
-          return (
-            <div
-              key={item.id}
-              className={cn(
-                "group flex items-center gap-2 rounded-lg border border-border border-l-2 transition-colors",
-                statusCfg.borderCls,
-                isSelected && "bg-muted/40"
-              )}
-            >
-              {/* Checkbox */}
-              <div className="px-4 py-4 shrink-0" onClick={(e) => e.stopPropagation()}>
-                <Checkbox
-                  checked={isSelected}
-                  onCheckedChange={() => toggleItem(item.id)}
-                  aria-label="선택"
-                />
-              </div>
-
-              {/* Card content — clickable link */}
-              <Link
-                href={`/admin/eval/${item.id}`}
-                className="flex flex-1 min-w-0 items-center gap-3 py-3 pr-2 hover:opacity-90"
-              >
-                <div className="flex flex-1 min-w-0 flex-col gap-1.5">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs text-muted-foreground font-mono">{formatDate(item.created_at)}</span>
-                    {item.style_node_primary && (
-                      <Badge variant="secondary" className="text-xs gap-1.5 py-0">
-                        {nodeColors && <span className={cn("size-1.5 rounded-full shrink-0", nodeColors.dot)} />}
-                        {item.style_node_primary}
-                        {item.style_node_confidence != null && (
-                          <span className="opacity-50">{Math.round(item.style_node_confidence * 100)}%</span>
-                        )}
-                      </Badge>
-                    )}
-                    {item.detected_gender && (
-                      <Badge variant="outline" className="text-xs py-0">{item.detected_gender}</Badge>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Package className="size-3" />
-                      {itemCount}
-                    </span>
-                    {item.prompt_text && (
-                      <span className="truncate text-primary/50">
-                        &quot;{item.prompt_text.length > 40 ? item.prompt_text.slice(0, 40) + "…" : item.prompt_text}&quot;
-                      </span>
-                    )}
-                  </div>
-
-                  {item.verdict && item.review_comment && (
-                    <p className={cn("text-xs truncate opacity-80", statusCfg.textCls)}>
-                      &ldquo;{item.review_comment}&rdquo;
-                    </p>
-                  )}
-                </div>
-
-                {/* Status badge */}
-                <div className={cn("flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium", statusCfg.bgCls, statusCfg.textCls)}>
-                  <StatusIcon className="size-3.5" />
-                  {statusCfg.label}
-                </div>
-              </Link>
-
-              {/* Individual delete */}
-              <div className="pr-2 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-7 text-muted-foreground hover:text-destructive"
-                  onClick={(e) => { e.stopPropagation(); setSingleDeleteId(item.id) }}
-                >
-                  <Trash2 className="size-3.5" />
-                </Button>
-              </div>
-            </div>
-          )
-        })}
+        {normalItems.map((item) => (
+          <QueueCard
+            key={item.id}
+            item={item}
+            isSelected={selected.has(item.id)}
+            isPinned={false}
+            showPin={filter === "reviewed" || filter === "all"}
+            onToggle={() => toggleItem(item.id)}
+            onDelete={() => setSingleDeleteId(item.id)}
+            onTogglePin={(e) => togglePin(e, item.id, false)}
+          />
+        ))}
       </div>
 
       {/* Bulk delete dialog */}
@@ -281,5 +283,140 @@ export function EvalQueue({ queue, onRefresh }: { queue: QueueItem[]; onRefresh:
         </DialogContent>
       </Dialog>
     </>
+  )
+}
+
+/** Individual queue card */
+function QueueCard({ item, isSelected, isPinned, showPin, onToggle, onDelete, onTogglePin }: {
+  item: QueueItem
+  isSelected: boolean
+  isPinned: boolean
+  showPin: boolean
+  onToggle: () => void
+  onDelete: () => void
+  onTogglePin: (e: React.MouseEvent) => void
+}) {
+  const statusCfg = item.verdict ? VERDICT_CONFIG[item.verdict] : PENDING_CONFIG
+  const StatusIcon = statusCfg.icon
+  const itemCount = Array.isArray(item.items) ? item.items.length : 0
+
+  const nodeCfg = item.style_node_primary ? STYLE_NODE_CONFIG[item.style_node_primary] : null
+  const nodeColors = nodeCfg ? NODE_COLOR_CLASSES[nodeCfg.color] : null
+
+  const reviews = item.reviews || []
+
+  return (
+    <div
+      className={cn(
+        "group rounded-lg border border-border border-l-2 transition-colors",
+        statusCfg.borderCls,
+        isPinned && "border-turquoise/30 bg-turquoise/[0.03]",
+        isSelected && "bg-muted/40"
+      )}
+    >
+      <div className="flex items-center gap-2">
+        {/* Checkbox */}
+        <div className="px-4 py-4 shrink-0" onClick={(e) => e.stopPropagation()}>
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={onToggle}
+            aria-label="선택"
+          />
+        </div>
+
+        {/* Card content — clickable link */}
+        <Link
+          href={`/admin/eval/${item.id}`}
+          className="flex flex-1 min-w-0 items-center gap-3 py-3 pr-2 hover:opacity-90"
+        >
+          <div className="flex flex-1 min-w-0 flex-col gap-1.5">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-muted-foreground font-mono">{formatDate(item.created_at)}</span>
+              {item.style_node_primary && (
+                <Badge variant="secondary" className="text-xs gap-1.5 py-0">
+                  {nodeColors && <span className={cn("size-1.5 rounded-full shrink-0", nodeColors.dot)} />}
+                  {item.style_node_primary}
+                  {item.style_node_confidence != null && (
+                    <span className="opacity-50">{Math.round(item.style_node_confidence * 100)}%</span>
+                  )}
+                </Badge>
+              )}
+              {item.detected_gender && (
+                <Badge variant="outline" className="text-xs py-0">{item.detected_gender}</Badge>
+              )}
+              {isPinned && <Pin className="size-3 text-turquoise" />}
+            </div>
+
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <Package className="size-3" />
+                {itemCount}
+              </span>
+              {item.prompt_text && (
+                <span className="truncate text-primary/50">
+                  &quot;{item.prompt_text.length > 40 ? item.prompt_text.slice(0, 40) + "…" : item.prompt_text}&quot;
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Status badge */}
+          <div className={cn("flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium", statusCfg.bgCls, statusCfg.textCls)}>
+            <StatusIcon className="size-3.5" />
+            {statusCfg.label}
+          </div>
+        </Link>
+
+        {/* Pin + Delete actions */}
+        <div className="pr-2 shrink-0 flex items-center gap-0.5">
+          {showPin && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("size-7 text-muted-foreground transition-opacity", isPinned ? "text-turquoise opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100")}
+              onClick={onTogglePin}
+            >
+              <Pin className="size-3.5" />
+            </Button>
+          )}
+          <div className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 transition-opacity">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7 text-muted-foreground hover:text-destructive"
+              onClick={(e) => { e.stopPropagation(); onDelete() }}
+            >
+              <Trash2 className="size-3.5" />
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Feedback stack */}
+      {reviews.length > 0 && (
+        <div className="px-4 pb-3 pt-0 ml-12 border-t border-border/50 mt-0">
+          <div className="space-y-1.5 pt-2">
+            {reviews.slice(0, 3).map((r) => {
+              const VIcon = VERDICT_ICON[r.verdict] || Clock
+              const vtextCls = VERDICT_TEXT_CLS[r.verdict] || "text-muted-foreground"
+              return (
+                <div key={`${r.reviewer_email}-${r.created_at}`} className="flex items-start gap-2 text-xs">
+                  <VIcon className={cn("size-3 mt-0.5 shrink-0", vtextCls)} />
+                  <span className="text-muted-foreground shrink-0 font-medium">{shortEmail(r.reviewer_email)}</span>
+                  {r.comment && (
+                    <span className="text-muted-foreground truncate">
+                      &ldquo;{r.comment}&rdquo;
+                    </span>
+                  )}
+                </div>
+              )
+            })}
+            {reviews.length > 3 && (
+              <span className="text-[10px] text-muted-foreground/50">+{reviews.length - 3}개 더</span>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
