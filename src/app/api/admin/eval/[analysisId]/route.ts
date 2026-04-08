@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServer } from "@/lib/supabase-server"
 import { supabase } from "@/lib/supabase"
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ analysisId: string }> }
@@ -11,6 +13,7 @@ export async function GET(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { analysisId } = await params
+  if (!UUID_RE.test(analysisId)) return NextResponse.json({ error: "invalid id" }, { status: 400 })
 
   const analysisRes = await supabase
     .from("analyses").select("*").eq("id", analysisId).single()
@@ -51,6 +54,7 @@ export async function POST(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { analysisId } = await params
+  if (!UUID_RE.test(analysisId)) return NextResponse.json({ error: "invalid id" }, { status: 400 })
   const body = await request.json()
   const { verdict, comment, addToGoldenSet, prompt_version } = body
 
@@ -69,7 +73,8 @@ export async function POST(
   }
   if (prompt_version) insertPayload.prompt_version = prompt_version
 
-  const { error: reviewError } = await supabase.from("eval_reviews").insert(insertPayload)
+  const { data: newReview, error: reviewError } = await supabase
+    .from("eval_reviews").insert(insertPayload).select("*").single()
 
   if (reviewError) {
     console.error("eval_reviews insert error:", reviewError)
@@ -94,7 +99,7 @@ export async function POST(
     }
   }
 
-  return NextResponse.json({ success: true })
+  return NextResponse.json({ success: true, review: newReview })
 }
 
 export async function PATCH(
@@ -106,10 +111,12 @@ export async function PATCH(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { analysisId } = await params
+  if (!UUID_RE.test(analysisId)) return NextResponse.json({ error: "invalid id" }, { status: 400 })
+
   const body = await request.json()
   const { reviewId, verdict, comment, is_pinned, prompt_version } = body
 
-  if (!reviewId) return NextResponse.json({ error: "reviewId required" }, { status: 400 })
+  if (!reviewId || !UUID_RE.test(reviewId)) return NextResponse.json({ error: "valid reviewId required" }, { status: 400 })
 
   const VALID_VERDICTS = ["pass", "fail", "partial"]
   if (verdict !== undefined && !VALID_VERDICTS.includes(verdict)) {
@@ -117,7 +124,7 @@ export async function PATCH(
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const updates: any = { reviewer_email: user.email }
+  const updates: any = {}
   if (verdict !== undefined) updates.verdict = verdict
   if (comment !== undefined) updates.comment = comment || null
 
@@ -161,10 +168,12 @@ export async function DELETE(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { analysisId } = await params
+  if (!UUID_RE.test(analysisId)) return NextResponse.json({ error: "invalid id" }, { status: 400 })
+
   const { searchParams } = request.nextUrl
   const reviewId = searchParams.get("reviewId")
 
-  if (!reviewId) return NextResponse.json({ error: "reviewId required" }, { status: 400 })
+  if (!reviewId || !UUID_RE.test(reviewId)) return NextResponse.json({ error: "valid reviewId required" }, { status: 400 })
 
   const { error } = await supabase
     .from("eval_reviews")

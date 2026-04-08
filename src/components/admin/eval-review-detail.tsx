@@ -69,20 +69,8 @@ function ReviewRow({ review, analysisId, onUpdate, onDelete }: {
   const [saving, setSaving] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const [pinned, setPinned] = useState<boolean>(review.is_pinned ?? false)
 
   const cfg = VERDICT_CONFIG[verdict]
-
-  async function togglePin() {
-    const next = !pinned
-    setPinned(next)
-    await fetch(`/api/admin/eval/${analysisId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ reviewId: review.id, is_pinned: next }),
-    })
-    toast.success(next ? "고정되었습니다" : "고정 해제되었습니다")
-  }
 
   async function save() {
     setSaving(true)
@@ -134,13 +122,9 @@ function ReviewRow({ review, analysisId, onUpdate, onDelete }: {
                   <Badge variant="outline" className="text-[10px] font-mono">{review.prompt_version}</Badge>
                 )}
                 <span className="text-xs text-muted-foreground">{review.reviewer_email}</span>
-                {pinned && <Pin className="size-3 text-turquoise" />}
               </div>
               <div className="flex items-center gap-1">
                 <span className="text-xs text-muted-foreground">{formatTime(review.created_at)}</span>
-                <Button variant="ghost" size="icon" className={cn("size-6", pinned && "text-turquoise")} onClick={togglePin}>
-                  {pinned ? <PinOff className="size-3" /> : <Pin className="size-3" />}
-                </Button>
                 <Button variant="ghost" size="icon" className="size-6" onClick={() => setEditing(true)}>
                   <Pencil className="size-3" />
                 </Button>
@@ -222,8 +206,30 @@ export function EvalReviewDetail({ analysis, items, reviews: initialReviews, gol
   const [newVersion, setNewVersion] = useState("")
   const [addToGoldenSet, setAddToGoldenSet] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [pinned, setPinned] = useState<boolean>(analysis.is_pinned ?? false)
 
   const searchResults: any[] = analysis.search_results || []
+
+  async function togglePin() {
+    const next = !pinned
+    try {
+      const res = await fetch("/api/admin/eval", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ analysisId: analysis.id, is_pinned: next }),
+      })
+      if (res.ok) {
+        setPinned(next)
+        toast.success(next ? "카드가 고정되었습니다" : "고정이 해제되었습니다")
+      } else {
+        const data = await res.json().catch(() => ({}))
+        toast.error(`고정 실패: ${data.error || res.statusText}`)
+      }
+    } catch (err) {
+      toast.error("고정 요청에 실패했습니다")
+      console.error("togglePin error:", err)
+    }
+  }
 
   function handleUpdate(id: string, verdict: Verdict, comment: string) {
     setReviews(prev => prev.map(r => r.id === id ? { ...r, verdict, comment } : r))
@@ -243,11 +249,15 @@ export function EvalReviewDetail({ analysis, items, reviews: initialReviews, gol
         body: JSON.stringify({ verdict: newVerdict, comment: newComment, addToGoldenSet, prompt_version: newVersion }),
       })
       if (res.ok) {
+        const data = await res.json()
         toast.success("리뷰가 제출되었습니다")
-        router.refresh()
+        if (data.review) {
+          setReviews(prev => [data.review, ...prev])
+        }
         setShowNewForm(false)
         setNewVerdict(null)
         setNewComment("")
+        setNewVersion("")
       } else {
         toast.error("제출에 실패했습니다")
       }
@@ -258,9 +268,20 @@ export function EvalReviewDetail({ analysis, items, reviews: initialReviews, gol
 
   return (
     <div className="space-y-6">
-      <Button variant="ghost" size="sm" onClick={() => router.push("/admin/eval")}>
-        <ArrowLeft className="size-4 mr-1" /> 뒤로
-      </Button>
+      <div className="flex items-center justify-between">
+        <Button variant="ghost" size="sm" onClick={() => router.push("/admin/eval")}>
+          <ArrowLeft className="size-4 mr-1" /> 뒤로
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className={cn(pinned && "border-turquoise text-turquoise")}
+          onClick={togglePin}
+        >
+          {pinned ? <PinOff className="size-3.5 mr-1" /> : <Pin className="size-3.5 mr-1" />}
+          {pinned ? "고정 해제" : "카드 고정"}
+        </Button>
+      </div>
 
       {/* Analysis meta + image */}
       <div className="grid gap-4 lg:grid-cols-[240px_1fr]">
