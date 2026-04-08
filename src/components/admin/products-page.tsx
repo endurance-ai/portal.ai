@@ -6,6 +6,7 @@ import Image from "next/image"
 import Link from "next/link"
 import {Button} from "@/components/ui/button"
 import {ChevronLeft, ChevronRight, Loader2, RotateCcw, Search} from "lucide-react"
+import {CrawlCoverage} from "@/components/admin/crawl-coverage"
 
 type ProductAI = {
   category: string | null
@@ -27,6 +28,9 @@ type Product = {
   platform: string
   category: string | null
   inStock: boolean
+  hasDescription: boolean
+  hasMaterial: boolean
+  reviewCount: number
   ai: ProductAI | null
 }
 
@@ -117,6 +121,25 @@ function ProductCard({ p }: { p: Product }) {
             {p.price != null ? `₩${p.price.toLocaleString()}` : "—"}
           </p>
 
+          {/* Data chips */}
+          <div className="flex flex-wrap gap-1 border-t border-border pt-2 mt-2">
+            {p.hasDescription && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-blue-400">
+                설명
+              </span>
+            )}
+            {p.hasMaterial && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/10 border border-green-500/20 text-green-400">
+                소재
+              </span>
+            )}
+            {p.reviewCount > 0 && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-yellow-500/10 border border-yellow-500/20 text-yellow-400">
+                리뷰 {p.reviewCount}
+              </span>
+            )}
+          </div>
+
           {/* AI section */}
           {p.ai ? (
             <div className="border-t border-border pt-2 mt-2">
@@ -159,7 +182,6 @@ export default function ProductsPageInner() {
   // Read initial state from URL
   const [products, setProducts] = useState<Product[]>([])
   const [total, setTotal] = useState(0)
-  const [aiAnalyzed, setAiAnalyzed] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
   const [page, setPage] = useState(() => parseInt(searchParams.get("page") || "0") || 0)
   const [loading, setLoading] = useState(true)
@@ -175,12 +197,14 @@ export default function ProductsPageInner() {
   const [aiStatus, setAiStatus] = useState(() => searchParams.get("aiStatus") || "all")
   const [stockStatus, setStockStatus] = useState(() => searchParams.get("stockStatus") || "all")
   const [sort, setSort] = useState(() => searchParams.get("sort") || "newest")
+  const [detailStatus, setDetailStatus] = useState(() => searchParams.get("detailStatus") || "all")
+  const [reviewStatus, setReviewStatus] = useState(() => searchParams.get("reviewStatus") || "all")
 
   // Sync filters to URL
   const syncUrl = useCallback((overrides: Record<string, string> = {}) => {
     const state: Record<string, string> = {
       page: String(page), search: debouncedSearch, category, subcategory, platform,
-      styleNode, colorFamily, aiStatus, stockStatus, sort, ...overrides,
+      styleNode, colorFamily, aiStatus, stockStatus, sort, detailStatus, reviewStatus, ...overrides,
     }
     const params = new URLSearchParams()
     for (const [k, v] of Object.entries(state)) {
@@ -188,7 +212,7 @@ export default function ProductsPageInner() {
     }
     const qs = params.toString()
     router.replace(`/admin/products${qs ? `?${qs}` : ""}`, { scroll: false })
-  }, [router, page, debouncedSearch, category, subcategory, platform, styleNode, colorFamily, aiStatus, stockStatus, sort])
+  }, [router, page, debouncedSearch, category, subcategory, platform, styleNode, colorFamily, aiStatus, stockStatus, sort, detailStatus, reviewStatus])
 
   // Debounce search
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -211,7 +235,7 @@ export default function ProductsPageInner() {
   // Reset page when filters change
   useEffect(() => {
     setPage(0)
-  }, [category, subcategory, platform, styleNode, colorFamily, aiStatus, stockStatus, sort])
+  }, [category, subcategory, platform, styleNode, colorFamily, aiStatus, stockStatus, sort, detailStatus, reviewStatus])
 
   // Reset all filters
   const resetFilters = () => {
@@ -225,12 +249,15 @@ export default function ProductsPageInner() {
     setAiStatus("all")
     setStockStatus("all")
     setSort("newest")
+    setDetailStatus("all")
+    setReviewStatus("all")
     setPage(0)
     router.replace("/admin/products", { scroll: false })
   }
 
   const hasActiveFilters = search || category || subcategory || platform || styleNode || colorFamily
     || aiStatus !== "all" || stockStatus !== "all" || sort !== "newest"
+    || detailStatus !== "all" || reviewStatus !== "all"
 
   const fetchProducts = useCallback(async () => {
     setLoading(true)
@@ -246,6 +273,8 @@ export default function ProductsPageInner() {
         aiStatus,
         stockStatus,
         sort,
+        detailStatus,
+        reviewStatus,
       })
       const res = await fetch(`/api/admin/products?${params}`)
       if (res.ok) {
@@ -253,12 +282,11 @@ export default function ProductsPageInner() {
         setProducts(data.products ?? [])
         setTotal(data.total ?? 0)
         setTotalPages(data.totalPages ?? 0)
-        if (data.aiAnalyzed != null) setAiAnalyzed(data.aiAnalyzed)
       }
     } finally {
       setLoading(false)
     }
-  }, [page, debouncedSearch, category, subcategory, platform, styleNode, colorFamily, aiStatus, stockStatus, sort])
+  }, [page, debouncedSearch, category, subcategory, platform, styleNode, colorFamily, aiStatus, stockStatus, sort, detailStatus, reviewStatus])
 
   useEffect(() => {
     fetchProducts()
@@ -267,7 +295,7 @@ export default function ProductsPageInner() {
   // Sync URL after fetch
   useEffect(() => {
     syncUrl()
-  }, [page, debouncedSearch, category, subcategory, platform, styleNode, colorFamily, aiStatus, stockStatus, sort]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [page, debouncedSearch, category, subcategory, platform, styleNode, colorFamily, aiStatus, stockStatus, sort, detailStatus, reviewStatus]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="space-y-5">
@@ -279,23 +307,8 @@ export default function ProductsPageInner() {
         </span>
       </div>
 
-      {/* AI Coverage Bar */}
-      {total > 0 && (
-        <div className="rounded-lg border border-border bg-card p-4 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">AI 분석 완료</span>
-            <span className="text-sm font-mono font-semibold">
-              {aiAnalyzed.toLocaleString()} / {total.toLocaleString()} ({total > 0 ? ((aiAnalyzed / total) * 100).toFixed(1) : 0}%)
-            </span>
-          </div>
-          <div className="h-2 rounded-full bg-secondary overflow-hidden">
-            <div
-              className="h-full rounded-full bg-turquoise transition-all duration-500"
-              style={{ width: `${total > 0 ? (aiAnalyzed / total) * 100 : 0}%` }}
-            />
-          </div>
-        </div>
-      )}
+      {/* Crawl Coverage */}
+      <CrawlCoverage />
 
       {/* Filter bar */}
       <div className="flex flex-wrap gap-2 items-center">
@@ -392,6 +405,28 @@ export default function ProductsPageInner() {
           <option value="all">재고</option>
           <option value="in_stock">판매중</option>
           <option value="out_of_stock">품절</option>
+        </select>
+
+        {/* Detail Status */}
+        <select
+          value={detailStatus}
+          onChange={(e) => setDetailStatus(e.target.value)}
+          className={SELECT_CLASS}
+        >
+          <option value="all">상세설명</option>
+          <option value="with_desc">있음</option>
+          <option value="no_desc">없음</option>
+        </select>
+
+        {/* Review Status */}
+        <select
+          value={reviewStatus}
+          onChange={(e) => setReviewStatus(e.target.value)}
+          className={SELECT_CLASS}
+        >
+          <option value="all">리뷰</option>
+          <option value="with_reviews">있음</option>
+          <option value="no_reviews">없음</option>
         </select>
 
         {/* Sort */}

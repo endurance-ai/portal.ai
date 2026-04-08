@@ -70,11 +70,16 @@ export async function GET(request: NextRequest) {
   // Strategy: if we have AI product_ids, fetch those products in chunks
   // Otherwise, normal paginated query
 
+  const detailStatus = searchParams.get("detailStatus") || "all" // all | with_desc | no_desc
+  const reviewStatus = searchParams.get("reviewStatus") || "all" // all | with_reviews | no_reviews
+
   type ProductRow = {
     id: string; brand: string; name: string; price: number | null;
     image_url: string | null; platform: string; category: string | null;
     in_stock: boolean; style_node: string | null; gender: string[] | null;
     created_at: string;
+    description: string | null; material: string | null;
+    review_count: number | null;
   }
 
   let allProducts: ProductRow[] = []
@@ -86,16 +91,20 @@ export async function GET(request: NextRequest) {
       const chunk = aiProductIds.slice(i, i + CHUNK_SIZE)
       let q = supabase
         .from("products")
-        .select("id, brand, name, price, image_url, platform, category, in_stock, style_node, gender, created_at")
+        .select("id, brand, name, price, image_url, platform, category, in_stock, style_node, gender, created_at, description, material, review_count")
         .in("id", chunk)
 
       if (stockStatus === "in_stock") q = q.eq("in_stock", true)
       else if (stockStatus === "out_of_stock") q = q.eq("in_stock", false)
-      if (search) q = q.or(`brand.ilike.%${search}%,name.ilike.%${search}%`)
+      if (search) q = q.or(`brand.ilike.%${search}%,name.ilike.%${search}%,platform.ilike.%${search}%`)
       if (category) q = q.eq("category", category)
 
       if (platform) q = q.eq("platform", platform)
       if (brand) q = q.ilike("brand", `%${brand}%`)
+      if (detailStatus === "with_desc") q = q.not("description", "is", null)
+      else if (detailStatus === "no_desc") q = q.is("description", null)
+      if (reviewStatus === "with_reviews") q = q.gt("review_count", 0)
+      else if (reviewStatus === "no_reviews") q = q.or("review_count.is.null,review_count.eq.0")
 
       const { data } = await q
       if (data) allProducts.push(...data)
@@ -119,16 +128,20 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from("products")
       .select(
-        "id, brand, name, price, image_url, platform, category, in_stock, style_node, gender, created_at",
+        "id, brand, name, price, image_url, platform, category, in_stock, style_node, gender, created_at, description, material, review_count",
         { count: "exact" }
       )
 
     if (stockStatus === "in_stock") query = query.eq("in_stock", true)
     else if (stockStatus === "out_of_stock") query = query.eq("in_stock", false)
-    if (search) query = query.or(`brand.ilike.%${search}%,name.ilike.%${search}%`)
+    if (search) query = query.or(`brand.ilike.%${search}%,name.ilike.%${search}%,platform.ilike.%${search}%`)
     if (category) query = query.eq("category", category)
     if (platform) query = query.eq("platform", platform)
     if (brand) query = query.ilike("brand", `%${brand}%`)
+    if (detailStatus === "with_desc") query = query.not("description", "is", null)
+    else if (detailStatus === "no_desc") query = query.is("description", null)
+    if (reviewStatus === "with_reviews") query = query.gt("review_count", 0)
+    else if (reviewStatus === "no_reviews") query = query.or("review_count.is.null,review_count.eq.0")
 
     query = query.order(orderCol, { ascending: orderAsc, nullsFirst: false })
 
@@ -192,6 +205,9 @@ export async function GET(request: NextRequest) {
       platform: p.platform,
       category: p.category,
       inStock: p.in_stock,
+      hasDescription: !!p.description,
+      hasMaterial: !!p.material,
+      reviewCount: p.review_count ?? 0,
       ai: ai ? {
         category: ai.category,
         subcategory: ai.subcategory,
@@ -205,10 +221,5 @@ export async function GET(request: NextRequest) {
     }
   })
 
-  const { count: aiCount } = await supabase
-    .from("product_ai_analysis")
-    .select("id", { count: "exact", head: true })
-    .eq("version", "v1")
-
-  return NextResponse.json({ products: result, total: totalCount, page, totalPages, aiAnalyzed: aiCount ?? 0 })
+  return NextResponse.json({ products: result, total: totalCount, page, totalPages })
 }

@@ -83,8 +83,11 @@ export default function Home() {
   const [progressLabel, setProgressLabel] = useState("")
   const fileRef = useRef<File | null>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const isSubmitting = useRef(false)
 
   const handleSubmit = useCallback(async (data: { prompt?: string; file?: File }) => {
+    if (isSubmitting.current) return
+    isSubmitting.current = true
     try { abortRef.current?.abort() } catch { /* ignore previous abort */ }
     abortRef.current = new AbortController()
     const { signal } = abortRef.current
@@ -184,6 +187,7 @@ export default function Home() {
       })
       setItems(initialItems)
       setState("result")
+      isSubmitting.current = false
 
       // Background: fetch products
       // GPT detected_gender가 있으면 우선 사용, 없으면 UI 셀렉터 값
@@ -230,7 +234,11 @@ export default function Home() {
         })
     } catch (err) {
       // AbortError는 새 요청 시 이전 요청 취소로 발생 — UI 상태 건드리지 않음
-      if (err instanceof Error && err.name === "AbortError") return
+      if (err instanceof Error && err.name === "AbortError") {
+        isSubmitting.current = false
+        return
+      }
+      isSubmitting.current = false
       clearInterval(ticker)
       setImageUrl("")
       setState("upload")

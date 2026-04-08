@@ -1,6 +1,6 @@
-import { notFound } from "next/navigation"
-import { supabase } from "@/lib/supabase"
-import { ProductDetail } from "@/components/admin/product-detail"
+import {notFound} from "next/navigation"
+import {supabase} from "@/lib/supabase"
+import {ProductDetail} from "@/components/admin/product-detail"
 
 export default async function ProductDetailPage({
   params,
@@ -9,7 +9,7 @@ export default async function ProductDetailPage({
 }) {
   const { id } = await params
 
-  const [productRes, aiRes] = await Promise.all([
+  const [productRes, aiRes, reviewsRes] = await Promise.all([
     supabase.from("products").select("*").eq("id", id).single(),
     supabase
       .from("product_ai_analysis")
@@ -21,9 +21,21 @@ export default async function ProductDetailPage({
         (res) => res,
         () => ({ data: null, error: null })
       ),
+    supabase
+      .from("product_reviews")
+      .select("*")
+      .eq("product_id", id)
+      .order("created_at", { ascending: false })
+      .limit(50),
   ])
 
   if (productRes.error) notFound()
 
-  return <ProductDetail product={productRes.data} ai={aiRes.data} />
+  return (
+    <ProductDetail
+      product={productRes.data}
+      ai={aiRes.data}
+      reviews={reviewsRes.data ?? []}
+    />
+  )
 }

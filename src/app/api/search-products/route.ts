@@ -53,6 +53,9 @@ type FormattedProduct = {
   imageUrl: string
   link: string
   title: string
+  description?: string
+  material?: string
+  reviewCount?: number
   _scoring?: ScoreBreakdown
 }
 
@@ -346,7 +349,8 @@ async function searchByEnums(
       category, subcategory, fit, fabric, color_family, style_node, mood_tags,
       keywords_ko, keywords_en, season, pattern,
       products!inner (
-        id, brand, name, price, image_url, product_url, platform, gender, in_stock
+        id, brand, name, price, image_url, product_url, platform, gender, in_stock,
+        description, material, review_count
       )
     `)
     .eq("version", ACTIVE_VERSION)
@@ -385,7 +389,8 @@ async function searchByEnums(
         category, subcategory, fit, fabric, color_family, style_node, mood_tags,
         keywords_ko, keywords_en, season, pattern,
         products!inner (
-          id, brand, name, price, image_url, product_url, platform, gender, in_stock
+          id, brand, name, price, image_url, product_url, platform, gender, in_stock,
+          description, material, review_count, average_rating
         )
       `)
       .eq("version", ACTIVE_VERSION)
@@ -429,7 +434,9 @@ async function searchByEnums(
   type RawProduct = {
     id: string; brand: string; name: string; price: number | null;
     image_url: string | null; product_url: string; platform: string;
-    gender: string | null; in_stock: boolean
+    gender: string | null; in_stock: boolean;
+    description: string | null; material: string | null;
+    review_count: number | null;
   }
 
   const scored = merged
@@ -563,6 +570,9 @@ async function searchByEnums(
         imageUrl: p.image_url || "",
         link: p.product_url,
         title: `${p.brand} ${p.name}`,
+        description: p.description || undefined,
+        material: p.material || undefined,
+        reviewCount: p.review_count ?? undefined,
       }
     })
     .filter((p): p is NonNullable<typeof p> => {

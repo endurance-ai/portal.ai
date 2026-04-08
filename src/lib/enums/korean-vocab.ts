@@ -33,6 +33,11 @@ export const KOREAN_VOCAB: Record<string, KoreanVocabEntry> = {
   "코트": { subcategory: "overcoat", category: "Outer", keywords: ["코트", "coat"] },
   "트렌치": { subcategory: "trench-coat", category: "Outer", keywords: ["트렌치", "트렌치코트", "trench"] },
   "자켓": { subcategory: "blazer", category: "Outer", keywords: ["자켓", "재킷", "jacket"] },
+  "가죽자켓": { subcategory: "leather-jacket", category: "Outer", keywords: ["가죽자켓", "가죽재킷", "레더자켓", "leather jacket"] },
+  "라이더": { subcategory: "leather-jacket", category: "Outer", keywords: ["라이더", "라이더자켓", "바이커", "rider", "biker"] },
+  "드리즐러": { subcategory: "leather-jacket", category: "Outer", keywords: ["드리즐러", "드리즐러재킷", "drizzler"] },
+  "모터사이클": { subcategory: "leather-jacket", category: "Outer", keywords: ["모터사이클", "모터사이클자켓", "motorcycle"] },
+  "램스킨": { subcategory: "leather-jacket", category: "Outer", keywords: ["램스킨", "양가죽", "lambskin"] },
 
   // ─── Top ───
   "맨투맨": { subcategory: "sweatshirt", category: "Top", keywords: ["맨투맨", "스웻셔츠", "sweatshirt", "mtm"] },
