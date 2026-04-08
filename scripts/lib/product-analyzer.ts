@@ -4,11 +4,15 @@
 
 import OpenAI from "openai"
 import {createHash} from "crypto"
-import {PRODUCT_ANALYZE_SYSTEM, PRODUCT_ANALYZE_USER} from "../configs/analyze-prompt"
+import {buildProductAnalyzeUser, PRODUCT_ANALYZE_SYSTEM} from "../configs/analyze-prompt"
 import {
-  isValidCategory, isValidSubcategory, isValidFit,
-  isValidFabric, isValidColorFamily,
+    isValidCategory,
+    isValidColorFamily,
+    isValidFabric,
+    isValidFit,
+    isValidSubcategory,
 } from "../../src/lib/enums/product-enums"
+import {isValidPattern, isValidSeason} from "../../src/lib/enums/season-pattern"
 import {STYLE_NODE_IDS} from "../../src/lib/fashion-genome"
 
 // ─── 타입 ────────────────────────────────────────────
@@ -24,6 +28,8 @@ export interface AnalysisResult {
   mood_tags: string[]
   keywords_ko: string[]
   keywords_en: string[]
+  season: string | null
+  pattern: string | null
   confidence: number
 }
 
@@ -65,8 +71,11 @@ export function getPromptHash(): string { return promptHash }
 export async function analyzeProductImage(
   productId: string,
   imageUrl: string,
+  hint?: { name?: string; category?: string },
 ): Promise<AnalysisOutput> {
   try {
+    const userPrompt = buildProductAnalyzeUser(hint)
+
     const response = await client.chat.completions.create({
       model: modelName,
       messages: [
@@ -74,12 +83,12 @@ export async function analyzeProductImage(
         {
           role: "user",
           content: [
-            { type: "text", text: PRODUCT_ANALYZE_USER },
+            { type: "text", text: userPrompt },
             { type: "image_url", image_url: { url: imageUrl } },
           ],
         },
       ],
-      max_tokens: 500,
+      max_tokens: 600,
       temperature: 0.2,
     })
 
@@ -130,6 +139,8 @@ function validateAndNormalize(raw: Record<string, unknown>): AnalysisResult {
     mood_tags: Array.isArray(raw.mood_tags) ? raw.mood_tags.map(String) : [],
     keywords_ko: Array.isArray(raw.keywords_ko) ? raw.keywords_ko.map(String) : [],
     keywords_en: Array.isArray(raw.keywords_en) ? raw.keywords_en.map(String) : [],
+    season: raw.season && isValidSeason(String(raw.season)) ? String(raw.season) : null,
+    pattern: raw.pattern && isValidPattern(String(raw.pattern)) ? String(raw.pattern) : "solid",
     confidence: typeof raw.confidence === "number" ? Math.min(1, Math.max(0, raw.confidence)) : 0.5,
   }
 }

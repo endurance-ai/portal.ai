@@ -12,6 +12,7 @@
 import type {Page} from "playwright"
 import type {CrawlResult, Product, SiteConfig} from "./types"
 import {parseDetailPage} from "./detail-parser"
+import {parseReviews} from "./review-parser"
 
 // ─── 기본 셀렉터 (폴백 체인) ──────────────────────────
 
@@ -511,6 +512,45 @@ export async function crawlCafe24(
     }
 
     console.log(`\r${tag} ✅ 상세 크롤링 완료 — ${detailCount}/${uniqueProducts.length}`)
+  }
+
+  // ── Step 4: 리뷰 크롤링 (3단계) ──
+  // 상세 크롤 중에 이미 상세 페이지에 있으므로, 별도 단계로 리뷰 수집
+  // 최적화: 상세 페이지에서 리뷰 수(0이면 skip)를 체크하여 불필요한 방문 최소화
+  if (config.crawlReviews) {
+    console.log(`\n${tag} 💬 리뷰 크롤링 시작 — ${uniqueProducts.length}개 상품`)
+    let reviewCount = 0
+    let withReviews = 0
+    const reviewDelay = config.crawlDelay || 1500
+
+    for (const product of uniqueProducts) {
+      try {
+        // 상품 상세 페이지로 이동
+        await page.goto(product.productUrl, {waitUntil: "domcontentloaded", timeout: 15000})
+        await page.waitForTimeout(1000)
+
+        // 리뷰 파싱 (보드 링크 탐지 → 리뷰 수 0이면 자동 skip)
+        const reviewData = await parseReviews(page, 10)
+
+        if (reviewData.reviewCount > 0) {
+          product.reviewCount = reviewData.reviewCount
+          product.averageRating = reviewData.averageRating
+          product.reviews = reviewData.reviews
+          withReviews++
+        }
+
+        reviewCount++
+        if (reviewCount % 20 === 0) {
+          process.stdout.write(`\r${tag}    💬 ${reviewCount}/${uniqueProducts.length} (리뷰 있음: ${withReviews})`)
+        }
+      } catch {
+        // 개별 실패는 skip
+      }
+
+      await new Promise((r) => setTimeout(r, reviewDelay))
+    }
+
+    console.log(`\r${tag} ✅ 리뷰 크롤링 완료 — ${withReviews}/${uniqueProducts.length}개 상품에 리뷰`)
   }
 
   // 통계

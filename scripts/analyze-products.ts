@@ -15,8 +15,11 @@ import {createClient} from "@supabase/supabase-js"
 import * as fs from "fs"
 import * as path from "path"
 import {
-  initAnalyzer, analyzeProductImage, getModelId, getPromptHash,
-  type AnalysisOutput,
+    type AnalysisOutput,
+    analyzeProductImage,
+    getModelId,
+    getPromptHash,
+    initAnalyzer,
 } from "./lib/product-analyzer"
 
 // ─── 환경변수 ────────────────────────────────────────
@@ -82,9 +85,10 @@ async function analyzeWithRetry(
   productId: string,
   imageUrl: string,
   maxRetries: number,
+  hint?: { name?: string; category?: string },
 ): Promise<AnalysisOutput> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    const result = await analyzeProductImage(productId, imageUrl)
+    const result = await analyzeProductImage(productId, imageUrl, hint)
 
     if (result.success) return result
 
@@ -245,7 +249,8 @@ async function main() {
   const failures: { productId: string; brand: string; error: string }[] = []
 
   const tasks = targets.map((product) => async () => {
-    const output = await analyzeWithRetry(product.id, product.image_url, 3)
+    const hint = { name: product.name, category: product.category }
+    const output = await analyzeWithRetry(product.id, product.image_url, 3, hint)
 
     if (output.success && output.result) {
       if (retryFailed) {
