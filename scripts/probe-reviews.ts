@@ -9,8 +9,8 @@
 
 import {chromium} from "playwright"
 import {createClient} from "@supabase/supabase-js"
-import {parseReviews} from "./lib/review-parser"
-import {parseDetailPage} from "./lib/detail-parser"
+import {getDetailParser} from "./lib/parsers/detail"
+import {getReviewParser} from "./lib/parsers/review"
 
 // ─── 환경 ────────────────────────────────────────────
 
@@ -96,12 +96,12 @@ async function main() {
       await page.waitForTimeout(2000)
 
       // 상세 데이터 추출
-      const detail = await parseDetailPage(page, url)
+      const detailParser = getDetailParser(site)
+      const detail = await detailParser.parse(page, url)
       console.log(`   📖 상세 데이터:`)
       console.log(`      설명: ${detail.description ? detail.description.slice(0, 100) + "..." : "없음"}`)
       console.log(`      색상: ${detail.color || "없음"}`)
       console.log(`      소재: ${detail.material || "없음"}`)
-      console.log(`      이미지: ${detail.images.length}장`)
       console.log(`      상품코드: ${detail.productCode || "없음"}`)
 
       // 페이지 리뷰 영역 디버깅
@@ -131,15 +131,14 @@ async function main() {
       console.log(`      리뷰 탭: ${JSON.stringify(debugInfo.tabs)}`)
 
       // 리뷰 추출
-      const reviewData = await parseReviews(page, 5)
+      const reviewParser = getReviewParser(site)
+      const reviewData = await reviewParser.parse(page, 5)
       console.log(`\n   💬 리뷰 데이터:`)
       console.log(`      총 리뷰 수: ${reviewData.reviewCount}`)
-      console.log(`      평균 별점: ${reviewData.averageRating ?? "없음"}`)
       console.log(`      추출된 리뷰: ${reviewData.reviews.length}개`)
 
       for (const [j, review] of reviewData.reviews.entries()) {
         console.log(`\n      [리뷰 ${j + 1}]`)
-        console.log(`         별점: ${review.rating ?? "없음"}`)
         console.log(`         작성자: ${review.author ?? "없음"}`)
         console.log(`         날짜: ${review.date ?? "없음"}`)
         console.log(`         사진: ${review.photoUrls.length}장`)
