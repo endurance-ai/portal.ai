@@ -14,13 +14,19 @@
 - 크롤 JSON의 `reviews[]` → `product_reviews` 테이블에 insert
 - `reviewCount`, `averageRating` → products 테이블에 컬럼 추가 or product_reviews에서 조인 쿼리
 
-### 3. 상품 결과 화면 (`src/components/result/look-breakdown.tsx`)
+### 3. 이미지 해상도 개선
+- Cafe24 `/small/` 이미지가 큰 화면에서 흐려지는 문제
+- 프론트에서 URL의 `/small/` → `/big/` 치환 후 로드 시도, 실패 시 원본 폴백 (`onError` 핸들러)
+- DB 원본 URL은 건드리지 않음 (일부 사이트 `/big/` 미지원)
+- Next.js `<Image>` 컴포넌트의 `sizes` + `srcSet`으로 모바일 대역폭 최적화
+
+### 4. 상품 결과 화면 (`src/components/result/look-breakdown.tsx`)
 - 상품 카드에 description 요약 표시 (truncate)
 - material 뱃지
 - 리뷰 요약 (평점 ★4.5, 리뷰 23건)
 - 가격 null → 금액 미표시 (현재 로직 이미 OK: `p.price ? \`₩\${...}\` : ""`)
 
-### 4. 어드민 상품 상세 페이지 (`src/app/admin/`, `src/components/admin/`)
+### 5. 어드민 상품 상세 페이지 (`src/app/admin/`, `src/components/admin/`)
 - 상품 상세에 description/material/color 탭 추가
 - 리뷰 목록 표시 (본문, 별점, 작성자, 날짜, 체형 정보)
 - 크롤링 커버리지 대시보드 (플랫폼별 description/material/review 수집률)
