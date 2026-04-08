@@ -26,7 +26,14 @@
 - 리뷰 요약 (평점 ★4.5, 리뷰 23건)
 - 가격 null → 금액 미표시 (현재 로직 이미 OK: `p.price ? \`₩\${...}\` : ""`)
 
-### 5. 어드민 상품 상세 페이지 (`src/app/admin/`, `src/components/admin/`)
+### 5. 분석 중복 저장 버그 수정
+- 같은 프롬프트가 0.6초 간격으로 `analyses` 테이블에 2번 저장되는 현상
+- `handleSubmit`에 abort 로직이 있지만 API 호출이 이미 서버에 도달한 후 abort됨
+- `page.tsx`의 `handleSubmit` 또는 `/api/analyze` route에서 중복 방어 필요
+- 방법 1: 프론트에서 `isSubmitting` ref로 중복 호출 차단
+- 방법 2: 백엔드에서 같은 prompt_text + 5초 이내 중복 insert 무시
+
+### 6. 어드민 상품 상세 페이지 (`src/app/admin/`, `src/components/admin/`)
 - 상품 상세에 description/material/color 탭 추가
 - 리뷰 목록 표시 (본문, 별점, 작성자, 날짜, 체형 정보)
 - 크롤링 커버리지 대시보드 (플랫폼별 description/material/review 수집률)
