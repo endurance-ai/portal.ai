@@ -351,7 +351,7 @@ async function searchByEnums(
     `)
     .eq("version", ACTIVE_VERSION)
     .eq("products.in_stock", true)
-    .gte("products.price", priceFilter?.minPrice ? Math.max(priceFilter.minPrice, MIN_VALID_PRICE) : MIN_VALID_PRICE)
+    .or(`price.is.null,price.gte.${priceFilter?.minPrice ? Math.max(priceFilter.minPrice, MIN_VALID_PRICE) : MIN_VALID_PRICE}`, { referencedTable: "products" })
     .limit(200)
 
   if (dbCategories && dbCategories.length > 0) {
@@ -390,7 +390,7 @@ async function searchByEnums(
       `)
       .eq("version", ACTIVE_VERSION)
       .eq("products.in_stock", true)
-      .gte("products.price", priceFilter?.minPrice ? Math.max(priceFilter.minPrice, MIN_VALID_PRICE) : MIN_VALID_PRICE)
+      .or(`price.is.null,price.gte.${priceFilter?.minPrice ? Math.max(priceFilter.minPrice, MIN_VALID_PRICE) : MIN_VALID_PRICE}`, { referencedTable: "products" })
       .or(nameFilters, { referencedTable: "products" })
       .limit(50)
 
