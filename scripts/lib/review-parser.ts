@@ -96,10 +96,14 @@ export async function parseReviews(
       return result
     }
 
-    // 2) 보드 페이지로 이동
+    // 2) 보드 페이지로 이동 (URL 검증)
     const boardUrl = boardInfo.boardUrl.startsWith("http")
       ? boardInfo.boardUrl
       : new URL(boardInfo.boardUrl, page.url()).href
+
+    if (!boardUrl.startsWith("https://") && !boardUrl.startsWith("http://")) {
+      return result
+    }
 
     await page.goto(boardUrl, { waitUntil: "domcontentloaded", timeout: 15000 })
     await page.waitForTimeout(2000)
@@ -205,6 +209,7 @@ async function parseBoardReviewsWithDetail(page: Page, boardUrl: string, max: nu
     if (raw.detailUrl) {
       try {
         const detailUrl = raw.detailUrl.startsWith("http") ? raw.detailUrl : baseUrl + raw.detailUrl
+        if (!detailUrl.startsWith("https://") && !detailUrl.startsWith("http://")) continue
         await page.goto(detailUrl, { waitUntil: "domcontentloaded", timeout: 10000 })
         await page.waitForTimeout(1500)
 
