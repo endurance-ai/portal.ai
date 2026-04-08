@@ -71,7 +71,7 @@ export function getPromptHash(): string { return promptHash }
 export async function analyzeProductImage(
   productId: string,
   imageUrl: string,
-  hint?: { name?: string; category?: string },
+  hint?: { name?: string; category?: string; description?: string; material?: string; color?: string },
 ): Promise<AnalysisOutput> {
   try {
     const userPrompt = buildProductAnalyzeUser(hint)

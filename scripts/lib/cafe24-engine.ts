@@ -11,8 +11,8 @@
 
 import type {Page} from "playwright"
 import type {CrawlResult, Product, SiteConfig} from "./types"
-import {parseDetailPage} from "./detail-parser"
-import {parseReviews} from "./review-parser"
+import type {IDetailParser} from "./parsers/detail"
+import type {IReviewParser} from "./parsers/review"
 
 // ─── 기본 셀렉터 (폴백 체인) ──────────────────────────
 
@@ -397,7 +397,9 @@ async function crawlCategory(
 
 export async function crawlCafe24(
   page: Page,
-  config: SiteConfig
+  config: SiteConfig,
+  detailParser?: IDetailParser,
+  reviewParser?: IReviewParser,
 ): Promise<CrawlResult> {
   const startTime = Date.now()
   const errors: string[] = []
@@ -486,45 +488,48 @@ export async function crawlCafe24(
     return true
   })
 
-  // ── Step 3: 상세 페이지 크롤링 (2단계) ──
-  if (config.crawlDetails) {
+  // ── Step 3: 상세 페이지 크롤링 (파서 주입 + 3-way 병렬) ──
+  if (config.crawlDetails && detailParser) {
     console.log(`\n${tag} 🔍 상세 크롤링 시작 — ${uniqueProducts.length}개 상품`)
-    let detailCount = 0
     let detailSuccess = 0
-    const detailDelay = config.crawlDelay || 800
+    const DETAIL_CONCURRENCY = 3
+    const browser = page.context().browser()!
 
-    for (const product of uniqueProducts) {
-      try {
-        const detail = await parseDetailPage(page, product.productUrl, config.detailSelectors)
+    for (let i = 0; i < uniqueProducts.length; i += DETAIL_CONCURRENCY) {
+      const batch = uniqueProducts.slice(i, i + DETAIL_CONCURRENCY)
+      const results = await Promise.all(
+        batch.map(async (product) => {
+          const ctx = await browser.newContext()
+          await ctx.route("**/*.{png,jpg,jpeg,gif,webp,svg,css,woff,woff2}", (route) => route.abort())
+          const pg = await ctx.newPage()
+          try {
+            return {product, detail: await detailParser.parse(pg, product.productUrl)}
+          } catch {
+            return {product, detail: null}
+          } finally {
+            await ctx.close()
+          }
+        })
+      )
 
+      for (const {product, detail} of results) {
+        if (!detail) continue
         if (detail.description) product.description = detail.description
         if (detail.color) product.color = detail.color
         if (detail.material) product.material = detail.material
         if (detail.productCode) product.productCode = detail.productCode
-
-        const hasData = detail.description || detail.color || detail.material
-        if (hasData) detailSuccess++
-
-        detailCount++
-        console.log(
-          `${tag}    📖 [${detailCount}/${uniqueProducts.length}] ${product.brand || "?"} | ${(product.name || "").slice(0, 35)}` +
-          ` → 설명:${detail.description ? "O" : "X"} 색상:${detail.color ? detail.color.slice(0, 20) : "X"} 소재:${detail.material ? detail.material.slice(0, 20) : "X"}`
-        )
-      } catch (err) {
-        detailCount++
-        console.log(`${tag}    📖 [${detailCount}/${uniqueProducts.length}] ❌ ${(product.name || "").slice(0, 35)} — ${(err as Error).message?.slice(0, 50)}`)
+        if (detail.description || detail.color || detail.material) detailSuccess++
       }
 
-      await new Promise((r) => setTimeout(r, detailDelay))
+      const done = Math.min(i + DETAIL_CONCURRENCY, uniqueProducts.length)
+      process.stdout.write(`\r${tag}    📖 ${done}/${uniqueProducts.length} (성공: ${detailSuccess})`)
     }
 
-    console.log(`${tag} ✅ 상세 크롤링 완료 — ${detailSuccess}/${uniqueProducts.length}개 데이터 수집`)
+    console.log(`\n${tag} ✅ 상세 크롤링 완료 — ${detailSuccess}/${uniqueProducts.length}개 데이터 수집`)
   }
 
-  // ── Step 4: 리뷰 크롤링 (3단계) ──
-  // 상세 크롤 중에 이미 상세 페이지에 있으므로, 별도 단계로 리뷰 수집
-  // 최적화: 상세 페이지에서 리뷰 수(0이면 skip)를 체크하여 불필요한 방문 최소화
-  if (config.crawlReviews) {
+  // ── Step 4: 리뷰 크롤링 (파서 주입) ──
+  if (config.crawlReviews && reviewParser) {
     console.log(`\n${tag} 💬 리뷰 크롤링 시작 — ${uniqueProducts.length}개 상품`)
     let reviewCount = 0
     let withReviews = 0
@@ -532,29 +537,23 @@ export async function crawlCafe24(
 
     for (const product of uniqueProducts) {
       try {
-        // 상품 상세 페이지로 이동
         await page.goto(product.productUrl, {waitUntil: "domcontentloaded", timeout: 15000})
         await page.waitForTimeout(500)
 
-        // 리뷰 파싱 (보드 링크 탐지 → 리뷰 수 0이면 자동 skip)
-        const reviewData = await parseReviews(page, 10)
+        const reviewData = await reviewParser.parse(page, 10)
 
         reviewCount++
-        if (reviewData.reviewCount > 0) {
-          product.reviewCount = reviewData.reviewCount
-          product.averageRating = reviewData.averageRating
+        if (reviewData.reviewCount > 0 || reviewData.reviews.length > 0) {
+          product.reviewCount = reviewData.reviewCount || reviewData.reviews.length
           product.reviews = reviewData.reviews
           withReviews++
           console.log(
             `${tag}    💬 [${reviewCount}/${uniqueProducts.length}] ${(product.name || "").slice(0, 35)}` +
-            ` → 리뷰 ${reviewData.reviewCount}건 (평점: ${reviewData.averageRating ?? "-"}, 추출: ${reviewData.reviews.length}건)`
+            ` → 리뷰 ${product.reviewCount}건 (추출: ${reviewData.reviews.length}건)`
           )
-        } else {
-          console.log(`${tag}    💬 [${reviewCount}/${uniqueProducts.length}] ${(product.name || "").slice(0, 35)} → 리뷰 없음`)
         }
       } catch {
         reviewCount++
-        console.log(`${tag}    💬 [${reviewCount}/${uniqueProducts.length}] ❌ ${(product.name || "").slice(0, 35)}`)
       }
 
       await new Promise((r) => setTimeout(r, reviewDelay))

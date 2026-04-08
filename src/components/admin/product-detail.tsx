@@ -1,8 +1,26 @@
 "use client"
 
+import {useState} from "react"
 import Image from "next/image"
 import Link from "next/link"
 import {ArrowUpRight, ChevronLeft} from "lucide-react"
+import {cn} from "@/lib/utils"
+
+type Review = {
+  id: string
+  text: string | null
+  author: string | null
+  review_date: string | null
+  photo_urls: string[] | null
+  body_info: {
+    height?: string
+    weight?: string
+    usualSize?: string
+    purchasedSize?: string
+    bodyType?: string
+  } | null
+  created_at: string
+}
 
 type ProductDetailProps = {
   product: {
@@ -25,6 +43,7 @@ type ProductDetailProps = {
     description: string | null
     tags: string[] | null
     size_info: string | null
+    review_count: number | null
     created_at: string
   }
   ai: {
@@ -42,11 +61,22 @@ type ProductDetailProps = {
     model_id: string | null
     version: string
   } | null
+  reviews: Review[]
 }
 
-export function ProductDetail({ product, ai }: ProductDetailProps) {
+type Tab = "info" | "description" | "reviews"
+
+export function ProductDetail({ product, ai, reviews }: ProductDetailProps) {
+  const [tab, setTab] = useState<Tab>("info")
+
   const formatPrice = (price: number | null) =>
     price != null ? `₩${price.toLocaleString("ko-KR")}` : "—"
+
+  const tabs: { key: Tab; label: string; count?: number }[] = [
+    { key: "info", label: "기본 정보" },
+    { key: "description", label: "상세 설명" },
+    { key: "reviews", label: "리뷰", count: reviews.length },
+  ]
 
   return (
     <div className="p-6 space-y-4">
@@ -78,6 +108,7 @@ export function ProductDetail({ product, ai }: ProductDetailProps) {
               </div>
             )}
           </div>
+
         </div>
 
         {/* Right: Info */}
@@ -209,65 +240,183 @@ export function ProductDetail({ product, ai }: ProductDetailProps) {
             </div>
           )}
 
-          {/* 상품 정보 */}
-          <div className="bg-muted/10 border border-border rounded-lg p-4 space-y-2">
-            <p className="text-sm font-semibold text-muted-foreground mb-2">상품 정보</p>
+          {/* Tabs */}
+          <div className="border-b border-border flex" role="tablist">
+            {tabs.map((t) => (
+              <button
+                key={t.key}
+                role="tab"
+                aria-selected={tab === t.key}
+                aria-controls={`tabpanel-${t.key}`}
+                onClick={() => setTab(t.key)}
+                className={cn(
+                  "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px",
+                  tab === t.key
+                    ? "border-foreground text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {t.label}
+                {t.count != null && t.count > 0 && (
+                  <span className="ml-1.5 text-xs bg-muted/30 px-1.5 py-0.5 rounded">
+                    {t.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
 
-            {product.gender && product.gender.length > 0 && (
+          {/* Tab content */}
+          {tab === "info" && (
+            <div id="tabpanel-info" role="tabpanel" className="bg-muted/10 border border-border rounded-lg p-4 space-y-2">
+              {product.gender && product.gender.length > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">gender</span>
+                  <span>{product.gender.join(", ")}</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">gender</span>
-                <span>{product.gender.join(", ")}</span>
+                <span className="text-muted-foreground">in_stock</span>
+                <span>{product.in_stock ? "true" : "false"}</span>
               </div>
-            )}
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">in_stock</span>
-              <span>{product.in_stock ? "true" : "false"}</span>
+              {product.category && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">category</span>
+                  <span>{product.category}</span>
+                </div>
+              )}
+              {product.subcategory && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">subcategory</span>
+                  <span>{product.subcategory}</span>
+                </div>
+              )}
+              {product.color && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">color</span>
+                  <span>{product.color}</span>
+                </div>
+              )}
+              {product.material && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">material</span>
+                  <span>{product.material}</span>
+                </div>
+              )}
+              {product.tags && product.tags.length > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">tags</span>
+                  <span className="text-right max-w-[60%]">{product.tags.join(", ")}</span>
+                </div>
+              )}
+              {product.size_info && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">size_info</span>
+                  <span>{product.size_info}</span>
+                </div>
+              )}
             </div>
-            {product.category && (
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">category</span>
-                <span>{product.category}</span>
-              </div>
-            )}
-            {product.subcategory && (
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">subcategory</span>
-                <span>{product.subcategory}</span>
-              </div>
-            )}
-            {product.color && (
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">color</span>
-                <span>{product.color}</span>
-              </div>
-            )}
-            {product.material && (
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">material</span>
-                <span>{product.material}</span>
-              </div>
-            )}
-            {product.tags && product.tags.length > 0 && (
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">tags</span>
-                <span className="text-right max-w-[60%]">{product.tags.join(", ")}</span>
-              </div>
-            )}
-            {product.size_info && (
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">size_info</span>
-                <span>{product.size_info}</span>
-              </div>
-            )}
-            {product.description && (
-              <div className="pt-2 space-y-1">
-                <span className="text-muted-foreground text-xs">description</span>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+          )}
+
+          {tab === "description" && (
+            <div id="tabpanel-description" role="tabpanel" className="bg-muted/10 border border-border rounded-lg p-4 space-y-3">
+              {product.description ? (
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
                   {product.description}
                 </p>
-              </div>
-            )}
-          </div>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">상세 설명 없음</p>
+              )}
+            </div>
+          )}
+
+          {tab === "reviews" && (
+            <div id="tabpanel-reviews" role="tabpanel" className="space-y-3">
+              {reviews.length > 0 ? (
+                reviews.map((review) => (
+                  <div
+                    key={review.id}
+                    className="bg-muted/10 border border-border rounded-lg p-4 space-y-2"
+                  >
+                    {/* Header: author + date */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">
+                        {review.author || "익명"}
+                      </span>
+                      {review.review_date && (
+                        <span className="text-xs text-muted-foreground">
+                          {review.review_date}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Body */}
+                    {review.text && (
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        {review.text}
+                      </p>
+                    )}
+
+                    {/* Body info */}
+                    {review.body_info && (
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        {review.body_info.height && (
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-border text-muted-foreground">
+                            {review.body_info.height}
+                          </span>
+                        )}
+                        {review.body_info.weight && (
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-border text-muted-foreground">
+                            {review.body_info.weight}
+                          </span>
+                        )}
+                        {review.body_info.usualSize && (
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-border text-muted-foreground">
+                            평소 {review.body_info.usualSize}
+                          </span>
+                        )}
+                        {review.body_info.purchasedSize && (
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-border text-muted-foreground">
+                            구매 {review.body_info.purchasedSize}
+                          </span>
+                        )}
+                        {review.body_info.bodyType && (
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-border text-muted-foreground">
+                            {review.body_info.bodyType}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Photos */}
+                    {review.photo_urls && review.photo_urls.length > 0 && (
+                      <div className="flex gap-2 pt-1">
+                        {review.photo_urls.map((url, i) => (
+                          <div
+                            key={i}
+                            className="size-16 relative rounded border border-border overflow-hidden"
+                          >
+                            <Image
+                              src={url}
+                              alt={`리뷰 사진 ${i + 1}`}
+                              fill
+                              sizes="64px"
+                              className="object-cover"
+                              unoptimized
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="bg-muted/10 border border-border rounded-lg p-4">
+                  <p className="text-sm text-muted-foreground italic">리뷰 없음</p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* External link */}
           <a

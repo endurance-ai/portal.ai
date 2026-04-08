@@ -1,10 +1,34 @@
 "use client"
 
-import {useRef, useState} from "react"
+import {useEffect, useRef, useState} from "react"
 import {AnimatePresence, motion} from "framer-motion"
 import Image from "next/image"
 import {ArrowUpRight, ChevronDown, Sparkles} from "lucide-react"
 import {cn} from "@/lib/utils"
+
+/** Cafe24 /small/ → /big/ upgrade with fallback */
+function ProductImage({ src, alt, fill, sizes, className }: {
+  src: string; alt: string; fill?: boolean; sizes?: string; className?: string
+}) {
+  const [imgSrc, setImgSrc] = useState(() => src.replace("/small/", "/big/"))
+
+  useEffect(() => {
+    setImgSrc(src.replace("/small/", "/big/"))
+  }, [src])
+
+  return (
+    <Image
+      src={imgSrc}
+      alt={alt}
+      fill={fill}
+      sizes={sizes}
+      className={className}
+      onError={() => {
+        if (imgSrc !== src) setImgSrc(src)
+      }}
+    />
+  )
+}
 
 export interface Product {
   brand: string
@@ -13,6 +37,9 @@ export interface Product {
   imageUrl: string
   link: string
   title?: string
+  description?: string
+  material?: string
+  reviewCount?: number
 }
 
 export interface LookItem {
@@ -409,7 +436,7 @@ export function LookBreakdown({
                                 >
                                   {product.imageUrl ? (
                                     <div className="relative w-full aspect-square bg-border/30">
-                                      <Image
+                                      <ProductImage
                                         src={product.imageUrl}
                                         alt={product.title || `${product.brand} product`}
                                         fill
@@ -434,6 +461,23 @@ export function LookBreakdown({
                                         {product.title}
                                       </p>
                                     )}
+                                    {product.description && (
+                                      <p className="text-[9px] text-muted-foreground line-clamp-2 leading-relaxed">
+                                        {product.description}
+                                      </p>
+                                    )}
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      {product.material && (
+                                        <span className="px-1.5 py-0.5 rounded bg-border text-[10px] font-mono font-semibold text-outline uppercase">
+                                          {product.material.length > 20 ? product.material.slice(0, 20) + "…" : product.material}
+                                        </span>
+                                      )}
+                                      {!!product.reviewCount && product.reviewCount > 0 && (
+                                        <span className="text-[9px] font-mono text-muted-foreground">
+                                          리뷰 {product.reviewCount}건
+                                        </span>
+                                      )}
+                                    </div>
                                     <span className="text-[10px] font-semibold text-on-surface-variant flex items-center gap-1 group-hover/card:text-primary transition-colors">
                                       {product.platform}
                                       <ArrowUpRight className="size-3 shrink-0" />

@@ -42,11 +42,15 @@ Pick 1-3 from: ${buildTagList()}
 }
 
 === RULES ===
-- CRITICAL — PRODUCT IDENTIFICATION: You may receive a product name and shop category as hints.
+- CRITICAL — PRODUCT IDENTIFICATION: You may receive product name, shop category, material, color, and description as hints.
   The image may show a model wearing the product. DO NOT analyze the model's full outfit.
   Use the product name and category hint to identify WHICH item in the image is the actual product.
   Example: If the hint says the product is a "Leather Tote Bag" in category "Bag", analyze the BAG — not the model's jacket or pants.
   If hints are not provided or conflict with the image, rely on the image.
+- MATERIAL/FABRIC HINTS: When material text is provided (e.g. "LAMB SKIN", "COTTON 100%", "POLYESTER/RAYON"), use it to select the correct fabric enum. This is more reliable than guessing from the image.
+  "lamb skin", "sheep skin", "cow hide" → leather, "cotton 100%" → cotton, "polyester" → synthetic, "linen" → linen, "wool" → wool, "nylon" → nylon, "denim" → denim, "silk" → silk
+- COLOR HINTS: When color options are provided, use them to determine color_family more accurately than image alone.
+- DESCRIPTION HINTS: Product descriptions often contain style keywords (e.g. "오버사이즈", "크롭", "A라인"). Use these to infer fit, subcategory, and style_node.
 - category: MUST be one of the enum values (PascalCase)
 - subcategory: MUST be from the subcategory list for the chosen category (lowercase, hyphenated)
 - fit: MUST be one of the fit enum values (lowercase). Infer from visual cues. Default "regular" if unclear.
@@ -72,13 +76,22 @@ function sanitizeHint(text: string, maxLen = 80): string {
   return text.replace(/[\n\r]/g, " ").replace(/["""]/g, "").trim().slice(0, maxLen)
 }
 
-/** 상품명/카테고리 힌트가 있을 때 사용하는 동적 user prompt */
-export function buildProductAnalyzeUser(hint?: { name?: string; category?: string }): string {
-  if (hint?.name || hint?.category) {
+/** 상품명/카테고리/상세데이터 힌트가 있을 때 사용하는 동적 user prompt */
+export function buildProductAnalyzeUser(hint?: {
+  name?: string
+  category?: string
+  description?: string
+  material?: string
+  color?: string
+}): string {
+  if (hint?.name || hint?.category || hint?.description || hint?.material) {
     const parts: string[] = ["Analyze this product image."]
     if (hint.name) parts.push(`Product name: "${sanitizeHint(hint.name)}"`)
     if (hint.category) parts.push(`Shop category: "${sanitizeHint(hint.category, 40)}"`)
-    parts.push("Use these hints to identify the correct product in the image.")
+    if (hint.material) parts.push(`Material/Fabric: "${sanitizeHint(hint.material, 100)}"`)
+    if (hint.color) parts.push(`Color options: "${sanitizeHint(hint.color, 100)}"`)
+    if (hint.description) parts.push(`Product description: "${sanitizeHint(hint.description, 300)}"`)
+    parts.push("Use these hints along with the image to accurately classify this product. Trust the text data for fabric/material/color when available — the image confirms silhouette and fit.")
     return parts.join("\n")
   }
   return "Analyze this product image."

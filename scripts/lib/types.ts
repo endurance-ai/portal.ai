@@ -29,9 +29,7 @@ export interface Product {
   productCode?: string
   // ── 리뷰 데이터 (Phase 3) ──
   reviewCount?: number
-  averageRating?: number | null
   reviews?: Array<{
-    rating: number | null
     text: string
     author: string | null
     date: string | null

@@ -85,7 +85,7 @@ async function analyzeWithRetry(
   productId: string,
   imageUrl: string,
   maxRetries: number,
-  hint?: { name?: string; category?: string },
+  hint?: { name?: string; category?: string; description?: string; material?: string; color?: string },
 ): Promise<AnalysisOutput> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     const result = await analyzeProductImage(productId, imageUrl, hint)
@@ -93,8 +93,8 @@ async function analyzeWithRetry(
     if (result.success) return result
 
     if (result.error === "rate_limited") {
-      console.log(`   ⏳ Rate limit — 30초 대기 (attempt ${attempt}/${maxRetries})`)
-      await sleep(30_000)
+      console.log(`   ⏳ Rate limit — 10초 대기 (attempt ${attempt}/${maxRetries})`)
+      await sleep(10_000)
       continue
     }
 
@@ -132,7 +132,7 @@ async function main() {
   const limit = flags.limit ? parseInt(flags.limit as string, 10) : undefined
   const dryRun = flags["dry-run"] === true
   const retryFailed = flags["retry-failed"] === true
-  const concurrency = flags.concurrency ? parseInt(flags.concurrency as string, 10) : 10
+  const concurrency = flags.concurrency ? parseInt(flags.concurrency as string, 10) : 3
 
   console.log(`\n🚀 상품 이미지 배치 분석`)
   console.log(`   버전: ${version} | 모델: ${LITELLM_MODEL} | 동시성: ${concurrency}`)
@@ -151,7 +151,7 @@ async function main() {
 
   let query = supabase
     .from("products")
-    .select("id, brand, name, category, image_url")
+    .select("id, brand, name, category, image_url, description, material, color")
     .eq("in_stock", true)
     .like("image_url", "http%")
     .not("image_url", "like", "%/icon_%")
@@ -248,9 +248,18 @@ async function main() {
   let failCount = 0
   const failures: { productId: string; brand: string; error: string }[] = []
 
+  const REQUEST_DELAY = 1500 // 요청 간 1.5초 간격 — rate limit 방지
+
   const tasks = targets.map((product) => async () => {
-    const hint = { name: product.name, category: product.category }
+    const hint = {
+      name: product.name,
+      category: product.category,
+      description: product.description || undefined,
+      material: product.material || undefined,
+      color: product.color || undefined,
+    }
     const output = await analyzeWithRetry(product.id, product.image_url, 3, hint)
+    await sleep(REQUEST_DELAY)
 
     if (output.success && output.result) {
       if (retryFailed) {

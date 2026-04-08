@@ -20,6 +20,8 @@ import * as path from "path"
 import {getActivePlatforms, getPlatformsByType, getSiteConfig, PLATFORMS} from "./configs/platforms"
 import {crawlCafe24} from "./lib/cafe24-engine"
 import {crawlShopify} from "./lib/shopify-engine"
+import {getDetailParser} from "./lib/parsers/detail"
+import {getReviewParser} from "./lib/parsers/review"
 import type {CrawlResult, SiteConfig} from "./lib/types"
 
 // ─── CLI 인자 파싱 ───────────────────────────────────
@@ -197,7 +199,9 @@ async function runCrawl(configs: SiteConfig[], dryRun: boolean) {
               await probeSite(config)
               return null
             }
-            const result = await crawlCafe24(page, config)
+            const dp = config.crawlDetails ? getDetailParser(config.key) : undefined
+            const rp = config.crawlReviews ? getReviewParser(config.key) : undefined
+            const result = await crawlCafe24(page, config, dp, rp)
             saveResult(outDir, result)
             return result
           } catch (err) {
