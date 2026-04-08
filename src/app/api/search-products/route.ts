@@ -2,6 +2,9 @@ import {NextRequest, NextResponse} from "next/server"
 import {supabase} from "@/lib/supabase"
 import {logger} from "@/lib/logger"
 import {SIMILAR_SUBCATEGORIES} from "@/lib/enums/subcategory-similar"
+import {isAdjacentColor} from "@/lib/enums/color-adjacency"
+import {buildKoreanKeywordsMap} from "@/lib/enums/korean-vocab"
+import {SUBCATEGORY_DEFAULT_SEASON} from "@/lib/enums/season-pattern"
 
 // ─── 타입 ─────────────────────────────────────────────────
 
@@ -14,6 +17,8 @@ type SearchQuery = {
   colorFamily?: string
   searchQuery: string
   searchQueryKo?: string
+  season?: string
+  pattern?: string
 }
 
 type SearchRequest = {
@@ -33,8 +38,11 @@ type ScoreBreakdown = {
   fit: number
   fabric: number
   colorFamily: number
+  colorAdjacent: number
   styleNode: number
   moodTags: number
+  season: number
+  pattern: number
   totalScore: number
 }
 
@@ -52,6 +60,7 @@ type FormattedProduct = {
 
 const TARGET_RESULTS = 5
 const MAX_PER_BRAND = 2
+const MAX_PER_PLATFORM = 3
 const ACTIVE_VERSION = "v1"
 const MIN_VALID_PRICE = 1000 // ₩1,000 미만은 비정상 데이터
 
@@ -62,13 +71,19 @@ const WEIGHTS = {
   keywordsEach: 0.05,
   keywordsMax: 3,
   colorFamily: 0.20,
+  colorAdjacent: 0.10,
   stylePrimary: 0.30,
   styleSecondary: 0.15,
   fit: 0.15,
   fabric: 0.15,
   moodTagEach: 0.05,
   moodTagMax: 3,
+  season: 0.15,
+  pattern: 0.15,
 } as const
+
+// 한국어 어휘 매핑에서 빌드한 키워드를 머지
+const KOREAN_KEYWORDS_MAP = buildKoreanKeywordsMap()
 
 // 서브카테고리 → 상품명 매칭 키워드 (EN + KO)
 const SUBCATEGORY_NAME_KEYWORDS: Record<string, string[]> = {
@@ -111,6 +126,19 @@ const SUBCATEGORY_NAME_KEYWORDS: Record<string, string[]> = {
   "mini-dress": ["dress", "원피스", "드레스"],
   "midi-dress": ["dress", "원피스", "드레스"],
   "maxi-dress": ["dress", "원피스", "드레스"],
+}
+
+// 한국어 어휘 매핑의 키워드를 머지 (누락된 subcategory 키워드 보강)
+for (const [sub, koKeywords] of Object.entries(KOREAN_KEYWORDS_MAP)) {
+  if (!SUBCATEGORY_NAME_KEYWORDS[sub]) {
+    SUBCATEGORY_NAME_KEYWORDS[sub] = koKeywords
+  } else {
+    for (const kw of koKeywords) {
+      if (!SUBCATEGORY_NAME_KEYWORDS[sub].includes(kw)) {
+        SUBCATEGORY_NAME_KEYWORDS[sub].push(kw)
+      }
+    }
+  }
 }
 
 const CATEGORY_ALIASES: Record<string, string[]> = {
@@ -199,8 +227,8 @@ export async function POST(request: NextRequest) {
         const s = p._scoring
         logger.info(
           `      📊 ${p.brand} | ${p.title.slice(0, 40)} | ` +
-          `total=${s?.totalScore.toFixed(2)} (sub=${s?.subcategory.toFixed(2)} name=${s?.nameMatch.toFixed(2)} kw=${s?.keywords.toFixed(2)} col=${s?.colorFamily.toFixed(2)} ` +
-          `node=${s?.styleNode.toFixed(2)} fit=${s?.fit.toFixed(2)} fab=${s?.fabric.toFixed(2)} mood=${s?.moodTags.toFixed(2)})`
+          `total=${s?.totalScore.toFixed(2)} (sub=${s?.subcategory.toFixed(2)} name=${s?.nameMatch.toFixed(2)} kw=${s?.keywords.toFixed(2)} col=${s?.colorFamily.toFixed(2)}+${s?.colorAdjacent.toFixed(2)} ` +
+          `node=${s?.styleNode.toFixed(2)} fit=${s?.fit.toFixed(2)} fab=${s?.fabric.toFixed(2)} mood=${s?.moodTags.toFixed(2)} szn=${s?.season.toFixed(2)} pat=${s?.pattern.toFixed(2)}) [${p.platform}]`
         )
       }
 
@@ -316,14 +344,14 @@ async function searchByEnums(
     .from("product_ai_analysis")
     .select(`
       category, subcategory, fit, fabric, color_family, style_node, mood_tags,
-      keywords_ko, keywords_en,
+      keywords_ko, keywords_en, season, pattern,
       products!inner (
         id, brand, name, price, image_url, product_url, platform, gender, in_stock
       )
     `)
     .eq("version", ACTIVE_VERSION)
     .eq("products.in_stock", true)
-    .gte("products.price", priceFilter?.minPrice ? Math.max(priceFilter.minPrice, MIN_VALID_PRICE) : MIN_VALID_PRICE)
+    .or(`price.is.null,price.gte.${priceFilter?.minPrice ? Math.max(priceFilter.minPrice, MIN_VALID_PRICE) : MIN_VALID_PRICE}`, { referencedTable: "products" })
     .limit(200)
 
   if (dbCategories && dbCategories.length > 0) {
@@ -355,14 +383,14 @@ async function searchByEnums(
       .from("product_ai_analysis")
       .select(`
         category, subcategory, fit, fabric, color_family, style_node, mood_tags,
-        keywords_ko, keywords_en,
+        keywords_ko, keywords_en, season, pattern,
         products!inner (
           id, brand, name, price, image_url, product_url, platform, gender, in_stock
         )
       `)
       .eq("version", ACTIVE_VERSION)
       .eq("products.in_stock", true)
-      .gte("products.price", priceFilter?.minPrice ? Math.max(priceFilter.minPrice, MIN_VALID_PRICE) : MIN_VALID_PRICE)
+      .or(`price.is.null,price.gte.${priceFilter?.minPrice ? Math.max(priceFilter.minPrice, MIN_VALID_PRICE) : MIN_VALID_PRICE}`, { referencedTable: "products" })
       .or(nameFilters, { referencedTable: "products" })
       .limit(50)
 
@@ -451,6 +479,27 @@ async function searchByEnums(
       const fitScore = item.fit && row.fit === item.fit ? WEIGHTS.fit : 0
       const fabricScore = item.fabric && row.fabric === item.fabric ? WEIGHTS.fabric : 0
       const colorFamilyScore = item.colorFamily && row.color_family === item.colorFamily ? WEIGHTS.colorFamily : 0
+      const colorAdjacentScore = (!colorFamilyScore && item.colorFamily && row.color_family && isAdjacentColor(item.colorFamily, row.color_family))
+        ? WEIGHTS.colorAdjacent : 0
+
+      // ── 시즌 매칭 ──
+      let seasonScore = 0
+      const querySeason = item.season || (item.subcategory ? SUBCATEGORY_DEFAULT_SEASON[item.subcategory] : undefined)
+      if (querySeason && row.season) {
+        if (row.season === querySeason) {
+          seasonScore = WEIGHTS.season
+        } else if (row.season === "all-season") {
+          seasonScore = WEIGHTS.season * 0.5
+        }
+      }
+
+      // ── 패턴 매칭 ──
+      let patternScore = 0
+      if (item.pattern && item.pattern !== "solid" && row.pattern) {
+        if (row.pattern === item.pattern) {
+          patternScore = WEIGHTS.pattern
+        }
+      }
 
       // ── 스타일 노드 ──
       let styleNodeScore = 0
@@ -468,8 +517,8 @@ async function searchByEnums(
 
       const totalScore =
         subcategoryScore + nameMatchScore + keywordsScore +
-        fitScore + fabricScore + colorFamilyScore +
-        styleNodeScore + moodScore
+        fitScore + fabricScore + colorFamilyScore + colorAdjacentScore +
+        styleNodeScore + moodScore + seasonScore + patternScore
 
       const scoring: ScoreBreakdown = {
         subcategory: subcategoryExact,
@@ -479,8 +528,11 @@ async function searchByEnums(
         fit: fitScore,
         fabric: fabricScore,
         colorFamily: colorFamilyScore,
+        colorAdjacent: colorAdjacentScore,
         styleNode: styleNodeScore,
         moodTags: moodScore,
+        season: seasonScore,
+        pattern: patternScore,
         totalScore,
       }
 
@@ -551,16 +603,24 @@ async function searchByEnums(
     return a._rawPrice - b._rawPrice
   })
 
-  // 브랜드 다양성: 브랜드당 최대 MAX_PER_BRAND
+  // 브랜드 + 플랫폼 다양성: 브랜드당 MAX_PER_BRAND, 플랫폼당 MAX_PER_PLATFORM
   const result: typeof scored = []
   const brandCount: Record<string, number> = {}
+  const platformCount: Record<string, number> = {}
 
   for (const p of scored) {
     if (result.length >= TARGET_RESULTS) break
     const brand = (p.brand || "unknown").toLowerCase()
-    const count = brandCount[brand] ?? 0
-    if (count >= MAX_PER_BRAND) continue
-    brandCount[brand] = count + 1
+    const platform = (p.platform || "unknown").toLowerCase()
+
+    const bCount = brandCount[brand] ?? 0
+    if (bCount >= MAX_PER_BRAND) continue
+
+    const pCount = platformCount[platform] ?? 0
+    if (pCount >= MAX_PER_PLATFORM) continue
+
+    brandCount[brand] = bCount + 1
+    platformCount[platform] = pCount + 1
     result.push(p)
   }
 

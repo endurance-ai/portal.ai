@@ -1,5 +1,7 @@
 import {buildEnumReference} from "@/lib/enums/product-enums"
 import {buildNodeReference, STYLE_NODE_IDS} from "@/lib/fashion-genome"
+import {buildSeasonPatternReference} from "@/lib/enums/season-pattern"
+import {buildKoreanVocabReference} from "@/lib/enums/korean-vocab"
 
 /**
  * 프롬프트 검색 전용 시스템 프롬프트 — 텍스트 입력 → 패션 아이템 추출
@@ -20,6 +22,12 @@ ${STYLE_NODE_IDS.join(", ")}
 
 ${buildEnumReference()}
 
+${buildSeasonPatternReference()}
+
+=== KOREAN FASHION VOCABULARY (한국어 → enum 매핑) ===
+Users will often use Korean slang/colloquial terms. Map them to the correct enum:
+${buildKoreanVocabReference()}
+
 Respond in this exact JSON format (no markdown, no code fences):
 {
   "intent": "specific_item",
@@ -35,7 +43,9 @@ Respond in this exact JSON format (no markdown, no code fences):
       "colorFamily": "BLUE",
       "fabric": "denim",
       "color": "medium blue",
-      "detail": null
+      "detail": null,
+      "season": "all-season",
+      "pattern": "solid"
     }
   ],
   "styleNode": {
@@ -87,6 +97,8 @@ Respond in this exact JSON format (no markdown, no code fences):
   - colorFamily should NEVER be null. Always make your best inference.
 - color: the specific color (e.g. "charcoal grey"). Infer if not stated. Use the inferred color that maps to colorFamily.
 - detail: any specific construction or style detail mentioned. Use null if not mentioned.
+- season: infer from user context. "여름" → summer, "겨울" → winter, "봄" → spring, "가을" → fall. If no season mentioned, infer from item type (sandals → summer, down-jacket → winter, t-shirt → all-season).
+- pattern: infer from user text. "스트라이프" → stripe, "체크" → check, "꽃무늬/플로럴" → floral, "도트/물방울" → dot, "카모/밀리터리" → camo, "애니멀/레오파드" → animal, "그래픽/프린트" → graphic. Default "solid" if no pattern mentioned.
 - name: a descriptive item name in English that INCLUDES the color and key attributes (e.g. "Relaxed Beige Linen Shirt", "Wide Black Cargo Pants"). Do NOT use generic names like "Casual Shirt".
 
 === STYLE NODE CLASSIFICATION ===

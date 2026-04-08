@@ -27,6 +27,23 @@ export interface Product {
   sizeInfo?: string
   tags?: string[]
   productCode?: string
+  // ── 리뷰 데이터 (Phase 3) ──
+  reviewCount?: number
+  averageRating?: number | null
+  reviews?: Array<{
+    rating: number | null
+    text: string
+    author: string | null
+    date: string | null
+    photoUrls: string[]
+    body: {
+      height: string | null
+      weight: string | null
+      usualSize: string | null
+      purchasedSize: string | null
+      bodyType: string | null
+    } | null
+  }>
 }
 
 // ─── 사이트 설정 ──────────────────────────────────────
@@ -108,6 +125,8 @@ export interface SiteConfig {
   detailSelectors?: Cafe24DetailSelectors
   /** 상세 페이지 크롤링 활성화 (기본: false) */
   crawlDetails?: boolean
+  /** 리뷰 크롤링 활성화 (기본: false, crawlDetails가 true일 때만 동작) */
+  crawlReviews?: boolean
 }
 
 // ─── 크롤 결과 ────────────────────────────────────────

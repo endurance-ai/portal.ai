@@ -48,6 +48,8 @@ interface AnalysisResult {
     colorFamily?: string
     searchQuery: string
     searchQueryKo?: string
+    season?: string
+    pattern?: string
     position?: { top: number; left: number }
   }[]
 }
@@ -205,6 +207,8 @@ export default function Home() {
             colorFamily: item.colorFamily,
             searchQuery: item.searchQuery,
             searchQueryKo: item.searchQueryKo,
+            season: item.season,
+            pattern: item.pattern,
           })),
         }),
       })

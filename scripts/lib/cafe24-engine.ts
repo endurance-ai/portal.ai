@@ -12,6 +12,7 @@
 import type {Page} from "playwright"
 import type {CrawlResult, Product, SiteConfig} from "./types"
 import {parseDetailPage} from "./detail-parser"
+import {parseReviews} from "./review-parser"
 
 // ─── 기본 셀렉터 (폴백 체인) ──────────────────────────
 
@@ -241,7 +242,9 @@ async function collectProductsFromPage(
         const priceMatch = priceText.match(priceRegex)
         // 캡처 그룹이 있으면 [1], 없으면 [0]
         const priceStr = priceMatch ? (priceMatch[1] || priceMatch[0]) : null
-        const price = priceStr ? parseInt(priceStr.replace(/,/g, ""), 10) : null
+        const rawPrice = priceStr ? parseInt(priceStr.replace(/,/g, ""), 10) : null
+        // ₩1,000 미만은 비정상 (상품명의 숫자가 파싱된 경우 — e.g. "26SS" → 26)
+        const price = rawPrice !== null && rawPrice >= 1000 ? rawPrice : null
 
         // 이미지: 아이콘/로고가 아닌 실제 상품 이미지 찾기
         var imageUrl = ""
@@ -487,7 +490,8 @@ export async function crawlCafe24(
   if (config.crawlDetails) {
     console.log(`\n${tag} 🔍 상세 크롤링 시작 — ${uniqueProducts.length}개 상품`)
     let detailCount = 0
-    const detailDelay = config.crawlDelay || 1500
+    let detailSuccess = 0
+    const detailDelay = config.crawlDelay || 800
 
     for (const product of uniqueProducts) {
       try {
@@ -496,21 +500,67 @@ export async function crawlCafe24(
         if (detail.description) product.description = detail.description
         if (detail.color) product.color = detail.color
         if (detail.material) product.material = detail.material
-        if (detail.images.length > 0) product.images = detail.images
         if (detail.productCode) product.productCode = detail.productCode
 
+        const hasData = detail.description || detail.color || detail.material
+        if (hasData) detailSuccess++
+
         detailCount++
-        if (detailCount % 20 === 0) {
-          process.stdout.write(`\r${tag}    📖 ${detailCount}/${uniqueProducts.length}`)
-        }
-      } catch {
-        // 개별 실패는 skip
+        console.log(
+          `${tag}    📖 [${detailCount}/${uniqueProducts.length}] ${product.brand || "?"} | ${(product.name || "").slice(0, 35)}` +
+          ` → 설명:${detail.description ? "O" : "X"} 색상:${detail.color ? detail.color.slice(0, 20) : "X"} 소재:${detail.material ? detail.material.slice(0, 20) : "X"}`
+        )
+      } catch (err) {
+        detailCount++
+        console.log(`${tag}    📖 [${detailCount}/${uniqueProducts.length}] ❌ ${(product.name || "").slice(0, 35)} — ${(err as Error).message?.slice(0, 50)}`)
       }
 
       await new Promise((r) => setTimeout(r, detailDelay))
     }
 
-    console.log(`\r${tag} ✅ 상세 크롤링 완료 — ${detailCount}/${uniqueProducts.length}`)
+    console.log(`${tag} ✅ 상세 크롤링 완료 — ${detailSuccess}/${uniqueProducts.length}개 데이터 수집`)
+  }
+
+  // ── Step 4: 리뷰 크롤링 (3단계) ──
+  // 상세 크롤 중에 이미 상세 페이지에 있으므로, 별도 단계로 리뷰 수집
+  // 최적화: 상세 페이지에서 리뷰 수(0이면 skip)를 체크하여 불필요한 방문 최소화
+  if (config.crawlReviews) {
+    console.log(`\n${tag} 💬 리뷰 크롤링 시작 — ${uniqueProducts.length}개 상품`)
+    let reviewCount = 0
+    let withReviews = 0
+    const reviewDelay = config.crawlDelay || 800
+
+    for (const product of uniqueProducts) {
+      try {
+        // 상품 상세 페이지로 이동
+        await page.goto(product.productUrl, {waitUntil: "domcontentloaded", timeout: 15000})
+        await page.waitForTimeout(500)
+
+        // 리뷰 파싱 (보드 링크 탐지 → 리뷰 수 0이면 자동 skip)
+        const reviewData = await parseReviews(page, 10)
+
+        reviewCount++
+        if (reviewData.reviewCount > 0) {
+          product.reviewCount = reviewData.reviewCount
+          product.averageRating = reviewData.averageRating
+          product.reviews = reviewData.reviews
+          withReviews++
+          console.log(
+            `${tag}    💬 [${reviewCount}/${uniqueProducts.length}] ${(product.name || "").slice(0, 35)}` +
+            ` → 리뷰 ${reviewData.reviewCount}건 (평점: ${reviewData.averageRating ?? "-"}, 추출: ${reviewData.reviews.length}건)`
+          )
+        } else {
+          console.log(`${tag}    💬 [${reviewCount}/${uniqueProducts.length}] ${(product.name || "").slice(0, 35)} → 리뷰 없음`)
+        }
+      } catch {
+        reviewCount++
+        console.log(`${tag}    💬 [${reviewCount}/${uniqueProducts.length}] ❌ ${(product.name || "").slice(0, 35)}`)
+      }
+
+      await new Promise((r) => setTimeout(r, reviewDelay))
+    }
+
+    console.log(`${tag} ✅ 리뷰 크롤링 완료 — ${withReviews}/${uniqueProducts.length}개 상품에 리뷰`)
   }
 
   // 통계

@@ -271,6 +271,7 @@ function printSummary(results: CrawlResult[]) {
 async function main() {
   const flags = parseArgs()
   const detailFlag = !!flags.detail
+  const reviewFlag = !!flags.reviews
 
   // --list: 플랫폼 목록 출력
   if (flags.list) {
@@ -339,6 +340,7 @@ async function main() {
   --probe=KEY   사이트 구조 확인
   --dry-run     카테고리 탐색만 (상품 안 긁음)
   --detail      상세 페이지 크롤링 (description, color, material 수집)
+  --reviews     리뷰 크롤링 (--detail 없이도 가능, 리뷰 보드 페이지 기반)
 `)
     return
   }
@@ -352,7 +354,14 @@ async function main() {
     for (const config of targets) {
       config.crawlDetails = true
     }
-    console.log("📖 상세 페이지 크롤링 활성화\n")
+    console.log("📖 상세 페이지 크롤링 활성화")
+  }
+
+  if (reviewFlag) {
+    for (const config of targets) {
+      config.crawlReviews = true
+    }
+    console.log("💬 리뷰 크롤링 활성화")
   }
 
   console.log(`\n🚀 크롤링 시작: ${targets.map((t) => t.name).join(", ")}`)
