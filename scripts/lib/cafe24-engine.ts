@@ -263,8 +263,6 @@ async function collectProductsFromPage(
           if (imageUrl) break
         }
         if (imageUrl.startsWith("//")) imageUrl = "https:" + imageUrl
-        // 썸네일 → 중해상도 (Cafe24: /small/ or /tiny/ → /medium/, /big/는 일부 사이트 미지원)
-        imageUrl = imageUrl.replace(/\/product\/(small|tiny)\//, "/product/medium/")
 
         let linkEl: Element | null = null
         for (let k = 0; k < args.linkSelectors.length; k++) {
