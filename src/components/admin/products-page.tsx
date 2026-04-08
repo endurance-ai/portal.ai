@@ -122,6 +122,7 @@ function ProductCard({ p }: { p: Product }) {
           </p>
 
           {/* Data chips */}
+          {(p.hasDescription || p.hasMaterial || p.reviewCount > 0) && (
           <div className="flex flex-wrap gap-1 border-t border-border pt-2 mt-2">
             {p.hasDescription && (
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-blue-400">
@@ -139,6 +140,7 @@ function ProductCard({ p }: { p: Product }) {
               </span>
             )}
           </div>
+          )}
 
           {/* AI section */}
           {p.ai ? (

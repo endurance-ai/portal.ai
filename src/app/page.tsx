@@ -235,6 +235,7 @@ export default function Home() {
     } catch (err) {
       // AbortError는 새 요청 시 이전 요청 취소로 발생 — UI 상태 건드리지 않음
       if (err instanceof Error && err.name === "AbortError") {
+        clearInterval(ticker)
         isSubmitting.current = false
         return
       }

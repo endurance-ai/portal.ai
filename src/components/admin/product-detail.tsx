@@ -241,15 +241,18 @@ export function ProductDetail({ product, ai, reviews }: ProductDetailProps) {
           )}
 
           {/* Tabs */}
-          <div className="border-b border-border flex gap-0">
+          <div className="border-b border-border flex" role="tablist">
             {tabs.map((t) => (
               <button
                 key={t.key}
+                role="tab"
+                aria-selected={tab === t.key}
+                aria-controls={`tabpanel-${t.key}`}
                 onClick={() => setTab(t.key)}
                 className={cn(
                   "px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px",
                   tab === t.key
-                    ? "border-turquoise text-turquoise"
+                    ? "border-foreground text-foreground"
                     : "border-transparent text-muted-foreground hover:text-foreground"
                 )}
               >
@@ -265,7 +268,7 @@ export function ProductDetail({ product, ai, reviews }: ProductDetailProps) {
 
           {/* Tab content */}
           {tab === "info" && (
-            <div className="bg-muted/10 border border-border rounded-lg p-4 space-y-2">
+            <div id="tabpanel-info" role="tabpanel" className="bg-muted/10 border border-border rounded-lg p-4 space-y-2">
               {product.gender && product.gender.length > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">gender</span>
@@ -316,7 +319,7 @@ export function ProductDetail({ product, ai, reviews }: ProductDetailProps) {
           )}
 
           {tab === "description" && (
-            <div className="bg-muted/10 border border-border rounded-lg p-4 space-y-3">
+            <div id="tabpanel-description" role="tabpanel" className="bg-muted/10 border border-border rounded-lg p-4 space-y-3">
               {product.description ? (
                 <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
                   {product.description}
@@ -328,7 +331,7 @@ export function ProductDetail({ product, ai, reviews }: ProductDetailProps) {
           )}
 
           {tab === "reviews" && (
-            <div className="space-y-3">
+            <div id="tabpanel-reviews" role="tabpanel" className="space-y-3">
               {reviews.length > 0 ? (
                 reviews.map((review) => (
                   <div

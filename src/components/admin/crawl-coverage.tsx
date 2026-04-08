@@ -52,6 +52,7 @@ export function CrawlCoverage() {
     <div className="rounded-lg border border-border bg-card overflow-hidden">
       <button
         onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
         className="w-full flex items-center justify-between p-4 text-left hover:bg-muted/10 transition-colors"
       >
         <span className="text-sm font-medium">크롤링 커버리지</span>

@@ -12,11 +12,13 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = request.nextUrl
   const page = Math.max(0, parseInt(searchParams.get("page") || "0") || 0)
-  const search = searchParams.get("search")?.trim() || ""
+  // PostgREST 필터 인젝션 방지: 특수문자 제거
+  const sanitize = (s: string) => s.replace(/[.,()\\]/g, "")
+  const search = sanitize(searchParams.get("search")?.trim() || "")
   const category = searchParams.get("category") || ""
   const subcategory = searchParams.get("subcategory") || ""
   const platform = searchParams.get("platform") || ""
-  const brand = searchParams.get("brand") || ""
+  const brand = sanitize(searchParams.get("brand") || "")
   const styleNode = searchParams.get("styleNode") || ""
   const colorFamily = searchParams.get("colorFamily") || ""
   const aiStatus = searchParams.get("aiStatus") || "all"

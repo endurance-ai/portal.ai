@@ -22,8 +22,9 @@ src/lib/              → 유틸리티 (supabase.ts, r2.ts, fashion-genome.ts, s
 src/lib/enums/        → 공유 enum (product-enums, korean-vocab, color-adjacency, season-pattern)
 scripts/              → 크롤러 (crawl.ts), 임포트 (import-*.ts), 평가 (eval-search.ts, eval-prompt.ts, eval-prompt-v2.ts), 플랫폼 설정
 scripts/configs/      → 22개 편집샵/브랜드몰 플랫폼 설정 (Cafe24)
-scripts/lib/          → 크롤 엔진 (cafe24-engine.ts, shopify-engine.ts, detail-parser.ts, review-parser.ts)
-supabase/migrations/  → DB 스키마 (001~018)
+scripts/lib/          → 크롤 엔진 (cafe24-engine.ts, shopify-engine.ts)
+scripts/lib/parsers/  → Strategy Pattern 파서 (detail/, review/ — 사이트별 확장)
+supabase/migrations/  → DB 스키마 (001~020)
 docs/                 → 참조 문서, 디자인 시스템, 리서치, 스펙
 ```
 
@@ -92,16 +93,17 @@ pnpm lint         # ESLint
 | `src/middleware.ts` | /admin/* 인증 가드 |
 | `scripts/import-attributes.ts` | brand-db.json → Supabase brand_nodes.attributes 임포트 |
 | `scripts/crawl.ts` | 24개 플랫폼 크롤 CLI (--all, --site=, --probe=, --detail, --reviews) |
-| `scripts/lib/detail-parser.ts` | Cafe24 상세 페이지 파서 (description, color, material, images) |
-| `scripts/lib/review-parser.ts` | Cafe24 리뷰 파서 (보드 페이지 기반, 체형 정보 추출) |
+| `scripts/lib/parsers/detail/` | 상세 파서 Strategy Pattern (base + adekuver/blankroom/visualaid 사이트별 확장) |
+| `scripts/lib/parsers/review/` | 리뷰 파서 Strategy Pattern (board + inline + composite) |
 | `scripts/import-brand-nodes.ts` | Fashion Genome v2 엑셀 → Supabase brand_nodes |
-| `scripts/import-products.ts` | 크롤링 JSON → Supabase products |
+| `scripts/import-products.ts` | 크롤링 JSON → Supabase products + product_reviews (자사몰 brand 자동 채움) |
+| `src/app/api/admin/crawl-coverage/route.ts` | 크롤링 커버리지 대시보드 API (플랫폼별 description/material/review 수집률) |
 | `src/components/result/look-breakdown.tsx` | 결과 — sticky 이미지 + 핫스팟 + 아코디언 + 가로스크롤 상품 |
 | `src/components/analysis/analyzing-view.tsx` | 분석 중 — progress bar + terminal readout |
 | `src/components/upload/upload-zone.tsx` | 이미지 드래그 & 드롭 업로드 + 클라이언트 압축 (1280px, JPEG 0.8) |
 | `src/lib/supabase.ts` | Supabase 서버 클라이언트 (service role) |
 | `src/app/globals.css` | M3 테마 + B&W Minimal 토큰 |
-| `supabase/migrations/001~018` | analyses, brand_nodes, products, eval_reviews, eval_golden_set, api_access_logs, product_ai_analysis, search_quality_logs, analyses.is_pinned, season/pattern, data cleansing |
+| `supabase/migrations/001~020` | analyses, brand_nodes, products, eval_reviews, eval_golden_set, api_access_logs, product_ai_analysis, search_quality_logs, analyses.is_pinned, season/pattern, data cleansing, product_reviews, drop rating |
 
 ## 비즈니스 규칙
 
@@ -147,6 +149,7 @@ pnpm lint         # ESLint
 | `docs/eval/26-04-07-eval-pipeline-architecture.md` | 프롬프트 평가 파이프라인 아키텍처 |
 | `docs/eval/26-04-07-prompt-eval-report.md` | 프롬프트 분석 품질 평가 리포트 |
 | `docs/superpowers/specs/2026-04-08-eval-page-improvements.md` | 품질 평가 페이지 개선 스펙 (v2) |
+| `docs/plans/26-04-08-crawler-architecture-redesign.md` | 크롤러 Strategy Pattern 리디자인 설계 |
 
 ## 브레인스토밍 & 플래닝 보충 규칙
 

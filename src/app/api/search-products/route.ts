@@ -175,7 +175,14 @@ export async function POST(request: NextRequest) {
     }).then()
 
     const body = (await request.json()) as SearchRequest
-    const { queries, gender, styleNode, moodTags, priceFilter, _logId } = body
+    const { queries, gender, styleNode, moodTags, _logId } = body
+
+    // priceFilter 검증 — PostgREST 인젝션 방지
+    const rawPF = body.priceFilter as { minPrice?: unknown; maxPrice?: unknown } | undefined
+    const priceFilter = rawPF ? {
+      minPrice: Number.isFinite(Number(rawPF.minPrice)) ? Number(rawPF.minPrice) : undefined,
+      maxPrice: Number.isFinite(Number(rawPF.maxPrice)) ? Number(rawPF.maxPrice) : undefined,
+    } : undefined
 
     const searchStart = Date.now()
 
@@ -390,7 +397,7 @@ async function searchByEnums(
         keywords_ko, keywords_en, season, pattern,
         products!inner (
           id, brand, name, price, image_url, product_url, platform, gender, in_stock,
-          description, material, review_count, average_rating
+          description, material, review_count
         )
       `)
       .eq("version", ACTIVE_VERSION)
