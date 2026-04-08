@@ -21,6 +21,20 @@ if (!supabaseUrl || !supabaseKey) {
 
 const supabase = createClient(supabaseUrl, supabaseKey)
 
+interface CrawledReview {
+  text: string
+  author: string
+  date: string
+  photoUrls: string[]
+  body: {
+    height: string | null
+    weight: string | null
+    usualSize: string | null
+    purchasedSize: string | null
+    bodyType: string | null
+  } | null
+}
+
 interface CrawledProduct {
   brand: string
   name: string
@@ -41,6 +55,27 @@ interface CrawledProduct {
   sizeInfo?: string
   tags?: string[]
   productCode?: string
+  // 리뷰 데이터
+  reviewCount?: number
+  reviews?: CrawledReview[]
+}
+
+// 자사몰: brand가 비어있으면 이 이름으로 채움
+const SELF_BRANDED: Record<string, string> = {
+  roughside: "Roughside",
+  bastong: "Bastong",
+  blankroom: "Blankroom",
+  havati: "Havati",
+  mardimercredi: "Mardi Mercredi",
+  sienneboutique: "Sienne",
+  eastlogue: "Eastlogue",
+  anotheroffice: "Another Office",
+  slowsteadyclub: "Slow Steady Club",
+  llud: "LLUD",
+  pottery: "Pottery",
+  beslow: "Beslow",
+  steadyeverywear: "Steady Everywear",
+  chanceclothing: "Chance Clothing",
 }
 
 async function main() {
@@ -93,6 +128,7 @@ async function main() {
 
   let totalInserted = 0
   let totalErrors = 0
+  let totalReviews = 0
 
   for (const file of files) {
     const filePath = path.join(dataDir, file)
@@ -110,7 +146,7 @@ async function main() {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rows = raw.map((p: any) => {
-      const brand = (p.brand as string) || ""
+      const brand = (p.brand as string) || SELF_BRANDED[platform] || ""
       const productUrl = (p.productUrl as string) || ""
       // product_no 추출
       const pnoMatch = productUrl.match(/product_no=(\d+)/)
@@ -175,10 +211,110 @@ async function main() {
     console.log(`\r   ✅ ${inserted}/${rows.length} 적재 (에러 ${errors}건)`)
     totalInserted += inserted
     totalErrors += errors
+
+    // === 리뷰 import ===
+    const productsWithReviews = raw.filter(
+      (p) => p.reviews && p.reviews.length > 0
+    )
+    if (productsWithReviews.length > 0) {
+      console.log(`   📝 리뷰 있는 상품 ${productsWithReviews.length}개 처리 중...`)
+
+      // product_url → product_id 매핑 조회 (30개씩 배치 — URL 길이 제한 방지)
+      const urls = productsWithReviews.map((p) => p.productUrl)
+      const URL_BATCH = 30
+      const urlToId = new Map<string, string>()
+      let lookupFailed = false
+
+      for (let i = 0; i < urls.length; i += URL_BATCH) {
+        const batch = urls.slice(i, i + URL_BATCH)
+        const {data, error: lookupErr} = await supabase
+          .from("products")
+          .select("id, product_url")
+          .in("product_url", batch)
+
+        if (lookupErr) {
+          console.error(`   ❌ product_id 조회 실패 (${i}-${i + batch.length}):`, lookupErr.message)
+          lookupFailed = true
+          break
+        }
+        if (data) {
+          for (const p of data) urlToId.set(p.product_url, p.id)
+        }
+      }
+
+      if (!lookupFailed && urlToId.size > 0) {
+
+        // 리뷰 행 구성
+        const reviewRows: Array<{
+          product_id: string
+          text: string | null
+          author: string | null
+          review_date: string | null
+          photo_urls: string[]
+          body_info: Record<string, unknown> | null
+        }> = []
+
+        for (const p of productsWithReviews) {
+          const productId = urlToId.get(p.productUrl)
+          if (!productId || !p.reviews) continue
+
+          for (const r of p.reviews) {
+            reviewRows.push({
+              product_id: productId,
+              text: r.text?.slice(0, 5000) || null,
+              author: r.author?.slice(0, 100) || null,
+              review_date: r.date || null,
+              photo_urls: r.photoUrls || [],
+              body_info: r.body || null,
+            })
+          }
+        }
+
+        // 기존 리뷰 삭제 후 재삽입 (중복 방지)
+        const productIds = [...new Set(reviewRows.map((r) => r.product_id))]
+        if (productIds.length > 0) {
+          await supabase
+            .from("product_reviews")
+            .delete()
+            .in("product_id", productIds)
+        }
+
+        // 50개씩 배치 insert
+        let reviewInserted = 0
+        for (let i = 0; i < reviewRows.length; i += BATCH) {
+          const batch = reviewRows.slice(i, i + BATCH)
+          const {error: revErr} = await supabase
+            .from("product_reviews")
+            .insert(batch)
+
+          if (revErr) {
+            console.error(`   ❌ 리뷰 배치 ${i}-${i + batch.length} 실패:`, revErr.message)
+          } else {
+            reviewInserted += batch.length
+          }
+        }
+        console.log(`   📝 리뷰 ${reviewInserted}/${reviewRows.length}건 적재`)
+        totalReviews += reviewInserted
+
+        // products 테이블에 review_count 업데이트
+        for (const p of productsWithReviews) {
+          const productId = urlToId.get(p.productUrl)
+          if (!productId) continue
+
+          await supabase
+            .from("products")
+            .update({ review_count: (p.reviews || []).length })
+            .eq("id", productId)
+        }
+      }
+    }
   }
 
   console.log("\n" + "═".repeat(50))
   console.log(`🏁 전체 적재 완료: ${totalInserted}개 성공, ${totalErrors}건 에러`)
+  if (totalReviews > 0) {
+    console.log(`📝 리뷰 적재: ${totalReviews}건`)
+  }
   console.log("═".repeat(50))
 }
 
