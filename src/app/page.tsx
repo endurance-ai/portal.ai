@@ -90,6 +90,11 @@ export default function Home() {
   const fileRef = useRef<File | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   const isSubmitting = useRef(false)
+  const sessionIdRef = useRef<string | null>(null)
+  const currentAnalysisIdRef = useRef<string | null>(null)
+  const itemsRef = useRef<LookItem[]>([])
+  const moodTagsRef = useRef<{ label: string; score: number }[]>([])
+  const moodMetaRef = useRef<Record<string, unknown>>({})
 
   const handleSubmit = useCallback(async (data: { prompt?: string; file?: File }) => {
     if (isSubmitting.current) return
@@ -148,19 +153,19 @@ export default function Home() {
       if (data.prompt) formData.append("prompt", cleanPrompt || data.prompt)
       if (data.prompt) formData.append("originalPrompt", data.prompt)
       formData.append("gender", gender)
-      if (sessionId) formData.append("sessionId", sessionId)
-      if (currentAnalysisId) formData.append("parentAnalysisId", currentAnalysisId)
-      if (sessionId && data.prompt) formData.append("refinementPrompt", data.prompt)
-      if (sessionId && items.length > 0) {
+      if (sessionIdRef.current) formData.append("sessionId", sessionIdRef.current)
+      if (currentAnalysisIdRef.current) formData.append("parentAnalysisId", currentAnalysisIdRef.current)
+      if (sessionIdRef.current && data.prompt) formData.append("refinementPrompt", data.prompt)
+      if (sessionIdRef.current && itemsRef.current.length > 0) {
         formData.append("previousContext", JSON.stringify({
-          items: items.map((i) => ({
+          items: itemsRef.current.map((i) => ({
             category: i.category,
             name: i.name,
             color: i.color || "",
             fit: i.fit || "",
           })),
-          styleNode: moodMeta?.style?.aesthetic || "",
-          moodTags: moodTags.map((t) => t.label),
+          styleNode: (moodMetaRef.current as { style?: { aesthetic?: string } })?.style?.aesthetic || "",
+          moodTags: moodTagsRef.current.map((t) => t.label),
         }))
       }
 
@@ -184,7 +189,9 @@ export default function Home() {
       const logId = analysis._logId
 
       setSessionId(analysis._sessionId ?? null)
+      sessionIdRef.current = analysis._sessionId ?? null
       setCurrentAnalysisId(analysis._logId ?? null)
+      currentAnalysisIdRef.current = analysis._logId ?? null
       setCurrentSequence(analysis._sequenceNumber ?? 1)
 
       const initialItems: LookItem[] = (analysis.items || []).map((item) => ({
@@ -202,15 +209,19 @@ export default function Home() {
       await new Promise((r) => setTimeout(r, 300))
 
       setMoodTags(analysis.mood?.tags || [])
+      moodTagsRef.current = analysis.mood?.tags || []
       setPalette(analysis.palette || [])
-      setMoodMeta({
+      const newMoodMeta = {
         summary: analysis.mood?.summary,
         vibe: analysis.mood?.vibe,
         season: analysis.mood?.season,
         occasion: analysis.mood?.occasion,
         style: analysis.style,
-      })
+      }
+      setMoodMeta(newMoodMeta)
+      moodMetaRef.current = newMoodMeta as Record<string, unknown>
       setItems(initialItems)
+      itemsRef.current = initialItems
       setState("result")
       isSubmitting.current = false
 
@@ -276,7 +287,6 @@ export default function Home() {
           : "Failed to analyze. Please try again.",
       )
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gender, imageUrl])
 
   const handleTryAnother = useCallback(() => {
@@ -296,6 +306,11 @@ export default function Home() {
     setCurrentAnalysisId(null)
     setCurrentSequence(1)
     setSuggestionText("")
+    sessionIdRef.current = null
+    currentAnalysisIdRef.current = null
+    itemsRef.current = []
+    moodTagsRef.current = []
+    moodMetaRef.current = {}
     setState("upload")
   }, [imageUrl])
 

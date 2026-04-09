@@ -219,7 +219,7 @@ Adjust the analysis based on this feedback. Keep unchanged elements stable, modi
         supabase.from("analysis_sessions")
           .update({ last_analysis_id: logRow.id })
           .eq("id", activeSessionId)
-          .then()
+          .then(({ error }) => { if (error) logger.error({ error }, "❌ last_analysis_id 업데이트 실패") })
       }
 
       logger.info(`🏁 프롬프트 분석 완료 — ${analysisDuration}ms`)
@@ -475,7 +475,7 @@ Adjust the analysis based on this feedback. Keep unchanged elements stable, modi
       supabase.from("analysis_sessions")
         .update({ last_analysis_id: logRow.id })
         .eq("id", activeSessionId)
-        .then()
+        .then(({ error }) => { if (error) logger.error({ error }, "❌ last_analysis_id 업데이트 실패") })
     }
 
     // Insert normalized items (fire-and-forget: don't block response)

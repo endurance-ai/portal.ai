@@ -76,53 +76,55 @@ export async function GET(request: NextRequest) {
 
   const { data: feedbacks } = await query
 
-  // Enrich with session journey
-  const enrichedFeedbacks = await Promise.all(
-    (feedbacks ?? []).map(async (fb) => {
-      let journey: { sequence: number; prompt: string }[] = []
-      let analysisCount = 1
+  // Batch: get all unique session IDs from this page
+  const sessionIds = [...new Set((feedbacks ?? []).filter(fb => fb.session_id).map(fb => fb.session_id as string))]
 
-      if (fb.session_id) {
-        const [{ data: sessionData }, { data: sessionAnalyses }] = await Promise.all([
-          supabase
-            .from("analysis_sessions")
-            .select("analysis_count")
-            .eq("id", fb.session_id)
-            .single(),
-          supabase
-            .from("analyses")
-            .select("sequence_number, prompt_text, refinement_prompt")
-            .eq("session_id", fb.session_id)
-            .order("sequence_number", { ascending: true }),
-        ])
+  const [{ data: sessions }, { data: allAnalyses }] = await Promise.all([
+    sessionIds.length > 0
+      ? supabase.from("analysis_sessions").select("id, analysis_count").in("id", sessionIds)
+      : Promise.resolve({ data: [] as { id: string; analysis_count: number }[] }),
+    sessionIds.length > 0
+      ? supabase.from("analyses").select("session_id, sequence_number, prompt_text, refinement_prompt")
+          .in("session_id", sessionIds).order("sequence_number", { ascending: true })
+      : Promise.resolve({ data: [] as { session_id: string; sequence_number: number | null; prompt_text: string | null; refinement_prompt: string | null }[] }),
+  ])
 
-        analysisCount = sessionData?.analysis_count ?? 1
-        journey = (sessionAnalyses ?? []).map((a) => ({
-          sequence: a.sequence_number ?? 1,
-          prompt: a.refinement_prompt || a.prompt_text || "",
-        }))
-      }
+  // Index by session_id
+  const sessionMap = new Map((sessions ?? []).map(s => [s.id, s]))
+  const analysesMap = new Map<string, typeof allAnalyses>()
+  for (const a of allAnalyses ?? []) {
+    if (!analysesMap.has(a.session_id)) analysesMap.set(a.session_id, [])
+    analysesMap.get(a.session_id)!.push(a)
+  }
 
-      // Mask email
-      const maskedEmail = fb.email
-        ? fb.email.replace(/^(.{1,3}).*(@.*)$/, (_match: string, p1: string, p2: string) => p1 + "***" + p2)
-        : null
+  const enrichedFeedbacks = (feedbacks ?? []).map(fb => {
+    const session = fb.session_id ? sessionMap.get(fb.session_id) : null
+    const sessionAnalyses = fb.session_id ? (analysesMap.get(fb.session_id) ?? []) : []
 
-      return {
-        id: fb.id,
-        rating: fb.rating,
-        tags: fb.tags ?? [],
-        comment: fb.comment,
-        email: maskedEmail,
-        createdAt: fb.created_at,
-        session: {
-          id: fb.session_id,
-          analysisCount: analysisCount,
-          journey,
-        },
-      }
-    })
-  )
+    const journey = (sessionAnalyses ?? []).map(a => ({
+      sequence: a.sequence_number ?? 1,
+      prompt: a.refinement_prompt || a.prompt_text || "",
+    }))
+
+    // Mask email
+    const maskedEmail = fb.email
+      ? fb.email.replace(/^(.{1,3}).*(@.*)$/, (_match: string, p1: string, p2: string) => p1 + "***" + p2)
+      : null
+
+    return {
+      id: fb.id,
+      rating: fb.rating,
+      tags: fb.tags ?? [],
+      comment: fb.comment,
+      email: maskedEmail,
+      createdAt: fb.created_at,
+      session: {
+        id: fb.session_id,
+        analysisCount: session?.analysis_count ?? 1,
+        journey,
+      },
+    }
+  })
 
   // Get total count for pagination
   let countQuery = supabase.from("user_feedbacks").select("*", { count: "exact", head: true })
