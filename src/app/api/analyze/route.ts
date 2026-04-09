@@ -55,7 +55,30 @@ export async function POST(request: NextRequest) {
     const parentAnalysisId = formData.get("parentAnalysisId") as string | null
     const refinementPrompt = formData.get("refinementPrompt") as string | null
     const previousContextRaw = formData.get("previousContext") as string | null
-    const previousContext = previousContextRaw ? JSON.parse(previousContextRaw) : null
+    let previousContext: { items?: { category: string; name: string; color: string; fit: string }[]; styleNode?: string; moodTags?: string[] } | null = null
+    if (previousContextRaw) {
+      try {
+        const parsed = JSON.parse(previousContextRaw)
+        // Validate and sanitize
+        previousContext = {
+          items: Array.isArray(parsed.items)
+            ? parsed.items.slice(0, 10).map((i: Record<string, unknown>) => ({
+                category: String(i.category ?? "").slice(0, 50),
+                name: String(i.name ?? "").slice(0, 100),
+                color: String(i.color ?? "").slice(0, 30),
+                fit: String(i.fit ?? "").slice(0, 30),
+              }))
+            : [],
+          styleNode: typeof parsed.styleNode === "string" ? parsed.styleNode.slice(0, 50) : undefined,
+          moodTags: Array.isArray(parsed.moodTags)
+            ? parsed.moodTags.filter((t: unknown) => typeof t === "string").slice(0, 10).map((t: string) => t.slice(0, 50))
+            : [],
+        }
+      } catch {
+        // Invalid JSON — ignore refinement context
+        previousContext = null
+      }
+    }
 
     if (!imageFile && !prompt) {
       logger.warn("⚠️ 이미지/프롬프트 모두 없음 — 요청 거부")

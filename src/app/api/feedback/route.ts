@@ -8,13 +8,32 @@ const VALID_TAGS: FeedbackTagId[] = [
   "category_wrong", "color_off", "brand_unfamiliar", "other",
 ]
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const {feedbackId, sessionId, analysisId, rating, tags, comment, email} = body
 
+    // ── UUID format validation ──
+    if (feedbackId && !UUID_RE.test(feedbackId)) {
+      return NextResponse.json({error: "Invalid feedbackId"}, {status: 400})
+    }
+    if (sessionId && !UUID_RE.test(sessionId)) {
+      return NextResponse.json({error: "Invalid sessionId"}, {status: 400})
+    }
+    if (analysisId && !UUID_RE.test(analysisId)) {
+      return NextResponse.json({error: "Invalid analysisId"}, {status: 400})
+    }
+
     // ── Update existing feedback (tags, comment, email) ──
     if (feedbackId) {
+      // Require sessionId for ownership verification
+      if (!sessionId) {
+        return NextResponse.json({error: "sessionId required for update"}, {status: 400})
+      }
+
       const updates: Record<string, unknown> = {}
 
       if (Array.isArray(tags)) {
@@ -23,8 +42,8 @@ export async function POST(request: NextRequest) {
       if (typeof comment === "string" && comment.trim()) {
         updates.comment = comment.trim().slice(0, 1000)
       }
-      if (typeof email === "string" && email.includes("@")) {
-        updates.email = email.trim()
+      if (typeof email === "string" && email.toLowerCase().trim().length <= 254 && EMAIL_RE.test(email.trim())) {
+        updates.email = email.toLowerCase().trim()
       }
 
       if (Object.keys(updates).length > 0) {
@@ -32,6 +51,7 @@ export async function POST(request: NextRequest) {
           .from("user_feedbacks")
           .update(updates)
           .eq("id", feedbackId)
+          .eq("session_id", sessionId)
 
         if (error) {
           logger.error({error}, "❌ 피드백 업데이트 실패")
@@ -47,6 +67,18 @@ export async function POST(request: NextRequest) {
     // ── Create new feedback (thumbs) ──
     if (!sessionId || !analysisId || !rating) {
       return NextResponse.json({error: "Missing required fields"}, {status: 400})
+    }
+
+    // ── Double-submit guard: check for existing feedback on this analysis ──
+    const {data: existing} = await supabase
+      .from("user_feedbacks")
+      .select("id")
+      .eq("session_id", sessionId)
+      .eq("analysis_id", analysisId)
+      .maybeSingle()
+
+    if (existing) {
+      return NextResponse.json({success: true, feedbackId: existing.id})
     }
 
     if (rating !== "up" && rating !== "down") {
