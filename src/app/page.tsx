@@ -9,6 +9,8 @@ import {SearchBar} from "@/components/search/search-bar"
 import {AnalyzingView} from "@/components/analysis/analyzing-view"
 import type {LookItem, Product} from "@/components/result/look-breakdown"
 import {LookBreakdown} from "@/components/result/look-breakdown"
+import {FeedbackFlow} from "@/components/result/feedback-flow"
+import {StickyRefineBar} from "@/components/result/sticky-refine-bar"
 import {parsePrice} from "@/lib/parse-price"
 
 type AppState = "upload" | "analyzing" | "result"
@@ -76,6 +78,10 @@ export default function Home() {
     occasion?: string
     style?: { fit: string; aesthetic: string; gender: string }
   }>({})
+  const [sessionId, setSessionId] = useState<string | null>(null)
+  const [currentAnalysisId, setCurrentAnalysisId] = useState<string | null>(null)
+  const [currentSequence, setCurrentSequence] = useState(1)
+  const [suggestionText, setSuggestionText] = useState<string>("")
   const [gender, setGender] = useState<Gender>("male")
   const [promptText, setPromptText] = useState<string>("")
   const [error, setError] = useState<string | null>(null)
@@ -142,6 +148,21 @@ export default function Home() {
       if (data.prompt) formData.append("prompt", cleanPrompt || data.prompt)
       if (data.prompt) formData.append("originalPrompt", data.prompt)
       formData.append("gender", gender)
+      if (sessionId) formData.append("sessionId", sessionId)
+      if (currentAnalysisId) formData.append("parentAnalysisId", currentAnalysisId)
+      if (sessionId && data.prompt) formData.append("refinementPrompt", data.prompt)
+      if (sessionId && items.length > 0) {
+        formData.append("previousContext", JSON.stringify({
+          items: items.map((i) => ({
+            category: i.category,
+            name: i.name,
+            color: i.color || "",
+            fit: i.fit || "",
+          })),
+          styleNode: moodMeta?.style?.aesthetic || "",
+          moodTags: moodTags.map((t) => t.label),
+        }))
+      }
 
       const analyzeRes = await fetch("/api/analyze", {
         method: "POST",
@@ -158,9 +179,13 @@ export default function Home() {
       setProgress(100)
       setProgressLabel("Complete")
 
-      const analysis: AnalysisResult & { _logId?: string; _promptOnly?: boolean; detectedGender?: string } =
+      const analysis: AnalysisResult & { _logId?: string; _promptOnly?: boolean; detectedGender?: string; _sessionId?: string; _sequenceNumber?: number } =
         await analyzeRes.json()
       const logId = analysis._logId
+
+      setSessionId(analysis._sessionId ?? null)
+      setCurrentAnalysisId(analysis._logId ?? null)
+      setCurrentSequence(analysis._sequenceNumber ?? 1)
 
       const initialItems: LookItem[] = (analysis.items || []).map((item) => ({
         id: item.id,
@@ -266,8 +291,20 @@ export default function Home() {
     setProgress(0)
     setProgressLabel("")
     fileRef.current = null
+    setSessionId(null)
+    setCurrentAnalysisId(null)
+    setCurrentSequence(1)
+    setSuggestionText("")
     setState("upload")
   }, [imageUrl])
+
+  const handleRefine = useCallback((data: { prompt: string; file?: File }) => {
+    handleSubmit({ prompt: data.prompt, file: data.file })
+  }, [handleSubmit])
+
+  const handleSuggestionClick = useCallback((text: string) => {
+    setSuggestionText(text)
+  }, [])
 
   return (
     <>
@@ -379,7 +416,19 @@ export default function Home() {
                 palette={palette}
                 items={items}
                 moodMeta={moodMeta}
-                onTryAnother={handleTryAnother}
+                onSuggestionClick={handleSuggestionClick}
+              />
+              {sessionId && currentAnalysisId && (
+                <FeedbackFlow
+                  sessionId={sessionId}
+                  analysisId={currentAnalysisId}
+                />
+              )}
+              <StickyRefineBar
+                currentSequence={currentSequence}
+                onSubmit={handleRefine}
+                onReset={handleTryAnother}
+                initialText={suggestionText}
               />
             </motion.div>
           )}
