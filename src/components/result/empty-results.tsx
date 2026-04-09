@@ -3,8 +3,8 @@
 import {motion} from "framer-motion"
 
 const SUGGESTION_CHIPS = [
-  "비슷한 스타일 다른 색",
-  "가격대 넓혀서",
+  "Similar style, different color",
+  "Wider price range",
 ]
 
 interface EmptyResultsProps {

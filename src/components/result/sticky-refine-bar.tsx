@@ -6,11 +6,11 @@ import {ArrowUp, Paperclip, RotateCcw, X} from "lucide-react"
 import {cn} from "@/lib/utils"
 
 const REFINE_PLACEHOLDERS = [
-  "좀 더 캐주얼한 느낌으로...",
-  "가격대 낮춰서 다시...",
-  "다른 색상으로 보여줘...",
-  "사이즈 좀 더 오버핏으로...",
-  "봄에 어울리는 느낌으로...",
+  "More casual vibes...",
+  "Lower price range...",
+  "Show me different colors...",
+  "Slightly more oversized fit...",
+  "Something for spring...",
 ]
 
 const MAX_REFINES = 5

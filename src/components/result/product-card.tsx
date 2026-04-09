@@ -85,18 +85,18 @@ export function ProductCard({
                 background: "linear-gradient(transparent 0%, rgba(9,9,11,0.85) 25%, rgba(9,9,11,0.95) 100%)",
               }}
             >
-              <div className="p-3 space-y-2">
+              <div className="p-4 space-y-2.5">
                 {/* Match reasons */}
                 {matchReasons && matchReasons.length > 0 && (
                   <div>
-                    <p className="text-[7px] font-mono font-bold text-turquoise tracking-[0.12em] uppercase mb-1.5">
+                    <p className="text-[9px] font-mono font-bold text-turquoise tracking-[0.1em] uppercase mb-2">
                       Why this pick
                     </p>
-                    <div className="flex flex-wrap gap-1">
+                    <div className="flex flex-wrap gap-1.5">
                       {matchReasons.map((r) => (
                         <span
                           key={`${r.field}-${r.value}`}
-                          className="px-1.5 py-0.5 bg-turquoise/12 border border-turquoise/25 rounded-md text-[8px] font-mono font-semibold text-turquoise whitespace-nowrap"
+                          className="px-2 py-1 bg-turquoise/12 border border-turquoise/25 rounded-md text-[10px] font-mono font-semibold text-turquoise whitespace-nowrap"
                         >
                           {r.value}
                         </span>
@@ -107,7 +107,7 @@ export function ProductCard({
 
                 {/* Description snippet */}
                 {description && (
-                  <p className="text-[8px] text-muted-foreground line-clamp-2 leading-relaxed">
+                  <p className="text-[10px] text-muted-foreground line-clamp-3 leading-relaxed">
                     {description}
                   </p>
                 )}
@@ -118,9 +118,9 @@ export function ProductCard({
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}
-                  className="flex items-center justify-center gap-1 py-1.5 bg-primary text-background rounded-md text-[9px] font-mono font-bold uppercase tracking-wider hover:opacity-90 transition-opacity"
+                  className="flex items-center justify-center gap-1.5 py-2 bg-primary text-background rounded-md text-[10px] font-mono font-bold uppercase tracking-wider hover:opacity-90 transition-opacity"
                 >
-                  View <ArrowUpRight className="size-3" />
+                  View <ArrowUpRight className="size-3.5" />
                 </a>
               </div>
             </motion.div>
@@ -147,7 +147,7 @@ export function ProductCard({
             <>
               <span className="text-[8px] text-on-surface-variant">·</span>
               <span className="text-[8px] font-mono text-muted-foreground">
-                리뷰 {reviewCount}건
+                {reviewCount} reviews
               </span>
             </>
           )}
