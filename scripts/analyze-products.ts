@@ -79,6 +79,61 @@ async function pLimit<T>(
   return results
 }
 
+// ─── 글로벌 토큰 버킷 (전체 worker 공유) ───────────
+
+const tokenBucket = {
+  interval: 2000,       // 토큰 발급 간격 (ms) — Bedrock Nova ~1 req/2s
+  queue: [] as Array<() => void>,
+  timer: null as ReturnType<typeof setInterval> | null,
+  rateLimitHits: 0,
+
+  /** 토큰 하나 획득될 때까지 대기 — 전체 worker가 순서대로 1개씩 */
+  async acquire(): Promise<void> {
+    return new Promise((resolve) => {
+      this.queue.push(resolve)
+      if (!this.timer) this.startDraining()
+    })
+  },
+
+  startDraining() {
+    // 즉시 첫 번째 토큰 발급
+    if (this.queue.length > 0) this.queue.shift()!()
+    this.timer = setInterval(() => {
+      if (this.queue.length > 0) {
+        this.queue.shift()!()
+      }
+    }, this.interval)
+  },
+
+  onSuccess() {
+    this.rateLimitHits = Math.max(0, this.rateLimitHits - 1)
+    // 연속 성공 시 간격 줄이기 (최소 800ms)
+    if (this.rateLimitHits === 0) {
+      this.interval = Math.max(800, Math.floor(this.interval * 0.95))
+      this.restartTimer()
+    }
+  },
+
+  onRateLimit() {
+    this.rateLimitHits++
+    // 간격 50% 증가 (최대 8s)
+    this.interval = Math.min(8000, Math.floor(this.interval * 1.5))
+    this.restartTimer()
+  },
+
+  restartTimer() {
+    if (this.timer) {
+      clearInterval(this.timer)
+      this.timer = null
+    }
+    if (this.queue.length > 0) this.startDraining()
+  },
+
+  stop() {
+    if (this.timer) clearInterval(this.timer)
+  },
+}
+
 // ─── 재시도 래퍼 ─────────────────────────────────────
 
 async function analyzeWithRetry(
@@ -88,13 +143,19 @@ async function analyzeWithRetry(
   hint?: { name?: string; category?: string; description?: string; material?: string; color?: string },
 ): Promise<AnalysisOutput> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    await tokenBucket.acquire()
     const result = await analyzeProductImage(productId, imageUrl, hint)
 
-    if (result.success) return result
+    if (result.success) {
+      tokenBucket.onSuccess()
+      return result
+    }
 
     if (result.error === "rate_limited") {
-      console.log(`   ⏳ Rate limit — 10초 대기 (attempt ${attempt}/${maxRetries})`)
-      await sleep(10_000)
+      tokenBucket.onRateLimit()
+      const backoff = Math.min(20_000, Math.pow(2, attempt) * 2000)
+      console.log(`   ⏳ Rate limit — ${(backoff / 1000).toFixed(0)}s 대기 (attempt ${attempt}/${maxRetries}, interval=${tokenBucket.interval}ms)`)
+      await sleep(backoff)
       continue
     }
 
@@ -248,9 +309,7 @@ async function main() {
   let failCount = 0
   const failures: { productId: string; brand: string; error: string }[] = []
 
-  const REQUEST_DELAY = 1500 // 요청 간 1.5초 간격 — rate limit 방지
-
-  const tasks = targets.map((product) => async () => {
+  const tasks = targets.map((product, taskIdx) => async () => {
     const hint = {
       name: product.name,
       category: product.category,
@@ -259,7 +318,26 @@ async function main() {
       color: product.color || undefined,
     }
     const output = await analyzeWithRetry(product.id, product.image_url, 3, hint)
-    await sleep(REQUEST_DELAY)
+
+    // ── 상품별 결과 로그 ──
+    const seq = `[${taskIdx + 1}/${targets.length}]`
+    const nameShort = (product.name || "").slice(0, 40)
+    if (output.success && output.result) {
+      const r = output.result
+      const tags = [
+        r.category,
+        r.subcategory,
+        r.color_family && `${r.color_family}`,
+        r.fit,
+        r.fabric,
+        r.style_node,
+        r.season,
+        r.pattern !== "solid" && r.pattern,
+      ].filter(Boolean).join(" | ")
+      console.log(`   ✅ ${seq} ${nameShort} → ${tags}`)
+    } else {
+      console.log(`   ❌ ${seq} ${nameShort} → ${output.error}`)
+    }
 
     if (output.success && output.result) {
       if (retryFailed) {
@@ -321,15 +399,18 @@ async function main() {
 
   let lastLog = 0
   await pLimit(tasks, concurrency, (completed, total) => {
-    if (completed - lastLog >= 100 || completed === total) {
+    if (completed - lastLog >= 50 || completed === total) {
       const pct = ((completed / total) * 100).toFixed(1)
       const elapsed = ((Date.now() - startTime) / 1000).toFixed(0)
+      const rps = (completed / Math.max(1, (Date.now() - startTime) / 1000)).toFixed(1)
       console.log(
-        `   [${completed}/${total}] ${pct}% — 성공 ${successCount} / 실패 ${failCount} — ${elapsed}s`
+        `\n   📊 [${completed}/${total}] ${pct}% — ✅${successCount} ❌${failCount} — ${elapsed}s (${rps} req/s, interval=${tokenBucket.interval}ms, queue=${tokenBucket.queue.length})\n`
       )
       lastLog = completed
     }
   })
+
+  tokenBucket.stop()
 
   // ── 결과 요약 ─────────────────────────────────────
 

@@ -141,26 +141,6 @@ export const PLATFORMS: SiteConfig[] = [
     },
     notes: "여성 전용. 8개 카테고리",
   },
-  {
-    key: "iamshop",
-    name: "아이엠샵",
-    type: "cafe24",
-    baseUrl: "https://iamshop-online.com",
-    paginate: true,
-    maxPages: 10,
-    category: {
-      discovery: "manual",
-      categories: [
-        {name: "Outer", cateNo: 6695, gender: ["unisex"]},
-        {name: "Top", cateNo: 6803, gender: ["unisex"]},
-        {name: "Bottom", cateNo: 6802, gender: ["unisex"]},
-        {name: "Shoes", cateNo: 6809, gender: ["unisex"]},
-        {name: "Accessories", cateNo: 6815, gender: ["unisex"]},
-      ],
-    },
-    notes: "더현대서울/판교. 5개 카테고리",
-  },
-
   // ─── 구조 복잡 → 나중에 manual 설정 필요 ──────────
 
   {
@@ -524,7 +504,8 @@ export const PLATFORMS: SiteConfig[] = [
         {name: "Selected Brands", cateNo: 127, gender: ["men"]}, // 셀렉 브랜드 (16p)
       ],
     },
-    notes: "미니멀 클래식 남성복. 브랜드 기반 카테고리 4개. 5~30만원대",
+    disabled: true,
+    notes: "미니멀 클래식 남성복. 100% 이미지 기반 상세페이지 — 텍스트 추출 불가",
   },
   {
     key: "anotheroffice",
