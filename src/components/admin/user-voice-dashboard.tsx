@@ -203,20 +203,28 @@ export function UserVoiceDashboard() {
 
                 {/* Session journey */}
                 {expandedId === fb.id && fb.session.journey.length > 1 && (
-                  <div className="px-3 pb-3 pt-1 bg-surface-dim border-t border-border">
-                    <p className="text-xs font-mono text-turquoise uppercase tracking-widest mb-2">Session Journey</p>
-                    <div className="flex items-center gap-1.5 flex-wrap">
+                  <div className="px-4 pb-4 pt-2 bg-surface-dim border-t border-border">
+                    <p className="text-xs font-mono text-turquoise uppercase tracking-widest mb-3">Session Journey</p>
+                    <div className="space-y-0">
                       {fb.session.journey.map((step, i) => (
-                        <span key={i} className="contents">
-                          <span className="px-2 py-1 bg-card border border-border rounded-md text-xs text-muted-foreground font-mono max-w-[160px] truncate">
-                            {step.sequence}. &ldquo;{step.prompt}&rdquo;
-                          </span>
-                          {i < fb.session.journey.length - 1 && (
-                            <span className="text-on-surface-variant text-sm">→</span>
-                          )}
-                        </span>
+                        <div key={i} className="flex gap-3">
+                          {/* Timeline line */}
+                          <div className="flex flex-col items-center">
+                            <div className="size-5 rounded-full border border-border bg-card flex items-center justify-center shrink-0">
+                              <span className="text-[10px] font-mono text-muted-foreground">{step.sequence}</span>
+                            </div>
+                            {i < fb.session.journey.length - 1 && (
+                              <div className="w-px flex-1 bg-border min-h-3" />
+                            )}
+                          </div>
+                          {/* Content */}
+                          <div className="pb-3 min-w-0">
+                            <p className="text-xs text-foreground/80 font-mono leading-relaxed break-words">
+                              &ldquo;{step.prompt}&rdquo;
+                            </p>
+                          </div>
+                        </div>
                       ))}
-                      <span className="text-sm">{fb.rating === "up" ? "👍" : "👎"}</span>
                     </div>
                   </div>
                 )}

@@ -4,14 +4,8 @@ import {useCallback, useEffect, useRef, useState} from "react"
 import {motion} from "framer-motion"
 import {ArrowUp, Paperclip, RotateCcw, X} from "lucide-react"
 import {cn} from "@/lib/utils"
-
-const REFINE_PLACEHOLDERS = [
-  "More casual vibes...",
-  "Lower price range...",
-  "Show me different colors...",
-  "Slightly more oversized fit...",
-  "Something for spring...",
-]
+import {useLocale} from "@/lib/i18n"
+import type {DictKey} from "@/lib/i18n-dict"
 
 const MAX_REFINES = 5
 
@@ -30,11 +24,13 @@ export function StickyRefineBar({
   disabled,
   initialText,
 }: StickyRefineBarProps) {
+  const {t} = useLocale()
+  const REFINE_PLACEHOLDERS = Array.from({length: 5}, (_, i) => t(`refine.placeholder.${i}` as DictKey))
   const [text, setText] = useState(initialText || "")
   const [file, setFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [placeholderIdx, setPlaceholderIdx] = useState(0)
-  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const isMaxed = currentSequence >= MAX_REFINES
@@ -81,7 +77,7 @@ export function StickyRefineBar({
   }, [text, disabled, isMaxed, onSubmit, file, removeFile])
 
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault()
         handleSubmit()
@@ -95,8 +91,7 @@ export function StickyRefineBar({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.6 }}
-      className="sticky bottom-0 z-30 pt-8"
-      style={{ background: "linear-gradient(transparent, hsl(var(--background)) 30%)" }}
+      className="fixed bottom-6 left-0 right-0 z-30"
     >
       {/* File preview */}
       {previewUrl && (
@@ -106,6 +101,7 @@ export function StickyRefineBar({
             <img src={previewUrl} alt="Attached" className="h-10 w-10 rounded-lg object-cover border border-border" />
             <button
               onClick={removeFile}
+              aria-label="Remove attached image"
               className="absolute -top-2 -right-2 w-6 h-6 bg-foreground text-background rounded-full flex items-center justify-center"
             >
               <X className="size-3" />
@@ -116,44 +112,46 @@ export function StickyRefineBar({
 
       <div className="max-w-2xl mx-auto px-4">
         <div className={cn(
-          "bg-card border border-border rounded-xl flex items-center gap-2 px-4 py-1.5",
+          "bg-primary/95 backdrop-blur-sm border border-primary/20 rounded-xl flex items-center gap-3 px-5 py-2.5 shadow-lg shadow-black/30",
           isMaxed && "opacity-60"
         )}>
           {/* Session counter */}
           <div className="flex items-center gap-1.5 shrink-0">
             <div className={cn(
-              "w-2 h-2 rounded-full",
-              isMaxed ? "bg-muted-foreground" : "bg-turquoise"
+              "w-2.5 h-2.5 rounded-full",
+              isMaxed ? "bg-background/40" : "bg-turquoise"
             )} />
             <span className={cn(
-              "text-xs font-mono font-semibold",
-              isMaxed ? "text-muted-foreground" : "text-turquoise"
+              "text-xs font-mono font-bold",
+              isMaxed ? "text-background/50" : "text-background/70"
             )}>
               {currentSequence}/{MAX_REFINES}
             </span>
           </div>
 
-          <div className="w-px h-4 bg-border shrink-0" />
+          <div className="w-px h-5 bg-background/20 shrink-0" />
 
           {/* Input */}
-          <textarea
+          <input
             ref={inputRef}
+            type="text"
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={handleKeyDown}
             disabled={disabled || isMaxed}
-            placeholder={isMaxed ? "Start a fresh analysis for new ideas" : REFINE_PLACEHOLDERS[placeholderIdx]}
-            rows={1}
-            className="flex-1 bg-transparent text-sm text-foreground placeholder:text-on-surface-variant outline-none resize-none min-h-[32px] max-h-[80px] py-1"
+            aria-label="Refine your look"
+            placeholder={isMaxed ? t("refine.maxed") : REFINE_PLACEHOLDERS[placeholderIdx]}
+            className="flex-1 min-w-0 bg-transparent text-sm text-background placeholder:text-background/40 outline-none h-9 font-medium truncate"
           />
 
           {/* Attach image */}
           {!isMaxed && (
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="w-8 h-8 bg-border/50 rounded-lg flex items-center justify-center shrink-0 hover:bg-border transition-colors"
+              aria-label="Attach image"
+              className="w-9 h-9 bg-background/15 rounded-lg flex items-center justify-center shrink-0 hover:bg-background/25 transition-colors"
             >
-              <Paperclip className="size-3.5 text-muted-foreground" />
+              <Paperclip className="size-4 text-background/60" />
             </button>
           )}
 
@@ -161,31 +159,33 @@ export function StickyRefineBar({
           {isMaxed ? (
             <button
               onClick={onReset}
-              className="w-8 h-8 bg-primary text-background rounded-lg flex items-center justify-center shrink-0 hover:opacity-80 transition-opacity"
+              aria-label="Start new analysis"
+              className="w-9 h-9 bg-background text-foreground rounded-lg flex items-center justify-center shrink-0 hover:opacity-80 transition-opacity"
             >
-              <RotateCcw className="size-3.5" />
+              <RotateCcw className="size-4" />
             </button>
           ) : (
             <button
               onClick={handleSubmit}
               disabled={!text.trim() || disabled}
+              aria-label="Submit refinement"
               className={cn(
-                "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors",
+                "w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition-colors",
                 text.trim() && !disabled
-                  ? "bg-primary text-background hover:opacity-80"
-                  : "bg-muted text-muted-foreground cursor-not-allowed"
+                  ? "bg-background text-foreground hover:opacity-80"
+                  : "bg-background/20 text-background/40 cursor-not-allowed"
               )}
             >
-              <ArrowUp className="size-3.5" />
+              <ArrowUp className="size-4" />
             </button>
           )}
         </div>
 
         {/* Hint */}
-        <p className="text-xs font-mono text-on-surface-variant text-center mt-1.5 mb-2">
+        <p className="text-[10px] font-mono text-muted-foreground text-center mt-2">
           {isMaxed
-            ? "Maximum refinements reached — start fresh for new ideas"
-            : "Refine your look — previous context preserved"
+            ? t("refine.maxedHint")
+            : t("refine.hint")
           }
         </p>
       </div>

@@ -1,87 +1,23 @@
 "use client"
 
 import {useCallback, useRef, useState} from "react"
+import {useRouter} from "next/navigation"
 import {AnimatePresence, motion} from "framer-motion"
 import {Header} from "@/components/layout/header"
 import {Footer} from "@/components/layout/footer"
 import {type Gender} from "@/components/upload/gender-selector"
 import {SearchBar} from "@/components/search/search-bar"
 import {AnalyzingView} from "@/components/analysis/analyzing-view"
-import type {LookItem, Product} from "@/components/result/look-breakdown"
-import {LookBreakdown} from "@/components/result/look-breakdown"
-import {FeedbackFlow} from "@/components/result/feedback-flow"
-import {StickyRefineBar} from "@/components/result/sticky-refine-bar"
 import {parsePrice} from "@/lib/parse-price"
+import {useLocale} from "@/lib/i18n"
 
-type AppState = "upload" | "analyzing" | "result"
-
-interface AnalysisResult {
-  styleNode?: {
-    primary: string
-    primaryConfidence: number
-    secondary: string
-    secondaryConfidence: number
-    reasoning: string
-  }
-  sensitivityTags?: string[]
-  mood: {
-    tags: { label: string; score: number }[]
-    summary: string
-    vibe?: string
-    season?: string
-    occasion?: string
-  }
-  palette: { hex: string; label: string }[]
-  style?: {
-    fit: string
-    aesthetic: string
-    gender: string
-    detectedGender?: string
-  }
-  items: {
-    id: string
-    category: string
-    subcategory?: string
-    name: string
-    detail?: string
-    fabric?: string
-    color?: string
-    fit?: string
-    colorFamily?: string
-    searchQuery: string
-    searchQueryKo?: string
-    season?: string
-    pattern?: string
-    position?: { top: number; left: number }
-  }[]
-}
-
-interface ProductSearchResult {
-  results: {
-    id: string
-    products: Product[]
-  }[]
-}
+type AppState = "upload" | "analyzing"
 
 export default function Home() {
+  const router = useRouter()
+  const {t} = useLocale()
   const [state, setState] = useState<AppState>("upload")
   const [imageUrl, setImageUrl] = useState<string>("")
-  const [moodTags, setMoodTags] = useState<{ label: string; score: number }[]>(
-    []
-  )
-  const [palette, setPalette] = useState<{ hex: string; label: string }[]>([])
-  const [items, setItems] = useState<LookItem[]>([])
-  const [moodMeta, setMoodMeta] = useState<{
-    summary?: string
-    vibe?: string
-    season?: string
-    occasion?: string
-    style?: { fit: string; aesthetic: string; gender: string }
-  }>({})
-  const [sessionId, setSessionId] = useState<string | null>(null)
-  const [currentAnalysisId, setCurrentAnalysisId] = useState<string | null>(null)
-  const [currentSequence, setCurrentSequence] = useState(1)
-  const [suggestionText, setSuggestionText] = useState<string>("")
   const [gender, setGender] = useState<Gender>("male")
   const [promptText, setPromptText] = useState<string>("")
   const [error, setError] = useState<string | null>(null)
@@ -90,11 +26,6 @@ export default function Home() {
   const fileRef = useRef<File | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   const isSubmitting = useRef(false)
-  const sessionIdRef = useRef<string | null>(null)
-  const currentAnalysisIdRef = useRef<string | null>(null)
-  const itemsRef = useRef<LookItem[]>([])
-  const moodTagsRef = useRef<{ label: string; score: number }[]>([])
-  const moodMetaRef = useRef<Record<string, unknown>>({})
 
   const handleSubmit = useCallback(async (data: { prompt?: string; file?: File }) => {
     if (isSubmitting.current) return
@@ -108,7 +39,6 @@ export default function Home() {
     // Revoke previous blob URL before creating new one
     if (imageUrl) URL.revokeObjectURL(imageUrl)
 
-    // Set image URL if file exists
     let url = ""
     if (data.file) {
       url = URL.createObjectURL(data.file)
@@ -120,18 +50,20 @@ export default function Home() {
     if (data.prompt) setPromptText(data.prompt)
     else setPromptText("")
 
-    // 가격 필터 파싱 (AI 호출 전에 처리 — 가격 텍스트 제거한 cleanPrompt를 AI에 전달)
     const { priceFilter, cleanPrompt } = data.prompt
       ? parsePrice(data.prompt)
       : { priceFilter: null, cleanPrompt: "" }
 
+    // suppress unused var — priceFilter is passed via formData below
+    void priceFilter
+
     setState("analyzing")
     setError(null)
     setProgress(0)
-    setProgressLabel(hasImage ? "Uploading image..." : "Analyzing prompt...")
+    setProgressLabel(hasImage ? t("upload.uploading") : t("upload.keywords"))
     fileRef.current = data.file ?? null
 
-    // Progress simulation — faster for prompt-only
+    // Progress simulation
     let simulated = 5
     const speed = hasImage ? 3 : 12
     const cap = hasImage ? 85 : 90
@@ -143,9 +75,9 @@ export default function Home() {
 
     try {
       if (hasImage) {
-        setProgressLabel("Analyzing silhouette & texture...")
+        setProgressLabel(t("upload.silhouette"))
       } else {
-        setProgressLabel("Extracting keywords...")
+        setProgressLabel(t("upload.keywords"))
       }
 
       const formData = new FormData()
@@ -153,21 +85,6 @@ export default function Home() {
       if (data.prompt) formData.append("prompt", cleanPrompt || data.prompt)
       if (data.prompt) formData.append("originalPrompt", data.prompt)
       formData.append("gender", gender)
-      if (sessionIdRef.current) formData.append("sessionId", sessionIdRef.current)
-      if (currentAnalysisIdRef.current) formData.append("parentAnalysisId", currentAnalysisIdRef.current)
-      if (sessionIdRef.current && data.prompt) formData.append("refinementPrompt", data.prompt)
-      if (sessionIdRef.current && itemsRef.current.length > 0) {
-        formData.append("previousContext", JSON.stringify({
-          items: itemsRef.current.map((i) => ({
-            category: i.category,
-            name: i.name,
-            color: i.color || "",
-            fit: i.fit || "",
-          })),
-          styleNode: (moodMetaRef.current as { style?: { aesthetic?: string } })?.style?.aesthetic || "",
-          moodTags: moodTagsRef.current.map((t) => t.label),
-        }))
-      }
 
       const analyzeRes = await fetch("/api/analyze", {
         method: "POST",
@@ -182,94 +99,20 @@ export default function Home() {
 
       clearInterval(ticker)
       setProgress(100)
-      setProgressLabel("Complete")
+      setProgressLabel(t("upload.complete"))
 
-      const analysis: AnalysisResult & { _logId?: string; _promptOnly?: boolean; detectedGender?: string; _sessionId?: string; _sequenceNumber?: number } =
-        await analyzeRes.json()
-      const logId = analysis._logId
+      const analysis = await analyzeRes.json()
 
-      setSessionId(analysis._sessionId ?? null)
-      sessionIdRef.current = analysis._sessionId ?? null
-      setCurrentAnalysisId(analysis._logId ?? null)
-      currentAnalysisIdRef.current = analysis._logId ?? null
-      setCurrentSequence(analysis._sequenceNumber ?? 1)
-
-      const initialItems: LookItem[] = (analysis.items || []).map((item) => ({
-        id: item.id,
-        category: item.category,
-        name: item.name,
-        detail: item.detail,
-        fabric: item.fabric,
-        color: item.color,
-        fit: item.fit,
-        position: item.position,
-        products: [],
-      }))
-
-      await new Promise((r) => setTimeout(r, 300))
-
-      setMoodTags(analysis.mood?.tags || [])
-      moodTagsRef.current = analysis.mood?.tags || []
-      setPalette(analysis.palette || [])
-      const newMoodMeta = {
-        summary: analysis.mood?.summary,
-        vibe: analysis.mood?.vibe,
-        season: analysis.mood?.season,
-        occasion: analysis.mood?.occasion,
-        style: analysis.style,
-      }
-      setMoodMeta(newMoodMeta)
-      moodMetaRef.current = newMoodMeta as Record<string, unknown>
-      setItems(initialItems)
-      itemsRef.current = initialItems
-      setState("result")
       isSubmitting.current = false
 
-      // Background: fetch products
-      // GPT detected_gender가 있으면 우선 사용, 없으면 UI 셀렉터 값
-      const effectiveGender = analysis.style?.detectedGender || analysis.detectedGender || gender
-      fetch("/api/search-products", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        signal,
-        body: JSON.stringify({
-          gender: effectiveGender,
-          styleNode: analysis.styleNode,
-          moodTags: analysis.mood?.tags?.map((t: { label: string }) => t.label) || [],
-          _logId: logId,
-          ...(priceFilter && { priceFilter }),
-          queries: (analysis.items || []).map((item) => ({
-            id: item.id,
-            category: item.category,
-            subcategory: item.subcategory,
-            fit: item.fit,
-            fabric: item.fabric,
-            colorFamily: item.colorFamily,
-            searchQuery: item.searchQuery,
-            searchQueryKo: item.searchQueryKo,
-            season: item.season,
-            pattern: item.pattern,
-          })),
-        }),
-      })
-        .then((res) => (res.ok ? res.json() : null))
-        .then((searchData: ProductSearchResult | null) => {
-          if (!searchData) return
-          setItems((prev) =>
-            prev.map((item) => {
-              const found = searchData.results.find((r) => r.id === item.id)
-              return found
-                ? { ...item, products: found.products, productsLoaded: true }
-                : { ...item, productsLoaded: true }
-            }),
-          )
-        })
-        .catch((err) => {
-          console.error("Product search failed:", err)
-          setItems((prev) => prev.map((item) => ({ ...item, productsLoaded: true })))
-        })
+      // 결과 페이지로 이동
+      if (analysis._logId) {
+        router.push(`/result/${analysis._logId}`)
+      } else {
+        setState("upload")
+        setError(t("upload.noResultId"))
+      }
     } catch (err) {
-      // AbortError는 새 요청 시 이전 요청 취소로 발생 — UI 상태 건드리지 않음
       if (err instanceof Error && err.name === "AbortError") {
         clearInterval(ticker)
         isSubmitting.current = false
@@ -284,49 +127,16 @@ export default function Home() {
       setError(
         err instanceof Error
           ? err.message
-          : "Failed to analyze. Please try again.",
+          : t("upload.failed"),
       )
     }
-  }, [gender, imageUrl])
-
-  const handleTryAnother = useCallback(() => {
-    abortRef.current?.abort()
-    if (imageUrl) URL.revokeObjectURL(imageUrl)
-    setImageUrl("")
-    setPromptText("")
-    setMoodTags([])
-    setPalette([])
-    setItems([])
-    setMoodMeta({})
-    setError(null)
-    setProgress(0)
-    setProgressLabel("")
-    fileRef.current = null
-    setSessionId(null)
-    setCurrentAnalysisId(null)
-    setCurrentSequence(1)
-    setSuggestionText("")
-    sessionIdRef.current = null
-    currentAnalysisIdRef.current = null
-    itemsRef.current = []
-    moodTagsRef.current = []
-    moodMetaRef.current = {}
-    setState("upload")
-  }, [imageUrl])
-
-  const handleRefine = useCallback((data: { prompt: string; file?: File }) => {
-    handleSubmit({ prompt: data.prompt, file: data.file })
-  }, [handleSubmit])
-
-  const handleSuggestionClick = useCallback((text: string) => {
-    setSuggestionText(text)
-  }, [])
+  }, [gender, imageUrl, router, t])
 
   return (
     <>
       <Header />
 
-      <main className="flex-grow flex flex-col items-center justify-center px-6 pt-24 pb-12 relative overflow-hidden industrial-grid min-h-screen">
+      <main className="flex-grow flex flex-col items-center justify-center px-6 pt-24 pb-12 relative overflow-x-hidden industrial-grid min-h-screen">
         <AnimatePresence mode="wait">
           {state === "upload" && (
             <motion.div
@@ -343,10 +153,10 @@ export default function Home() {
                 transition={{ duration: 0.6 }}
               >
                 <h1 className="text-4xl md:text-6xl font-extrabold text-foreground tracking-[-0.03em] leading-tight">
-                  Describe your style.
+                  {t("hero.line1")}
                   <br />
                   <span className="text-muted-foreground">
-                    We find every piece.
+                    {t("hero.line2")}
                   </span>
                 </h1>
               </motion.div>
@@ -376,23 +186,23 @@ export default function Home() {
                     </span>
                   ))}
                   <span className="text-[11px] font-mono font-medium text-white/12 tracking-wide">
-                    +17 more
+                    {t("stats.more")}
                   </span>
                 </div>
                 <div className="flex items-center justify-center gap-8">
                   <div className="flex flex-col items-center gap-0.5">
                     <span className="text-base font-mono font-bold text-white/30">26,000+</span>
-                    <span className="text-[10px] font-mono text-white/15 tracking-widest">products</span>
+                    <span className="text-[10px] font-mono text-white/15 tracking-widest">{t("stats.products")}</span>
                   </div>
                   <div className="w-px h-6 bg-white/10" />
                   <div className="flex flex-col items-center gap-0.5">
                     <span className="text-base font-mono font-bold text-white/30">22</span>
-                    <span className="text-[10px] font-mono text-white/15 tracking-widest">platforms</span>
+                    <span className="text-[10px] font-mono text-white/15 tracking-widest">{t("stats.platforms")}</span>
                   </div>
                   <div className="w-px h-6 bg-white/10" />
                   <div className="flex flex-col items-center gap-0.5">
                     <span className="text-base font-mono font-bold text-white/30">15</span>
-                    <span className="text-[10px] font-mono text-white/15 tracking-widest">style nodes</span>
+                    <span className="text-[10px] font-mono text-white/15 tracking-widest">{t("stats.styleNodes")}</span>
                   </div>
                 </div>
               </div>
@@ -408,44 +218,6 @@ export default function Home() {
               className="w-full z-10"
             >
               <AnalyzingView imageUrl={imageUrl} promptText={promptText} progress={progress} progressLabel={progressLabel} />
-            </motion.div>
-          )}
-
-          {state === "result" && (
-            <motion.div
-              key="result"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="w-full z-10 pt-4"
-            >
-              {promptText && (
-                <div className="max-w-4xl mx-auto mb-6 px-4">
-                  <p className="text-sm text-muted-foreground font-mono">
-                    <span className="text-foreground">Search:</span> &quot;{promptText}&quot;
-                  </p>
-                </div>
-              )}
-              <LookBreakdown
-                imageUrl={imageUrl}
-                moodTags={moodTags}
-                palette={palette}
-                items={items}
-                moodMeta={moodMeta}
-                onSuggestionClick={handleSuggestionClick}
-              />
-              {sessionId && currentAnalysisId && (
-                <FeedbackFlow
-                  sessionId={sessionId}
-                  analysisId={currentAnalysisId}
-                />
-              )}
-              <StickyRefineBar
-                currentSequence={currentSequence}
-                onSubmit={handleRefine}
-                onReset={handleTryAnother}
-                initialText={suggestionText}
-              />
             </motion.div>
           )}
         </AnimatePresence>

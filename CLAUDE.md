@@ -73,11 +73,11 @@ pnpm lint         # ESLint
 
 | 파일 | 설명 |
 |------|------|
-| `src/app/page.tsx` | 메인 — 3-screen 상태 전환 + 프롬프트/이미지 겸용 handleSubmit |
+| `src/app/page.tsx` | 메인 — 2-screen 상태 전환 (upload/analyzing) + 분석 후 /result로 리디렉트 |
 | `src/app/api/analyze/route.ts` | GPT-4o-mini Vision/텍스트 — 프롬프트 전용, 프롬프트+이미지, 이미지 전용 3분기 |
 | `src/components/search/search-bar.tsx` | 채팅 입력 바 — textarea + 이미지 첨부 + 성별 + 전송 |
 | `src/lib/prompts/prompt-search.ts` | 프롬프트 전용 시스템 프롬프트 (텍스트 모드, Vision 안 씀) |
-| `src/app/api/search-products/route.ts` | 검색 엔진 v3 — enum 매칭 + 색상 인접 + 한국어 어휘 머지 + 플랫폼 다양성 + 시즌/패턴 |
+| `src/app/api/search-products/route.ts` | 검색 엔진 v3 — enum 매칭 + 색상 인접 + 한국어 어휘 머지 + 플랫폼 다양성 + 시즌/패턴 + 가격 hard filter |
 | `src/lib/enums/product-enums.ts` | 공유 enum 정의 + validation + buildEnumReference() 프롬프트 빌더 |
 | `src/lib/enums/korean-vocab.ts` | 한국어 패션 용어 → enum 매핑 (70+항목, 검색엔진/프롬프트 공용) |
 | `src/lib/enums/color-adjacency.ts` | 색상 인접 맵 (16색, 검색 시 유사 색상 폴백) |
@@ -98,6 +98,8 @@ pnpm lint         # ESLint
 | `scripts/import-brand-nodes.ts` | Fashion Genome v2 엑셀 → Supabase brand_nodes |
 | `scripts/import-products.ts` | 크롤링 JSON → Supabase products + product_reviews (자사몰 brand 자동 채움) |
 | `src/app/api/admin/crawl-coverage/route.ts` | 크롤링 커버리지 대시보드 API (플랫폼별 description/material/review 수집률) |
+| `src/app/result/[analysisId]/page.tsx` | 결과 페이지 RSC — DB에서 분석 데이터 조회 후 ResultClient로 전달 |
+| `src/app/result/[analysisId]/result-client.tsx` | 결과 클라이언트 — 마운트 시 search-products 호출 + 리파인 + 가격 필터 |
 | `src/components/result/look-breakdown.tsx` | 결과 — sticky 이미지 + 핫스팟 + 아코디언 + ProductCard 가로스크롤 |
 | `src/components/result/product-card.tsx` | 상품 카드 — 오버레이 인터랙션 (매칭 이유 칩 + 설명 + View CTA) |
 | `src/components/result/sticky-refine-bar.tsx` | 스티키 리파인 바 — 대화형 리파인 입력 (세션 카운터, max 5턴) |
@@ -121,7 +123,8 @@ pnpm lint         # ESLint
 | 무드 분석 | 태그 + score + vibe + season + occasion |
 | 아이템 상세 | fit, fabric, color, detail, position 추출 |
 | 성별 판단 | detectedGender → 검색 쿼리에 men/women 반영 |
-| 상품 검색 | enum 매칭 (subcategory 0.25 + colorFamily 0.20 + colorAdjacent 0.10 + styleNode 0.30/0.15 + fit 0.15 + fabric 0.15 + season 0.15 + pattern 0.15 + moodTags 0.05×N) → 상위 5개, 브랜드당 max 2, 플랫폼당 max 3 |
+| 상품 검색 | enum 매칭 (subcategory 0.25 + colorFamily 0.20 + colorAdjacent 0.10 + styleNode 0.30/0.15 + fit 0.15 + fabric 0.15 + season 0.15 + pattern 0.15 + moodTags 0.05×N) → 상위 7개, 브랜드당 max 2, 플랫폼당 max 3 |
+| 가격 필터 | 프롬프트에서 parsePrice로 추출 → priceFilter가 있으면 DB+인메모리 hard filter (null price 제외, 범위 밖 무조건 제거) |
 | 분석 로깅 | AI 원본 응답 + 검색 쿼리/결과 전체 Supabase 저장 |
 | 파일 제한 | 10MB 이하, JPEG/PNG/WebP/HEIC만 허용 |
 

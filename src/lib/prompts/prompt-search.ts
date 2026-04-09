@@ -98,7 +98,7 @@ Respond in this exact JSON format (no markdown, no code fences):
 - color: the specific color (e.g. "charcoal grey"). Infer if not stated. Use the inferred color that maps to colorFamily.
 - detail: any specific construction or style detail mentioned. Use null if not mentioned.
 - season: infer from user context. "여름" → summer, "겨울" → winter, "봄" → spring, "가을" → fall. If no season mentioned, infer from item type (sandals → summer, down-jacket → winter, t-shirt → all-season).
-- pattern: infer from user text. "스트라이프" → stripe, "체크" → check, "꽃무늬/플로럴" → floral, "도트/물방울" → dot, "카모/밀리터리" → camo, "애니멀/레오파드" → animal, "그래픽/프린트" → graphic. Default "solid" if no pattern mentioned.
+- pattern: infer from user text. "무지/민무늬/단색" → solid (no pattern, plain), "스트라이프/줄무늬" → stripe, "체크/격자" → check, "꽃무늬/플로럴/플라워" → floral, "도트/물방울" → dot, "카모/밀리터리" → camo, "애니멀/레오파드" → animal, "그래픽/프린트/로고" → graphic, "페이즐리" → paisley, "타이다이" → tie-dye. Default "solid" if no pattern mentioned.
 - name: a descriptive item name in English that INCLUDES the color and key attributes (e.g. "Relaxed Beige Linen Shirt", "Wide Black Cargo Pants"). Do NOT use generic names like "Casual Shirt".
 
 === STYLE NODE CLASSIFICATION ===

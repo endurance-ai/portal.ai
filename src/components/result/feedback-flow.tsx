@@ -4,6 +4,8 @@ import {useCallback, useRef, useState} from "react"
 import {AnimatePresence, motion} from "framer-motion"
 import {cn} from "@/lib/utils"
 import {FEEDBACK_TAGS, type FeedbackRating, type FeedbackTagId} from "@/lib/feedback-tags"
+import {useLocale} from "@/lib/i18n"
+import type {DictKey} from "@/lib/i18n-dict"
 
 type Step = "thumbs" | "tags" | "detail" | "done"
 
@@ -22,6 +24,7 @@ function sendFeedback(payload: Record<string, unknown>) {
 }
 
 export function FeedbackFlow({sessionId, analysisId}: FeedbackFlowProps) {
+  const {t} = useLocale()
   const [step, setStep] = useState<Step>("thumbs")
   const [rating, setRating] = useState<FeedbackRating | null>(null)
   const [selectedTags, setSelectedTags] = useState<Set<FeedbackTagId>>(new Set())
@@ -45,14 +48,10 @@ export function FeedbackFlow({sessionId, analysisId}: FeedbackFlowProps) {
       })
       const data = await res.json()
       if (data.feedbackId) feedbackIdRef.current = data.feedbackId
+      // 성공 시에만 다음 단계로 전환 (feedbackId가 있어야 태그/코멘트 저장 가능)
+      setStep(r === "up" ? "detail" : "tags")
     } catch {/* silent */} finally {
       thumbSubmitting.current = false
-    }
-
-    if (r === "up") {
-      setStep("detail")
-    } else {
-      setStep("tags")
     }
   }, [sessionId, analysisId])
 
@@ -70,11 +69,12 @@ export function FeedbackFlow({sessionId, analysisId}: FeedbackFlowProps) {
     if (feedbackIdRef.current && selectedTags.size > 0) {
       sendFeedback({
         feedbackId: feedbackIdRef.current,
+        sessionId,
         tags: Array.from(selectedTags),
       })
     }
     setStep("detail")
-  }, [selectedTags])
+  }, [selectedTags, sessionId])
 
   // Step 3 done: save detail update
   const handleSubmit = useCallback(async () => {
@@ -87,6 +87,7 @@ export function FeedbackFlow({sessionId, analysisId}: FeedbackFlowProps) {
           headers: {"Content-Type": "application/json"},
           body: JSON.stringify({
             feedbackId: feedbackIdRef.current,
+            sessionId,
             comment: comment.trim() || undefined,
             email: email.trim() || undefined,
           }),
@@ -112,8 +113,8 @@ export function FeedbackFlow({sessionId, analysisId}: FeedbackFlowProps) {
         <div className="flex items-center gap-3 px-5 py-3 bg-card border border-turquoise/30 rounded-xl">
           <span className="text-base">✦</span>
           <div>
-            <p className="text-sm font-semibold text-foreground">Thanks for shaping portal.ai</p>
-            <p className="text-xs text-muted-foreground">Your feedback makes the next result better.</p>
+            <p className="text-sm font-semibold text-foreground">{t("feedback.thanks")}</p>
+            <p className="text-xs text-muted-foreground">{t("feedback.thanksSub")}</p>
           </div>
         </div>
       </motion.div>
@@ -130,7 +131,7 @@ export function FeedbackFlow({sessionId, analysisId}: FeedbackFlowProps) {
       {/* Step 1: Thumbs */}
       <div className="text-center">
         <p className="text-sm font-mono text-muted-foreground mb-3 tracking-wider">
-          How was this analysis?
+          {t("feedback.question")}
         </p>
         <div className="flex justify-center gap-4">
           <button
@@ -169,8 +170,8 @@ export function FeedbackFlow({sessionId, analysisId}: FeedbackFlowProps) {
             exit={{opacity: 0, height: 0}}
             className="overflow-hidden text-center"
           >
-            <p className="text-sm font-mono text-muted-foreground mb-1">What could be better?</p>
-            <p className="text-xs text-on-surface-variant mb-3">Select all that apply</p>
+            <p className="text-sm font-mono text-muted-foreground mb-1">{t("feedback.whatBetter")}</p>
+            <p className="text-xs text-on-surface-variant mb-3">{t("feedback.selectAll")}</p>
             <div className="flex flex-wrap gap-2 justify-center max-w-sm mx-auto">
               {FEEDBACK_TAGS.map((tag) => (
                 <button
@@ -183,7 +184,7 @@ export function FeedbackFlow({sessionId, analysisId}: FeedbackFlowProps) {
                       : "bg-card border-border text-muted-foreground hover:border-outline/50",
                   )}
                 >
-                  {tag.labelEn}{selectedTags.has(tag.id) && " ✓"}
+                  {t(`tag.${tag.id}` as DictKey)}{selectedTags.has(tag.id) && " ✓"}
                 </button>
               ))}
             </div>
@@ -191,7 +192,7 @@ export function FeedbackFlow({sessionId, analysisId}: FeedbackFlowProps) {
               onClick={handleTagsDone}
               className="mt-4 px-8 py-2.5 bg-card border border-border rounded-lg text-sm font-mono text-foreground hover:bg-surface-dim transition-colors"
             >
-              Next
+              {t("feedback.next")}
             </button>
           </motion.div>
         )}
@@ -210,10 +211,10 @@ export function FeedbackFlow({sessionId, analysisId}: FeedbackFlowProps) {
               {/* Motivation message */}
               <div className="px-4 py-3 bg-surface-dim rounded-lg border-l-2 border-turquoise">
                 <p className="text-sm text-foreground leading-relaxed">
-                  Your voice shapes portal.ai
+                  {t("feedback.voiceTitle")}
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  We&apos;re building this together — every bit of feedback helps us get better.
+                  {t("feedback.voiceSub")}
                 </p>
               </div>
 
@@ -221,7 +222,7 @@ export function FeedbackFlow({sessionId, analysisId}: FeedbackFlowProps) {
               <textarea
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
-                placeholder="Tell us more (optional)..."
+                placeholder={t("feedback.tellMore")}
                 rows={2}
                 className="w-full px-3 py-2.5 bg-card border border-border rounded-lg text-sm text-foreground placeholder:text-on-surface-variant outline-none resize-none focus:border-outline-focus"
               />
@@ -239,8 +240,8 @@ export function FeedbackFlow({sessionId, analysisId}: FeedbackFlowProps) {
               <div className="flex items-start gap-2 px-3 py-2 bg-turquoise/5 border border-turquoise/12 rounded-lg">
                 <span className="text-xs shrink-0 mt-0.5">✦</span>
                 <p className="text-xs text-turquoise leading-relaxed">
-                  Be among the first to know when we launch.
-                  <span className="text-muted-foreground"> Early supporters get priority access & exclusive updates.</span>
+                  {t("feedback.earlyAdopter")}
+                  <span className="text-muted-foreground"> {t("feedback.earlyAdopterSub")}</span>
                 </p>
               </div>
 
@@ -250,14 +251,14 @@ export function FeedbackFlow({sessionId, analysisId}: FeedbackFlowProps) {
                   onClick={handleSkip}
                   className="flex-1 py-3 bg-card border border-border rounded-lg text-xs font-mono text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  Skip
+                  {t("feedback.skip")}
                 </button>
                 <button
                   onClick={handleSubmit}
                   disabled={submitting}
                   className="flex-[2] py-3 bg-primary text-background rounded-lg text-xs font-mono font-bold uppercase tracking-widest hover:opacity-90 transition-opacity disabled:opacity-50"
                 >
-                  {submitting ? "Sending..." : "Send"}
+                  {submitting ? t("feedback.sending") : t("feedback.send")}
                 </button>
               </div>
             </div>

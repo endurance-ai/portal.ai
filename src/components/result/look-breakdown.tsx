@@ -7,6 +7,7 @@ import {ChevronDown} from "lucide-react"
 import {cn} from "@/lib/utils"
 import {ProductCard} from "@/components/result/product-card"
 import {EmptyResults} from "@/components/result/empty-results"
+import {useLocale} from "@/lib/i18n"
 
 
 export interface Product {
@@ -75,6 +76,7 @@ export function LookBreakdown({
   moodMeta,
   onSuggestionClick,
 }: LookBreakdownProps) {
+  const {t} = useLocale()
   const hasImage = !!imageUrl
   const [expandedIdx, setExpandedIdx] = useState<number | null>(
     items.length > 0 ? 0 : null
@@ -124,7 +126,7 @@ export function LookBreakdown({
           {palette.length > 0 && (
             <div className="flex items-center gap-2">
               <span className="text-[9px] font-mono font-bold text-on-surface-variant tracking-widest uppercase">
-                Color Map
+                {t("look.colorMap")}
               </span>
               <div className="flex -space-x-1">
                 {palette.map((color) => (
@@ -151,7 +153,7 @@ export function LookBreakdown({
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <div className="bg-card border border-border rounded-lg overflow-hidden corner-brackets">
+            <div className="bg-card border border-border rounded-lg overflow-hidden corner-brackets max-w-[400px] mx-auto">
               <div className="relative aspect-[3/4]">
                 <Image
                   src={imageUrl}
@@ -178,6 +180,7 @@ export function LookBreakdown({
                       onClick={() => toggleItem(i)}
                       aria-label={`View ${item.category}: ${item.name}`}
                       aria-expanded={isActive}
+                      aria-controls={`panel-${i}`}
                     >
                       <span
                         className={cn(
@@ -195,35 +198,14 @@ export function LookBreakdown({
               </div>
               <div className="px-3 py-2 border-t border-border flex justify-between items-center">
                 <span className="text-[9px] font-mono font-bold text-outline tracking-widest uppercase">
-                  The Look
+                  {t("look.title")}
                 </span>
                 <span className="text-[9px] font-mono font-bold text-on-surface-variant tracking-widest uppercase">
-                  AI Scan
+                  {t("look.aiScan")}
                 </span>
               </div>
             </div>
 
-            {/* Vibe card below image */}
-            {moodMeta?.vibe && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.2 }}
-                className="mt-3 p-3 bg-card border border-border rounded-lg"
-              >
-                <div className="text-[9px] font-mono font-bold text-primary tracking-widest uppercase">
-                  Style Summary
-                </div>
-                <p className="text-xs font-semibold text-foreground italic mt-1">
-                  &ldquo;{moodMeta.vibe}&rdquo;
-                </p>
-                {moodMeta.summary && (
-                  <p className="text-[10px] text-outline mt-2 leading-relaxed">
-                    {moodMeta.summary}
-                  </p>
-                )}
-              </motion.div>
-            )}
           </motion.div>
         )}
 
@@ -232,7 +214,7 @@ export function LookBreakdown({
           {/* Section heading */}
           <div className="flex items-center gap-3">
             <span className="text-[10px] font-mono font-bold text-on-surface-variant tracking-[0.2em] uppercase">
-              Garment Index
+              {t("look.garmentIndex")}
             </span>
             <div className="flex-1 h-px bg-border" />
           </div>
@@ -370,7 +352,7 @@ export function LookBreakdown({
                         {hasProducts ? (
                           <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent -mx-1 px-1 pb-2">
                             <div className="flex gap-3" style={{ minWidth: "min-content" }}>
-                              {item.products.slice(0, 5).map((product, pi) => (
+                              {item.products.slice(0, 7).map((product, pi) => (
                                 <ProductCard
                                   key={`${product.brand}-${pi}`}
                                   brand={product.brand}
@@ -391,16 +373,16 @@ export function LookBreakdown({
                           /* Skeleton loading */
                           <div className="space-y-2">
                             <span className="text-[9px] font-mono text-on-surface-variant tracking-widest uppercase animate-pulse">
-                              Searching products...
+                              {t("result.searching")}
                             </span>
                             <div className="flex gap-3">
                               {[0, 1, 2].map((i) => (
                                 <div
                                   key={i}
                                   className="bg-surface-dim border border-border rounded-lg overflow-hidden shrink-0"
-                                  style={{ width: "calc(33.333% - 8px)", minWidth: "140px" }}
+                                  style={{ width: "calc(33.333% - 8px)", minWidth: "120px", maxWidth: "200px" }}
                                 >
-                                  <div className="w-full aspect-square bg-border/20 relative overflow-hidden">
+                                  <div className="w-full aspect-[4/5] bg-border/20 relative overflow-hidden">
                                     <motion.div
                                       className="absolute inset-0"
                                       style={{

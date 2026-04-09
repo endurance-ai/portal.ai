@@ -1,31 +1,22 @@
 "use client"
 
-import { useState } from "react"
+import {useState} from "react"
 import Link from "next/link"
-import { toast } from "sonner"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
+import {toast} from "sonner"
+import {Badge} from "@/components/ui/badge"
+import {Button} from "@/components/ui/button"
+import {Checkbox} from "@/components/ui/checkbox"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
 } from "@/components/ui/dialog"
-import {
-  AlertCircle,
-  CheckCircle,
-  Clock,
-  Loader2,
-  Package,
-  Pin,
-  Trash2,
-  XCircle,
-} from "lucide-react"
-import { cn } from "@/lib/utils"
-import { STYLE_NODE_CONFIG, NODE_COLOR_CLASSES } from "@/lib/style-nodes"
+import {AlertCircle, CheckCircle, Clock, Loader2, Package, Pin, Trash2, XCircle,} from "lucide-react"
+import {cn} from "@/lib/utils"
+import {NODE_COLOR_CLASSES, STYLE_NODE_CONFIG} from "@/lib/style-nodes"
 
 interface ReviewSummary {
   verdict: string
@@ -160,10 +151,9 @@ export function EvalQueue({ queue, filter, onRefresh }: { queue: QueueItem[]; fi
 
   const singleDeleteItem = singleDeleteId ? queue.find(i => i.id === singleDeleteId) : null
 
-  // Separate pinned items (visible in reviewed + all filters)
-  const showPinSection = filter === "reviewed" || filter === "all"
-  const pinnedItems = showPinSection ? queue.filter(i => i.is_pinned) : []
-  const normalItems = showPinSection ? queue.filter(i => !i.is_pinned) : queue
+  // Separate pinned items (visible in all filters)
+  const pinnedItems = queue.filter(i => i.is_pinned)
+  const normalItems = queue.filter(i => !i.is_pinned)
 
   return (
     <>
@@ -210,7 +200,7 @@ export function EvalQueue({ queue, filter, onRefresh }: { queue: QueueItem[]; fi
                 item={item}
                 isSelected={selected.has(item.id)}
                 isPinned
-                showPin={filter === "reviewed" || filter === "all"}
+                showPin
                 onToggle={() => toggleItem(item.id)}
                 onDelete={() => setSingleDeleteId(item.id)}
                 onTogglePin={(e) => togglePin(e, item.id, true)}
@@ -229,7 +219,7 @@ export function EvalQueue({ queue, filter, onRefresh }: { queue: QueueItem[]; fi
             item={item}
             isSelected={selected.has(item.id)}
             isPinned={false}
-            showPin={filter === "reviewed" || filter === "all"}
+            showPin
             onToggle={() => toggleItem(item.id)}
             onDelete={() => setSingleDeleteId(item.id)}
             onTogglePin={(e) => togglePin(e, item.id, false)}

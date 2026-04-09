@@ -67,7 +67,7 @@ type FormattedProduct = {
 
 // ─── 상수 ─────────────────────────────────────────────────
 
-const TARGET_RESULTS = 5
+const TARGET_RESULTS = 7
 const MAX_PER_BRAND = 2
 const MAX_PER_PLATFORM = 3
 const ACTIVE_VERSION = "v1"
@@ -150,6 +150,11 @@ for (const [sub, koKeywords] of Object.entries(KOREAN_KEYWORDS_MAP)) {
   }
 }
 
+/** PostgREST 필터 인젝션 방지 — 쉼표, 마침표, 괄호, 와일드카드 제거 */
+function sanitizeKeyword(kw: string): string {
+  return kw.replace(/[^a-zA-Z0-9\uAC00-\uD7AF\u3131-\u3163\s\-]/g, "").trim()
+}
+
 const CATEGORY_ALIASES: Record<string, string[]> = {
   "Outer": ["Outer"],
   "Top": ["Top"],
@@ -222,8 +227,8 @@ export async function POST(request: NextRequest) {
       const dbCategories = CATEGORY_ALIASES[item.category] ?? null
 
       const itemKeywords: string[] = []
-      if (item.searchQuery) itemKeywords.push(...item.searchQuery.toLowerCase().split(/\s+/))
-      if (item.searchQueryKo) itemKeywords.push(...item.searchQueryKo.split(/\s+/))
+      if (item.searchQuery) itemKeywords.push(...item.searchQuery.toLowerCase().split(/\s+/).map(sanitizeKeyword).filter(Boolean))
+      if (item.searchQueryKo) itemKeywords.push(...item.searchQueryKo.split(/\s+/).map(sanitizeKeyword).filter(Boolean))
 
       const products = await searchByEnums(item, genderFilter, dbCategories, primaryNode, secondaryNode, moodTags, priceFilter, itemKeywords)
 
@@ -356,6 +361,8 @@ async function searchByEnums(
     targetSubcategories.push(...similars)
   }
 
+  const hasPriceFilter = priceFilter && (priceFilter.minPrice !== undefined || priceFilter.maxPrice !== undefined)
+
   let query = supabase
     .from("product_ai_analysis")
     .select(`
@@ -368,8 +375,19 @@ async function searchByEnums(
     `)
     .eq("version", ACTIVE_VERSION)
     .eq("products.in_stock", true)
-    .or(`price.is.null,price.gte.${priceFilter?.minPrice ? Math.max(priceFilter.minPrice, MIN_VALID_PRICE) : MIN_VALID_PRICE}`, { referencedTable: "products" })
     .limit(200)
+
+  // 가격 필터: priceFilter가 있으면 null price 제외 + 엄격 범위 적용
+  if (hasPriceFilter) {
+    query = query.not("products.price", "is", null)
+    const effectiveMin = Math.max(priceFilter.minPrice ?? MIN_VALID_PRICE, MIN_VALID_PRICE)
+    query = query.gte("products.price", effectiveMin)
+    if (priceFilter.maxPrice !== undefined) {
+      query = query.lte("products.price", priceFilter.maxPrice)
+    }
+  } else {
+    query = query.or(`price.is.null,price.gte.${MIN_VALID_PRICE}`, { referencedTable: "products" })
+  }
 
   if (dbCategories && dbCategories.length > 0) {
     query = query.in("category", dbCategories)
@@ -377,10 +395,6 @@ async function searchByEnums(
 
   if (targetSubcategories.length > 0) {
     query = query.in("subcategory", targetSubcategories)
-  }
-
-  if (priceFilter?.maxPrice !== undefined) {
-    query = query.lte("products.price", priceFilter.maxPrice)
   }
 
   const { data, error } = await query
@@ -408,16 +422,23 @@ async function searchByEnums(
       `)
       .eq("version", ACTIVE_VERSION)
       .eq("products.in_stock", true)
-      .or(`price.is.null,price.gte.${priceFilter?.minPrice ? Math.max(priceFilter.minPrice, MIN_VALID_PRICE) : MIN_VALID_PRICE}`, { referencedTable: "products" })
       .or(nameFilters, { referencedTable: "products" })
       .limit(50)
 
-    if (dbCategories && dbCategories.length > 0) {
-      nameQuery = nameQuery.in("category", dbCategories)
+    // 가격 필터: priceFilter가 있으면 null price 제외 + 엄격 범위 적용
+    if (hasPriceFilter) {
+      nameQuery = nameQuery.not("products.price", "is", null)
+      const effectiveMin = Math.max(priceFilter!.minPrice ?? MIN_VALID_PRICE, MIN_VALID_PRICE)
+      nameQuery = nameQuery.gte("products.price", effectiveMin)
+      if (priceFilter!.maxPrice !== undefined) {
+        nameQuery = nameQuery.lte("products.price", priceFilter!.maxPrice)
+      }
+    } else {
+      nameQuery = nameQuery.or(`price.is.null,price.gte.${MIN_VALID_PRICE}`, { referencedTable: "products" })
     }
 
-    if (priceFilter?.maxPrice !== undefined) {
-      nameQuery = nameQuery.lte("products.price", priceFilter.maxPrice)
+    if (dbCategories && dbCategories.length > 0) {
+      nameQuery = nameQuery.in("category", dbCategories)
     }
 
     const { data: nd, error: ne } = await nameQuery
@@ -427,7 +448,59 @@ async function searchByEnums(
     }
   }
 
-  // ─── 병합: AI 결과 + 상품명 결과 (중복 제거) ───
+  // ─── 경로 3: products 직접 검색 (AI 분석 없는 상품 포함) ───
+  type DirectProduct = {
+    id: string; brand: string; name: string; price: number | null;
+    image_url: string | null; product_url: string; platform: string;
+    gender: string | null; in_stock: boolean;
+    description: string | null; material: string | null;
+    review_count: number | null;
+  }
+  let directProducts: DirectProduct[] = []
+
+  const directKeywords = [
+    ...(item.searchQueryKo ? [item.searchQueryKo] : []),
+    ...(item.searchQuery ? [item.searchQuery] : []),
+    ...(item.subcategory ? (SUBCATEGORY_NAME_KEYWORDS[item.subcategory] ?? []) : []),
+  ].filter(Boolean).slice(0, 5)
+
+  if (directKeywords.length > 0) {
+    // name, description, material 모두에서 키워드 검색
+    const directFilters = directKeywords.flatMap((kw) => [
+      `name.ilike.%${kw}%`,
+      `description.ilike.%${kw}%`,
+      `material.ilike.%${kw}%`,
+    ]).join(",")
+    let directQuery = supabase
+      .from("products")
+      .select("id, brand, name, price, image_url, product_url, platform, gender, in_stock, description, material, review_count")
+      .eq("in_stock", true)
+      .or(directFilters)
+      .limit(100)
+
+    if (hasPriceFilter) {
+      directQuery = directQuery.not("price", "is", null)
+      const effectiveMin = Math.max(priceFilter!.minPrice ?? MIN_VALID_PRICE, MIN_VALID_PRICE)
+      directQuery = directQuery.gte("price", effectiveMin)
+      if (priceFilter!.maxPrice !== undefined) {
+        directQuery = directQuery.lte("price", priceFilter!.maxPrice)
+      }
+    } else {
+      directQuery = directQuery.or(`price.is.null,price.gte.${MIN_VALID_PRICE}`)
+    }
+
+    if (genderFilter) {
+      directQuery = directQuery.contains("gender", [genderFilter])
+    }
+
+    const { data: dp, error: de } = await directQuery
+    if (!de && dp) {
+      directProducts = dp as DirectProduct[]
+      logger.info(`   🔍 직접 검색: ${dp.length}개 (키워드: ${directKeywords.join(", ")})`)
+    }
+  }
+
+  // ─── 병합: AI 결과 + 상품명 결과 + 직접 검색 (중복 제거) ───
   const seenIds = new Set<string>()
   const merged = [...(data || [])]
   for (const row of merged) {
@@ -439,6 +512,20 @@ async function searchByEnums(
     if (p && !seenIds.has((p as { id: string }).id)) {
       seenIds.add((p as { id: string }).id)
       merged.push(row)
+    }
+  }
+  // 직접 검색 결과 — AI 분석 없이 빈 row로 병합
+  for (const dp of directProducts) {
+    if (!seenIds.has(dp.id)) {
+      seenIds.add(dp.id)
+      merged.push({
+        category: null as unknown as string,
+        subcategory: null as unknown as string,
+        fit: null, fabric: null, color_family: null, style_node: null,
+        mood_tags: null, keywords_ko: null, keywords_en: null,
+        season: null, pattern: null,
+        products: dp as unknown,
+      } as typeof merged[0])
     }
   }
 
@@ -457,6 +544,14 @@ async function searchByEnums(
       const productRaw = row.products
       const p: RawProduct = (Array.isArray(productRaw) ? productRaw[0] : productRaw) as unknown as RawProduct
       if (!p) return null
+
+      // 가격 hard filter — priceFilter가 있으면 범위 밖 상품 무조건 제외
+      if (hasPriceFilter) {
+        if (p.price === null) return null
+        const effectiveMin = Math.max(priceFilter!.minPrice ?? MIN_VALID_PRICE, MIN_VALID_PRICE)
+        if (p.price < effectiveMin) return null
+        if (priceFilter!.maxPrice !== undefined && p.price > priceFilter!.maxPrice) return null
+      }
 
       // 비정상 가격 필터
       if (p.price !== null && p.price < MIN_VALID_PRICE) return null
@@ -515,7 +610,7 @@ async function searchByEnums(
 
       // ── 패턴 매칭 ──
       let patternScore = 0
-      if (item.pattern && item.pattern !== "solid" && row.pattern) {
+      if (item.pattern && row.pattern) {
         if (row.pattern === item.pattern) {
           patternScore = WEIGHTS.pattern
         }
@@ -568,10 +663,6 @@ async function searchByEnums(
       }
       if (fabricScore > 0 && item.fabric) {
         matchReasons.push({ field: "fabric", value: item.fabric })
-      }
-      if (styleNodeScore > 0) {
-        const nodeId = row.style_node
-        matchReasons.push({ field: "styleNode", value: nodeId })
       }
       if (seasonScore > 0 && row.season) {
         matchReasons.push({ field: "season", value: row.season })

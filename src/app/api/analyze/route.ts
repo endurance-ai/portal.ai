@@ -50,9 +50,12 @@ export async function POST(request: NextRequest) {
     const originalPrompt = (formData.get("originalPrompt") as string) || prompt
     const gender = (formData.get("gender") as string) || "male"
 
-    // 세션 체인 필드
-    const sessionId = formData.get("sessionId") as string | null
-    const parentAnalysisId = formData.get("parentAnalysisId") as string | null
+    // 세션 체인 필드 (UUID 검증)
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    const rawSessionId = formData.get("sessionId") as string | null
+    const rawParentId = formData.get("parentAnalysisId") as string | null
+    const sessionId = rawSessionId && UUID_RE.test(rawSessionId) ? rawSessionId : null
+    const parentAnalysisId = rawParentId && UUID_RE.test(rawParentId) ? rawParentId : null
     const refinementPrompt = formData.get("refinementPrompt") as string | null
     const previousContextRaw = formData.get("previousContext") as string | null
     let previousContext: { items?: { category: string; name: string; color: string; fit: string }[]; styleNode?: string; moodTags?: string[] } | null = null
@@ -85,6 +88,60 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Prompt or image required" }, { status: 400 })
     }
 
+    // ── 세션 히스토리 누적 (리파인 시 전체 대화 맥락 전달) ──
+    let sessionHistory: { sequence: number; prompt: string; items: { category: string; name: string; color: string; fit: string }[] }[] = []
+    if (sessionId) {
+      const { data: prevAnalyses } = await supabase
+        .from("analyses")
+        .select("sequence_number, prompt_text, refinement_prompt, items")
+        .eq("session_id", sessionId)
+        .order("sequence_number", { ascending: true })
+        .limit(10)
+      if (prevAnalyses && prevAnalyses.length > 0) {
+        // 히스토리 프롬프트에서 구분자/마크다운 제거 (인젝션 방지)
+        const sanitizeHistoryText = (t: string) => t.replace(/---/g, "").replace(/```/g, "").replace(/[<>]/g, "").slice(0, 200)
+        sessionHistory = prevAnalyses.map((a) => ({
+          sequence: a.sequence_number ?? 1,
+          prompt: sanitizeHistoryText(a.refinement_prompt || a.prompt_text || ""),
+          items: (Array.isArray(a.items) ? a.items : []).slice(0, 5).map((i: Record<string, unknown>) => ({
+            category: String(i.category ?? ""),
+            name: String(i.name ?? ""),
+            color: String(i.color ?? ""),
+            fit: String(i.fit ?? ""),
+          })),
+        }))
+      }
+    }
+
+    function buildRefinementContext(currentPrompt: string) {
+      if (sessionHistory.length === 0 && !previousContext) return ""
+      const historyLines = sessionHistory.map((h, i) => {
+        const isRecent = i >= sessionHistory.length - 2
+        const weight = isRecent ? " ⚡ (recent — higher priority)" : ""
+        return `  Turn ${h.sequence}: "${h.prompt}"${weight}\n    → Items: ${h.items.map(it => `${it.category}: ${it.name}`).join(", ") || "N/A"}`
+      }).join("\n")
+
+      const contextBlock = previousContext
+        ? `Current state:\n- Items: ${previousContext.items?.map((i: { category: string; name: string; color: string; fit: string }) => `${i.category}: ${i.name} (${i.color}, ${i.fit})`).join(", ")}\n- Style: ${previousContext.styleNode || "unknown"}\n- Mood: ${previousContext.moodTags?.join(", ") || "unknown"}`
+        : ""
+
+      return `
+---
+REFINEMENT SESSION HISTORY (${sessionHistory.length} turns):
+${historyLines}
+
+${contextBlock}
+
+CURRENT REFINEMENT (Turn ${sessionHistory.length + 1}): "${currentPrompt}"
+
+RULES:
+- The LATEST refinement request has the HIGHEST priority. Earlier turns provide context but the most recent request is what the user cares about most.
+- If the latest request conflicts with an earlier one, follow the latest.
+- Keep elements stable that the user hasn't mentioned changing.
+- Each successive refinement BUILDS on all previous turns — do not lose context from earlier turns unless explicitly overridden.
+---`
+    }
+
     if (prompt && prompt.length > 500) {
       logger.warn(`🚫 프롬프트 길이 초과 — ${prompt.length}자`)
       return NextResponse.json({ error: "Prompt too long. Maximum 500 characters." }, { status: 400 })
@@ -101,18 +158,8 @@ export async function POST(request: NextRequest) {
       logger.info(`💬 프롬프트 전용 검색 — "${prompt}" (UI: ${gender} → effective: ${effectiveGender})`)
       const aiStart = Date.now()
 
-      // 리파인 컨텍스트 삽입
-      const refinementContext = previousContext ? `
----
-PREVIOUS ANALYSIS CONTEXT:
-The user previously analyzed a look and got these results:
-- Items: ${previousContext.items?.map((i: { category: string; name: string; color: string; fit: string }) => `${i.category}: ${i.name} (${i.color}, ${i.fit})`).join(", ")}
-- Style: ${previousContext.styleNode || "unknown"}
-- Mood: ${previousContext.moodTags?.join(", ") || "unknown"}
-
-The user is now refining with: "${refinementPrompt || prompt}"
-Adjust the analysis based on this feedback. Keep unchanged elements stable, modify only what the user's refinement implies.
----` : ""
+      // 리파인 컨텍스트 삽입 (누적 히스토리)
+      const refinementContext = buildRefinementContext(refinementPrompt || prompt)
 
       const response = await openai.chat.completions.create({
         model: "gpt-4o-mini",
@@ -275,18 +322,8 @@ Adjust the analysis based on this feedback. Keep unchanged elements stable, modi
       return null
     })
 
-    // 리파인 컨텍스트 삽입 (이미지 분석)
-    const imageRefinementContext = previousContext ? `
----
-PREVIOUS ANALYSIS CONTEXT:
-The user previously analyzed a look and got these results:
-- Items: ${previousContext.items?.map((i: { category: string; name: string; color: string; fit: string }) => `${i.category}: ${i.name} (${i.color}, ${i.fit})`).join(", ")}
-- Style: ${previousContext.styleNode || "unknown"}
-- Mood: ${previousContext.moodTags?.join(", ") || "unknown"}
-
-The user is now refining with: "${refinementPrompt || prompt || ""}"
-Adjust the analysis based on this feedback. Keep unchanged elements stable, modify only what the user's refinement implies.
----` : ""
+    // 리파인 컨텍스트 삽입 (누적 히스토리)
+    const imageRefinementContext = buildRefinementContext(refinementPrompt || prompt || "")
 
     // 프롬프트+이미지 모드: 프롬프트 컨텍스트를 user 메시지에 주입
     const userTextContent = prompt

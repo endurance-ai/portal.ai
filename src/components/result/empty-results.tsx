@@ -1,17 +1,20 @@
 "use client"
 
 import {motion} from "framer-motion"
-
-const SUGGESTION_CHIPS = [
-  "Similar style, different color",
-  "Wider price range",
-]
+import {useLocale} from "@/lib/i18n"
 
 interface EmptyResultsProps {
   onSuggestionClick?: (text: string) => void
 }
 
 export function EmptyResults({ onSuggestionClick }: EmptyResultsProps) {
+  const {t} = useLocale()
+
+  const SUGGESTION_CHIPS = [
+    t("empty.chip.color"),
+    t("empty.chip.price"),
+  ]
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -21,10 +24,10 @@ export function EmptyResults({ onSuggestionClick }: EmptyResultsProps) {
       <div className="w-12 h-12 mx-auto mb-3 bg-card border border-border rounded-full flex items-center justify-center">
         <span className="text-lg text-on-surface-variant">∅</span>
       </div>
-      <p className="text-sm font-semibold text-foreground mb-1">No exact matches yet</p>
+      <p className="text-sm font-semibold text-foreground mb-1">{t("empty.title")}</p>
       <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-        We couldn&apos;t find products matching this item.<br />
-        Try refining your search below.
+        {t("empty.desc")}<br />
+        {t("empty.hint")}
       </p>
       {onSuggestionClick && (
         <div className="flex flex-wrap gap-2 justify-center">

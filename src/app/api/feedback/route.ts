@@ -101,17 +101,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({error: "Failed to save feedback"}, {status: 500})
     }
 
-    // 👎 피드백 시 해당 분석 자동 pin (eval 큐 우선 검토)
-    if (rating === "down") {
-      supabase
-        .from("analyses")
-        .update({is_pinned: true})
-        .eq("id", analysisId)
-        .then(({error: pinErr}) => {
-          if (pinErr) logger.error({error: pinErr}, "❌ 자동 pin 실패")
-        })
-    }
-
     logger.info(`✅ 피드백 생성 — ${rating} | id: ${data.id}`)
 
     return NextResponse.json({success: true, feedbackId: data.id})
