@@ -112,8 +112,8 @@ export function FeedbackFlow({sessionId, analysisId}: FeedbackFlowProps) {
         <div className="flex items-center gap-3 px-5 py-3 bg-card border border-turquoise/30 rounded-xl">
           <span className="text-base">✦</span>
           <div>
-            <p className="text-xs font-semibold text-foreground">Thanks for shaping portal.ai</p>
-            <p className="text-[9px] text-muted-foreground">Your feedback makes the next result better.</p>
+            <p className="text-sm font-semibold text-foreground">Thanks for shaping portal.ai</p>
+            <p className="text-xs text-muted-foreground">Your feedback makes the next result better.</p>
           </div>
         </div>
       </motion.div>
@@ -129,7 +129,7 @@ export function FeedbackFlow({sessionId, analysisId}: FeedbackFlowProps) {
     >
       {/* Step 1: Thumbs */}
       <div className="text-center">
-        <p className="text-[11px] font-mono text-muted-foreground mb-3 tracking-wider">
+        <p className="text-sm font-mono text-muted-foreground mb-3 tracking-wider">
           How was this analysis?
         </p>
         <div className="flex justify-center gap-4">
@@ -137,7 +137,7 @@ export function FeedbackFlow({sessionId, analysisId}: FeedbackFlowProps) {
             onClick={() => handleThumb("up")}
             aria-label="Good result"
             className={cn(
-              "w-14 h-14 border rounded-xl flex items-center justify-center transition-all duration-200 text-2xl",
+              "w-16 h-16 border rounded-xl flex items-center justify-center transition-all duration-200 text-3xl",
               rating === "up"
                 ? "border-turquoise bg-turquoise/10"
                 : "border-border bg-card hover:border-outline/50",
@@ -149,7 +149,7 @@ export function FeedbackFlow({sessionId, analysisId}: FeedbackFlowProps) {
             onClick={() => handleThumb("down")}
             aria-label="Needs improvement"
             className={cn(
-              "w-14 h-14 border rounded-xl flex items-center justify-center transition-all duration-200 text-2xl",
+              "w-16 h-16 border rounded-xl flex items-center justify-center transition-all duration-200 text-3xl",
               rating === "down"
                 ? "border-turquoise bg-turquoise/10"
                 : "border-border bg-card hover:border-outline/50",
@@ -169,15 +169,15 @@ export function FeedbackFlow({sessionId, analysisId}: FeedbackFlowProps) {
             exit={{opacity: 0, height: 0}}
             className="overflow-hidden text-center"
           >
-            <p className="text-[11px] font-mono text-muted-foreground mb-1">What could be better?</p>
-            <p className="text-[9px] text-on-surface-variant mb-3">Select all that apply</p>
+            <p className="text-sm font-mono text-muted-foreground mb-1">What could be better?</p>
+            <p className="text-xs text-on-surface-variant mb-3">Select all that apply</p>
             <div className="flex flex-wrap gap-2 justify-center max-w-sm mx-auto">
               {FEEDBACK_TAGS.map((tag) => (
                 <button
                   key={tag.id}
                   onClick={() => toggleTag(tag.id)}
                   className={cn(
-                    "px-3.5 py-1.5 rounded-full text-[11px] transition-all duration-150 border",
+                    "px-4 py-2 rounded-full text-sm transition-all duration-150 border",
                     selectedTags.has(tag.id)
                       ? "bg-turquoise/12 border-turquoise/40 text-turquoise"
                       : "bg-card border-border text-muted-foreground hover:border-outline/50",
@@ -189,7 +189,7 @@ export function FeedbackFlow({sessionId, analysisId}: FeedbackFlowProps) {
             </div>
             <button
               onClick={handleTagsDone}
-              className="mt-4 px-6 py-2 bg-card border border-border rounded-lg text-xs font-mono text-foreground hover:bg-surface-dim transition-colors"
+              className="mt-4 px-8 py-2.5 bg-card border border-border rounded-lg text-sm font-mono text-foreground hover:bg-surface-dim transition-colors"
             >
               Next
             </button>
@@ -206,13 +206,13 @@ export function FeedbackFlow({sessionId, analysisId}: FeedbackFlowProps) {
             exit={{opacity: 0, height: 0}}
             className="overflow-hidden"
           >
-            <div className="max-w-sm mx-auto space-y-3">
+            <div className="max-w-md mx-auto space-y-3">
               {/* Motivation message */}
               <div className="px-4 py-3 bg-surface-dim rounded-lg border-l-2 border-turquoise">
-                <p className="text-[11px] text-foreground leading-relaxed">
+                <p className="text-sm text-foreground leading-relaxed">
                   Your voice shapes portal.ai
                 </p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">
+                <p className="text-xs text-muted-foreground mt-0.5">
                   We&apos;re building this together — every bit of feedback helps us get better.
                 </p>
               </div>
@@ -238,7 +238,7 @@ export function FeedbackFlow({sessionId, analysisId}: FeedbackFlowProps) {
               {/* Early adopter nudge */}
               <div className="flex items-start gap-2 px-3 py-2 bg-turquoise/5 border border-turquoise/12 rounded-lg">
                 <span className="text-xs shrink-0 mt-0.5">✦</span>
-                <p className="text-[9px] text-turquoise leading-relaxed">
+                <p className="text-xs text-turquoise leading-relaxed">
                   Be among the first to know when we launch.
                   <span className="text-muted-foreground"> Early supporters get priority access & exclusive updates.</span>
                 </p>
@@ -248,14 +248,14 @@ export function FeedbackFlow({sessionId, analysisId}: FeedbackFlowProps) {
               <div className="flex gap-2">
                 <button
                   onClick={handleSkip}
-                  className="flex-1 py-3 bg-card border border-border rounded-lg text-[11px] font-mono text-muted-foreground hover:text-foreground transition-colors"
+                  className="flex-1 py-3 bg-card border border-border rounded-lg text-xs font-mono text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Skip
                 </button>
                 <button
                   onClick={handleSubmit}
                   disabled={submitting}
-                  className="flex-[2] py-3 bg-primary text-background rounded-lg text-[11px] font-mono font-bold uppercase tracking-widest hover:opacity-90 transition-opacity disabled:opacity-50"
+                  className="flex-[2] py-3 bg-primary text-background rounded-lg text-xs font-mono font-bold uppercase tracking-widest hover:opacity-90 transition-opacity disabled:opacity-50"
                 >
                   {submitting ? "Sending..." : "Send"}
                 </button>

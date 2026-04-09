@@ -53,7 +53,7 @@ export function ProductCard({
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: index * 0.06 }}
       className="group/card bg-surface-dim border border-border rounded-lg overflow-hidden transition-all duration-200 hover:border-outline/50 hover:-translate-y-0.5 shrink-0 cursor-pointer"
-      style={{ width: "calc(33.333% - 8px)", minWidth: "140px" }}
+      style={{ width: "calc(33.333% - 8px)", minWidth: "160px" }}
       role="button"
       tabIndex={0}
       aria-label={title || `${brand} product`}
@@ -95,14 +95,14 @@ export function ProductCard({
                 {/* Match reasons */}
                 {matchReasons && matchReasons.length > 0 && (
                   <div>
-                    <p className="text-[9px] font-mono font-bold text-turquoise tracking-[0.1em] uppercase mb-2">
+                    <p className="text-xs font-mono font-bold text-turquoise tracking-[0.1em] uppercase mb-2">
                       Why this pick
                     </p>
                     <div className="flex flex-wrap gap-1.5">
                       {matchReasons.map((r) => (
                         <span
                           key={`${r.field}-${r.value}`}
-                          className="px-2 py-1 bg-turquoise/12 border border-turquoise/25 rounded-md text-[10px] font-mono font-semibold text-turquoise whitespace-nowrap"
+                          className="px-2 py-1 bg-turquoise/12 border border-turquoise/25 rounded-md text-xs font-mono font-semibold text-turquoise whitespace-nowrap"
                         >
                           {r.value}
                         </span>
@@ -113,7 +113,7 @@ export function ProductCard({
 
                 {/* Description snippet */}
                 {description && (
-                  <p className="text-[10px] text-muted-foreground line-clamp-3 leading-relaxed">
+                  <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">
                     {description}
                   </p>
                 )}
@@ -124,7 +124,7 @@ export function ProductCard({
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}
-                  className="flex items-center justify-center gap-1.5 py-2 bg-primary text-background rounded-md text-[10px] font-mono font-bold uppercase tracking-wider hover:opacity-90 transition-opacity"
+                  className="flex items-center justify-center gap-1.5 py-2.5 bg-primary text-background rounded-md text-xs font-mono font-bold uppercase tracking-wider hover:opacity-90 transition-opacity"
                 >
                   View <ArrowUpRight className="size-3.5" />
                 </a>
@@ -135,24 +135,24 @@ export function ProductCard({
       </div>
 
       {/* Bottom info — always visible */}
-      <div className="p-2.5 space-y-1">
+      <div className="p-3 space-y-1">
         <div className="flex justify-between items-start">
-          <span className="text-[9px] font-mono font-bold uppercase text-muted-foreground truncate max-w-[55%]">
+          <span className="text-xs font-mono font-bold uppercase text-muted-foreground truncate max-w-[55%]">
             {brand}
           </span>
-          <span className="text-[11px] font-bold text-primary">{price}</span>
+          <span className="text-sm font-bold text-primary">{price}</span>
         </div>
         {title && (
-          <p className="text-[10px] text-outline truncate">{title}</p>
+          <p className="text-xs text-outline truncate">{title}</p>
         )}
         <div className="flex items-center gap-1.5">
-          <span className="text-[9px] font-mono text-on-surface-variant">
+          <span className="text-xs font-mono text-on-surface-variant">
             {platform}
           </span>
           {!!reviewCount && reviewCount > 0 && (
             <>
-              <span className="text-[8px] text-on-surface-variant">·</span>
-              <span className="text-[8px] font-mono text-muted-foreground">
+              <span className="text-xs text-on-surface-variant">·</span>
+              <span className="text-xs font-mono text-muted-foreground">
                 {reviewCount} reviews
               </span>
             </>

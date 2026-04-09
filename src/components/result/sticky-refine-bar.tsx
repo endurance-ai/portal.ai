@@ -122,11 +122,11 @@ export function StickyRefineBar({
           {/* Session counter */}
           <div className="flex items-center gap-1.5 shrink-0">
             <div className={cn(
-              "w-1.5 h-1.5 rounded-full",
+              "w-2 h-2 rounded-full",
               isMaxed ? "bg-muted-foreground" : "bg-turquoise"
             )} />
             <span className={cn(
-              "text-[8px] font-mono font-semibold",
+              "text-xs font-mono font-semibold",
               isMaxed ? "text-muted-foreground" : "text-turquoise"
             )}>
               {currentSequence}/{MAX_REFINES}
@@ -182,7 +182,7 @@ export function StickyRefineBar({
         </div>
 
         {/* Hint */}
-        <p className="text-[9px] font-mono text-on-surface-variant text-center mt-1.5 mb-2">
+        <p className="text-xs font-mono text-on-surface-variant text-center mt-1.5 mb-2">
           {isMaxed
             ? "Maximum refinements reached — start fresh for new ideas"
             : "Refine your look — previous context preserved"
