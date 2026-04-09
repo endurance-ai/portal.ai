@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   const [
     { count: totalCount },
     { count: upCount },
-    { count: downCount },
+    { count: _downCount },
     { count: emailCount },
     { count: weekCount },
     { data: refineData },
@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
 
       // Mask email
       const maskedEmail = fb.email
-        ? fb.email.replace(/^(.{1,3}).*(@.*)$/, (_, p1: string, p2: string) => p1 + "***" + p2)
+        ? fb.email.replace(/^(.{1,3}).*(@.*)$/, (_match: string, p1: string, p2: string) => p1 + "***" + p2)
         : null
 
       return {

@@ -276,6 +276,7 @@ export default function Home() {
           : "Failed to analyze. Please try again.",
       )
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gender, imageUrl])
 
   const handleTryAnother = useCallback(() => {

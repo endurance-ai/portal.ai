@@ -39,8 +39,12 @@ export function StickyRefineBar({
 
   const isMaxed = currentSequence >= MAX_REFINES
 
+  // Sync initialText from parent (suggestion chips) — uses event-like pattern
+  const prevInitialText = useRef(initialText)
   useEffect(() => {
-    if (initialText) {
+    if (initialText && initialText !== prevInitialText.current) {
+      prevInitialText.current = initialText
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setText(initialText)
       inputRef.current?.focus()
     }
