@@ -23,17 +23,17 @@ export class SwallowloungeDetailParser implements IDetailParser {
       await page.waitForTimeout(800)
 
       result.description = await page
-        .$eval('li[data-name="details"] > div', (el) => el.innerText?.trim().slice(0, 2000) || null)
+        .$eval('li[data-name="details"] > div', (el) => (el as HTMLElement).innerText?.trim().slice(0, 2000) || null)
         .catch(() => null)
 
       result.material = await page
-        .$eval('li[data-name="material"] > div', (el) => el.innerText?.trim().slice(0, 500) || null)
+        .$eval('li[data-name="material"] > div', (el) => (el as HTMLElement).innerText?.trim().slice(0, 500) || null)
         .catch(() => null)
 
       result.color = await page
         .$$eval('select[name*="option"] option', (els) =>
           els
-            .map((el) => el.innerText?.trim())
+            .map((el) => (el as HTMLElement).innerText?.trim())
             .filter((t) => t && t !== "empty" && !t.includes("선택") && !t.includes("Select") && t !== "*")
             .slice(0, 20)
             .join(", ") || null,

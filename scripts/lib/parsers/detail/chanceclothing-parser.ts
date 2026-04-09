@@ -27,7 +27,7 @@ export class ChanceclothingDetailParser implements IDetailParser {
 
       // .xans-product-additional 전체 텍스트에서 구조적 추출
       const additional = await page
-        .$eval(".xans-product-additional", (el) => el.innerText?.trim() || "")
+        .$eval(".xans-product-additional", (el) => (el as HTMLElement).innerText?.trim() || "")
         .catch(() => "")
 
       if (additional) {
@@ -55,7 +55,7 @@ export class ChanceclothingDetailParser implements IDetailParser {
         .$$eval('select[name*="option"] option', (els) => {
           const colors = new Set<string>()
           for (const el of els) {
-            const t = el.innerText?.trim() || ""
+            const t = (el as HTMLElement).innerText?.trim() || ""
             if (!t || t.includes("선택") || t.includes("---") || t === "*") continue
             // "INDIGO-S" → "INDIGO", "BLACK-XL" → "BLACK"
             const color = t.replace(/-(XXS|XS|S|M|L|XL|XXL|2XL|3XL|\d+)$/i, "").trim()

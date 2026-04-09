@@ -23,7 +23,7 @@ export class AnotherofficeDetailParser implements IDetailParser {
 
       const extracted = await page.$$eval(".ec-base-tab", (els) => {
         if (els.length < 2) return { description: null, material: null }
-        const text = els[1].innerText?.trim() || ""
+        const text = (els[1] as HTMLElement).innerText?.trim() || ""
 
         // ── description ──
         // "상품결제정보" 이후 ~ "배송정보" 이전
@@ -61,7 +61,7 @@ export class AnotherofficeDetailParser implements IDetailParser {
       result.color = await page
         .$$eval('select[name*="option"] option', (els) =>
           els
-            .map((el) => el.innerText?.trim())
+            .map((el) => (el as HTMLElement).innerText?.trim())
             .filter((t) => t && !t.startsWith("-") && t !== "empty" && !t.includes("선택") && t !== "*")
             .slice(0, 20)
             .join(", ") || null,

@@ -22,7 +22,7 @@ export class SlowsteadyclubDetailParser implements IDetailParser {
 
       const extracted = await page
         .$eval(".xans-product-additional", (el) => {
-          const text = el.innerText?.trim() || ""
+          const text = (el as HTMLElement).innerText?.trim() || ""
           const lines = text.split("\n").map((l) => l.trim()).filter(Boolean)
 
           // ── material ──

@@ -27,7 +27,7 @@ export class ShopamomentoDetailParser implements IDetailParser {
       await page.waitForTimeout(500)
 
       const additional = await page
-        .$eval(".xans-product-additional", (el) => el.innerText?.trim() || "")
+        .$eval(".xans-product-additional", (el) => (el as HTMLElement).innerText?.trim() || "")
         .catch(() => "")
 
       if (additional) {
