@@ -106,9 +106,9 @@ export function StickyRefineBar({
             <img src={previewUrl} alt="Attached" className="h-10 w-10 rounded-lg object-cover border border-border" />
             <button
               onClick={removeFile}
-              className="absolute -top-1 -right-1 w-4 h-4 bg-foreground text-background rounded-full flex items-center justify-center"
+              className="absolute -top-2 -right-2 w-6 h-6 bg-foreground text-background rounded-full flex items-center justify-center"
             >
-              <X className="size-2" />
+              <X className="size-3" />
             </button>
           </div>
         </div>

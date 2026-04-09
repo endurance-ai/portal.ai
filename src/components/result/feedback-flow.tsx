@@ -29,9 +29,12 @@ export function FeedbackFlow({sessionId, analysisId}: FeedbackFlowProps) {
   const [email, setEmail] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const feedbackIdRef = useRef<string | null>(null)
+  const thumbSubmitting = useRef(false)
 
   // Step 1: thumbs — immediately save
   const handleThumb = useCallback(async (r: FeedbackRating) => {
+    if (thumbSubmitting.current) return
+    thumbSubmitting.current = true
     setRating(r)
 
     try {
@@ -42,7 +45,9 @@ export function FeedbackFlow({sessionId, analysisId}: FeedbackFlowProps) {
       })
       const data = await res.json()
       if (data.feedbackId) feedbackIdRef.current = data.feedbackId
-    } catch {/* silent */}
+    } catch {/* silent */} finally {
+      thumbSubmitting.current = false
+    }
 
     if (r === "up") {
       setStep("detail")
@@ -130,6 +135,7 @@ export function FeedbackFlow({sessionId, analysisId}: FeedbackFlowProps) {
         <div className="flex justify-center gap-4">
           <button
             onClick={() => handleThumb("up")}
+            aria-label="Good result"
             className={cn(
               "w-14 h-14 border rounded-xl flex items-center justify-center transition-all duration-200 text-2xl",
               rating === "up"
@@ -141,6 +147,7 @@ export function FeedbackFlow({sessionId, analysisId}: FeedbackFlowProps) {
           </button>
           <button
             onClick={() => handleThumb("down")}
+            aria-label="Needs improvement"
             className={cn(
               "w-14 h-14 border rounded-xl flex items-center justify-center transition-all duration-200 text-2xl",
               rating === "down"

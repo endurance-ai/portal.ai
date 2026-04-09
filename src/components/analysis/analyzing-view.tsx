@@ -1,6 +1,6 @@
 "use client"
 
-import {useEffect, useMemo, useState} from "react"
+import {useMemo, useState} from "react"
 import {motion, AnimatePresence} from "framer-motion"
 import Image from "next/image"
 
@@ -48,16 +48,16 @@ const FLOAT_KEYWORDS_PROMPT = [
   {at: 70, text: "Match", x: 90, y: 70},
 ]
 
-// Particle positions (star streaks)
-const PARTICLES = Array.from({length: 12}, (_, i) => ({
-  id: i,
-  angle: (i * 30) + Math.random() * 15,
-  delay: Math.random() * 2,
-  duration: 2 + Math.random() * 1.5,
-  size: 2 + Math.random() * 2,
-}))
-
 export function AnalyzingView({imageUrl, promptText, progress, progressLabel}: AnalyzingViewProps) {
+  const [particles] = useState(() =>
+    Array.from({length: 12}, (_, i) => ({
+      id: i,
+      angle: (i * 30) + Math.random() * 15,
+      delay: Math.random() * 2,
+      duration: 2 + Math.random() * 1.5,
+      size: 2 + Math.random() * 2,
+    }))
+  )
   const hasImage = !!imageUrl
   const phases = hasImage ? PHASE_MESSAGES : PROMPT_PHASE_MESSAGES
   const floatKeywords = hasImage ? FLOAT_KEYWORDS_IMAGE : FLOAT_KEYWORDS_PROMPT
@@ -76,18 +76,11 @@ export function AnalyzingView({imageUrl, promptText, progress, progressLabel}: A
   const circumference = 2 * Math.PI * 82
   const dashOffset = circumference - (circumference * Math.min(progress, 100)) / 100
 
-  // Phase text key for AnimatePresence
-  const [phaseKey, setPhaseKey] = useState(0)
-  useEffect(() => {
-    setPhaseKey((k) => k + 1)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPhase])
-
   return (
     <div className="w-full max-w-3xl mx-auto min-h-[80vh] flex items-center justify-center relative">
       {/* Star streak particles */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {PARTICLES.map((p) => {
+        {particles.map((p) => {
           const rad = (p.angle * Math.PI) / 180
           return (
             <motion.div
@@ -239,7 +232,7 @@ export function AnalyzingView({imageUrl, promptText, progress, progressLabel}: A
         <div className="mt-10 text-center">
           <AnimatePresence mode="wait">
             <motion.p
-              key={phaseKey}
+              key={currentPhase}
               className="text-sm font-mono font-semibold text-foreground tracking-wide"
               initial={{opacity: 0, y: 8}}
               animate={{opacity: 1, y: 0}}

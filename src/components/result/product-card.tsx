@@ -54,9 +54,15 @@ export function ProductCard({
       transition={{ delay: index * 0.06 }}
       className="group/card bg-surface-dim border border-border rounded-lg overflow-hidden transition-all duration-200 hover:border-outline/50 hover:-translate-y-0.5 shrink-0 cursor-pointer"
       style={{ width: "calc(33.333% - 8px)", minWidth: "140px" }}
+      role="button"
+      tabIndex={0}
+      aria-label={title || `${brand} product`}
       onMouseEnter={() => setShowOverlay(true)}
       onMouseLeave={() => setShowOverlay(false)}
+      onFocus={() => setShowOverlay(true)}
+      onBlur={() => setShowOverlay(false)}
       onClick={() => setShowOverlay((prev) => !prev)}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setShowOverlay(prev => !prev) } }}
     >
       {/* Image: 3:4 aspect, no crop */}
       <div className="relative w-full aspect-[3/4] bg-border/30">
