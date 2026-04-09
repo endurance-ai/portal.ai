@@ -1,6 +1,6 @@
 "use client"
 
-import {createContext, useCallback, useContext, useEffect, useState, type ReactNode} from "react"
+import {createContext, useCallback, useContext, type ReactNode, useSyncExternalStore} from "react"
 import {dict, type DictKey, type Locale} from "./i18n-dict"
 
 interface I18nContextValue {
@@ -17,20 +17,34 @@ const I18nContext = createContext<I18nContextValue>({
 
 const STORAGE_KEY = "portal-locale"
 
-export function LocaleProvider({children}: {children: ReactNode}) {
-  const [locale, setLocaleState] = useState<Locale>("en")
+// localStorage 기반 external store
+const listeners = new Set<() => void>()
 
-  // 초기 로드: localStorage에서 복원
-  useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY) as Locale | null
-    if (saved && (saved === "en" || saved === "ko")) {
-      setLocaleState(saved)
-    }
-  }, [])
+function getSnapshot(): Locale {
+  if (typeof window === "undefined") return "en"
+  const saved = localStorage.getItem(STORAGE_KEY)
+  return saved === "ko" ? "ko" : "en"
+}
+
+function getServerSnapshot(): Locale {
+  return "en"
+}
+
+function subscribe(cb: () => void) {
+  listeners.add(cb)
+  return () => listeners.delete(cb)
+}
+
+function setStoredLocale(l: Locale) {
+  localStorage.setItem(STORAGE_KEY, l)
+  listeners.forEach((cb) => cb())
+}
+
+export function LocaleProvider({children}: {children: ReactNode}) {
+  const locale = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
 
   const setLocale = useCallback((l: Locale) => {
-    setLocaleState(l)
-    localStorage.setItem(STORAGE_KEY, l)
+    setStoredLocale(l)
   }, [])
 
   const t = useCallback((key: DictKey): string => {

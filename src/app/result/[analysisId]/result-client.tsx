@@ -200,7 +200,7 @@ export function ResultClient({
       clearInterval(ticker)
       setRefining(false)
     }
-  }, [analysisId, sessionId, detectedGender, style.aesthetic, router, refining])
+  }, [analysisId, sessionId, detectedGender, style.aesthetic, router, refining, t])
 
   const handleSuggestionClick = useCallback((text: string) => {
     setSuggestionText(text)
