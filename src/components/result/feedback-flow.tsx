@@ -1,6 +1,6 @@
 "use client"
 
-import {useCallback, useState} from "react"
+import {useCallback, useRef, useState} from "react"
 import {AnimatePresence, motion} from "framer-motion"
 import {cn} from "@/lib/utils"
 import {FEEDBACK_TAGS, type FeedbackRating, type FeedbackTagId} from "@/lib/feedback-tags"
@@ -12,22 +12,44 @@ interface FeedbackFlowProps {
   analysisId: string
 }
 
-export function FeedbackFlow({ sessionId, analysisId }: FeedbackFlowProps) {
+/** Fire-and-forget POST to /api/feedback */
+function sendFeedback(payload: Record<string, unknown>) {
+  fetch("/api/feedback", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(payload),
+  }).catch(() => {/* silent */})
+}
+
+export function FeedbackFlow({sessionId, analysisId}: FeedbackFlowProps) {
   const [step, setStep] = useState<Step>("thumbs")
   const [rating, setRating] = useState<FeedbackRating | null>(null)
   const [selectedTags, setSelectedTags] = useState<Set<FeedbackTagId>>(new Set())
   const [comment, setComment] = useState("")
   const [email, setEmail] = useState("")
   const [submitting, setSubmitting] = useState(false)
+  const feedbackIdRef = useRef<string | null>(null)
 
-  const handleThumb = useCallback((r: FeedbackRating) => {
+  // Step 1: thumbs — immediately save
+  const handleThumb = useCallback(async (r: FeedbackRating) => {
     setRating(r)
+
+    try {
+      const res = await fetch("/api/feedback", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({sessionId, analysisId, rating: r}),
+      })
+      const data = await res.json()
+      if (data.feedbackId) feedbackIdRef.current = data.feedbackId
+    } catch {/* silent */}
+
     if (r === "up") {
       setStep("detail")
     } else {
       setStep("tags")
     }
-  }, [])
+  }, [sessionId, analysisId])
 
   const toggleTag = useCallback((tag: FeedbackTagId) => {
     setSelectedTags((prev) => {
@@ -38,40 +60,48 @@ export function FeedbackFlow({ sessionId, analysisId }: FeedbackFlowProps) {
     })
   }, [])
 
+  // Step 2 done: save tags update
   const handleTagsDone = useCallback(() => {
+    if (feedbackIdRef.current && selectedTags.size > 0) {
+      sendFeedback({
+        feedbackId: feedbackIdRef.current,
+        tags: Array.from(selectedTags),
+      })
+    }
     setStep("detail")
-  }, [])
+  }, [selectedTags])
 
+  // Step 3 done: save detail update
   const handleSubmit = useCallback(async () => {
-    if (!rating || submitting) return
+    if (submitting) return
     setSubmitting(true)
     try {
-      await fetch("/api/feedback", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sessionId,
-          analysisId,
-          rating,
-          tags: rating === "down" ? Array.from(selectedTags) : undefined,
-          comment: comment.trim() || undefined,
-          email: email.trim() || undefined,
-        }),
-      })
-      setStep("done")
-    } catch {
-      // 실패해도 사용자 경험 방해하지 않음
-      setStep("done")
-    } finally {
-      setSubmitting(false)
-    }
-  }, [sessionId, analysisId, rating, selectedTags, comment, email, submitting])
+      if (feedbackIdRef.current && (comment.trim() || email.trim())) {
+        await fetch("/api/feedback", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({
+            feedbackId: feedbackIdRef.current,
+            comment: comment.trim() || undefined,
+            email: email.trim() || undefined,
+          }),
+        })
+      }
+    } catch {/* silent */}
+    setSubmitting(false)
+    setStep("done")
+  }, [comment, email, submitting])
+
+  // Skip detail step
+  const handleSkip = useCallback(() => {
+    setStep("done")
+  }, [])
 
   if (step === "done") {
     return (
       <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
+        initial={{opacity: 0, y: 8}}
+        animate={{opacity: 1, y: 0}}
         className="flex justify-center py-4"
       >
         <div className="flex items-center gap-3 px-5 py-3 bg-card border border-turquoise/30 rounded-xl">
@@ -87,9 +117,9 @@ export function FeedbackFlow({ sessionId, analysisId }: FeedbackFlowProps) {
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ delay: 0.8 }}
+      initial={{opacity: 0}}
+      animate={{opacity: 1}}
+      transition={{delay: 0.8}}
       className="py-6 space-y-4"
     >
       {/* Step 1: Thumbs */}
@@ -104,7 +134,7 @@ export function FeedbackFlow({ sessionId, analysisId }: FeedbackFlowProps) {
               "w-14 h-14 border rounded-xl flex items-center justify-center transition-all duration-200 text-2xl",
               rating === "up"
                 ? "border-turquoise bg-turquoise/10"
-                : "border-border bg-card hover:border-outline/50"
+                : "border-border bg-card hover:border-outline/50",
             )}
           >
             👍
@@ -115,7 +145,7 @@ export function FeedbackFlow({ sessionId, analysisId }: FeedbackFlowProps) {
               "w-14 h-14 border rounded-xl flex items-center justify-center transition-all duration-200 text-2xl",
               rating === "down"
                 ? "border-turquoise bg-turquoise/10"
-                : "border-border bg-card hover:border-outline/50"
+                : "border-border bg-card hover:border-outline/50",
             )}
           >
             👎
@@ -127,9 +157,9 @@ export function FeedbackFlow({ sessionId, analysisId }: FeedbackFlowProps) {
       <AnimatePresence>
         {step === "tags" && (
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
+            initial={{opacity: 0, height: 0}}
+            animate={{opacity: 1, height: "auto"}}
+            exit={{opacity: 0, height: 0}}
             className="overflow-hidden text-center"
           >
             <p className="text-[11px] font-mono text-muted-foreground mb-1">What could be better?</p>
@@ -143,7 +173,7 @@ export function FeedbackFlow({ sessionId, analysisId }: FeedbackFlowProps) {
                     "px-3.5 py-1.5 rounded-full text-[11px] transition-all duration-150 border",
                     selectedTags.has(tag.id)
                       ? "bg-turquoise/12 border-turquoise/40 text-turquoise"
-                      : "bg-card border-border text-muted-foreground hover:border-outline/50"
+                      : "bg-card border-border text-muted-foreground hover:border-outline/50",
                   )}
                 >
                   {tag.label}{selectedTags.has(tag.id) && " ✓"}
@@ -160,13 +190,13 @@ export function FeedbackFlow({ sessionId, analysisId }: FeedbackFlowProps) {
         )}
       </AnimatePresence>
 
-      {/* Step 3: Detail (text + email) */}
+      {/* Step 3: Detail (text + email) — optional */}
       <AnimatePresence>
         {step === "detail" && (
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
+            initial={{opacity: 0, height: 0}}
+            animate={{opacity: 1, height: "auto"}}
+            exit={{opacity: 0, height: 0}}
             className="overflow-hidden"
           >
             <div className="max-w-sm mx-auto space-y-3">
@@ -207,14 +237,22 @@ export function FeedbackFlow({ sessionId, analysisId }: FeedbackFlowProps) {
                 </p>
               </div>
 
-              {/* Submit */}
-              <button
-                onClick={handleSubmit}
-                disabled={submitting}
-                className="w-full py-3 bg-primary text-background rounded-lg text-[11px] font-mono font-bold uppercase tracking-widest hover:opacity-90 transition-opacity disabled:opacity-50"
-              >
-                {submitting ? "Sending..." : "Send Feedback"}
-              </button>
+              {/* Submit + Skip */}
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSkip}
+                  className="flex-1 py-3 bg-card border border-border rounded-lg text-[11px] font-mono text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Skip
+                </button>
+                <button
+                  onClick={handleSubmit}
+                  disabled={submitting}
+                  className="flex-[2] py-3 bg-primary text-background rounded-lg text-[11px] font-mono font-bold uppercase tracking-widest hover:opacity-90 transition-opacity disabled:opacity-50"
+                >
+                  {submitting ? "Sending..." : "Send"}
+                </button>
+              </div>
             </div>
           </motion.div>
         )}
