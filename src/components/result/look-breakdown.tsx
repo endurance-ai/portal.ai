@@ -6,6 +6,7 @@ import Image from "next/image"
 import {ChevronDown} from "lucide-react"
 import {cn} from "@/lib/utils"
 import {ProductCard} from "@/components/result/product-card"
+import {EmptyResults} from "@/components/result/empty-results"
 
 
 export interface Product {
@@ -49,6 +50,7 @@ interface LookBreakdownProps {
   items: LookItem[]
   moodMeta?: MoodMeta
   onTryAnother?: () => void
+  onSuggestionClick?: (text: string) => void
 }
 
 const CATEGORY_POSITIONS: Record<string, { top: number; left: number }> = {
@@ -71,6 +73,7 @@ export function LookBreakdown({
   palette,
   items,
   moodMeta,
+  onSuggestionClick,
 }: LookBreakdownProps) {
   const hasImage = !!imageUrl
   const [expandedIdx, setExpandedIdx] = useState<number | null>(
@@ -423,12 +426,7 @@ export function LookBreakdown({
                             </div>
                           </div>
                         ) : (
-                          /* No products found */
-                          <div className="py-4 text-center">
-                            <p className="text-xs text-on-surface-variant">
-                              No matching products found in our database.
-                            </p>
-                          </div>
+                          <EmptyResults onSuggestionClick={onSuggestionClick} />
                         )}
                       </div>
                     </motion.div>
