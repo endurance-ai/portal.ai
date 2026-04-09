@@ -46,6 +46,11 @@ type ScoreBreakdown = {
   totalScore: number
 }
 
+type MatchReason = {
+  field: string  // "colorFamily" | "fit" | "fabric" | "styleNode" | "season" | "pattern"
+  value: string  // "Black", "Oversized", etc.
+}
+
 type FormattedProduct = {
   brand: string
   price: string
@@ -56,6 +61,7 @@ type FormattedProduct = {
   description?: string
   material?: string
   reviewCount?: number
+  matchReasons?: MatchReason[]
   _scoring?: ScoreBreakdown
 }
 
@@ -315,11 +321,11 @@ export async function POST(request: NextRequest) {
         })
     }
 
-    // 응답에서 _scoring 제거 (프론트에는 안 보냄, DB에만 저장)
+    // 응답에서 _scoring, _rawPrice 제거 (프론트에는 안 보냄, DB에만 저장)
     const cleanResults = results.map((r) => ({
       id: r.id,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      products: r.products.map(({ _scoring, ...rest }) => rest),
+      products: r.products.map(({ _scoring, _rawPrice, ...rest }) => rest),
     }))
 
     return NextResponse.json({ results: cleanResults })
@@ -550,6 +556,30 @@ async function searchByEnums(
         totalScore,
       }
 
+      // ── matchReasons 생성 ──
+      const matchReasons: MatchReason[] = []
+      if (colorFamilyScore > 0 && item.colorFamily) {
+        matchReasons.push({ field: "colorFamily", value: item.colorFamily })
+      } else if (colorAdjacentScore > 0 && row.color_family) {
+        matchReasons.push({ field: "colorFamily", value: row.color_family })
+      }
+      if (fitScore > 0 && item.fit) {
+        matchReasons.push({ field: "fit", value: item.fit })
+      }
+      if (fabricScore > 0 && item.fabric) {
+        matchReasons.push({ field: "fabric", value: item.fabric })
+      }
+      if (styleNodeScore > 0) {
+        const nodeId = row.style_node
+        matchReasons.push({ field: "styleNode", value: nodeId })
+      }
+      if (seasonScore > 0 && row.season) {
+        matchReasons.push({ field: "season", value: row.season })
+      }
+      if (patternScore > 0 && row.pattern && row.pattern !== "solid") {
+        matchReasons.push({ field: "pattern", value: row.pattern })
+      }
+
       // ── 성별 우선순위 ──
       const genderArr: string[] = Array.isArray(p.gender) ? p.gender : []
       let genderPriority = 2
@@ -571,6 +601,7 @@ async function searchByEnums(
         _genderPriority: genderPriority,
         _subTier: subTier,
         _scoring: scoring,
+        matchReasons,
         brand: p.brand,
         price: p.price ? `₩${p.price.toLocaleString()}` : "",
         platform: p.platform,
