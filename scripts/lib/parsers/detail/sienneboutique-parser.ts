@@ -30,7 +30,7 @@ export class SienneboutiqueDetailParser implements IDetailParser {
       // description: .product-tabs-detail (Description 탭)
       result.description = await page
         .$eval(".product-tabs-detail", (el) => {
-          const text = el.innerText?.trim()
+          const text = (el as HTMLElement).innerText?.trim()
           return text && text.length > 10 ? text.slice(0, 2000) : null
         })
         .catch(() => null)

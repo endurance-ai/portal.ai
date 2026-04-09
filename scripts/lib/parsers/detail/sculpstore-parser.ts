@@ -61,7 +61,7 @@ export class SculpstoreDetailParser implements IDetailParser {
       result.color = await page
         .$$eval('select[name*="option"] option', (els) =>
           els
-            .map((el) => el.innerText?.trim())
+            .map((el) => (el as HTMLElement).innerText?.trim())
             .filter((t) => t && t !== "empty" && !t.includes("선택") && !t.includes("Select") && t !== "*")
             .slice(0, 20)
             .join(", ") || null,

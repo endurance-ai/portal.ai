@@ -24,14 +24,14 @@ export class BastongDetailParser implements IDetailParser {
       // description: #prdDetail
       result.description = await page
         .$eval("#prdDetail", (el) => {
-          const text = el.innerText?.trim()
+          const text = (el as HTMLElement).innerText?.trim()
           return text && text.length > 10 ? text.slice(0, 2000) : null
         })
         .catch(() => null)
 
       // material: .xans-product-additional에서 겉감/Fabric 패턴
       const additional = await page
-        .$eval(".xans-product-additional", (el) => el.innerText?.trim() || "")
+        .$eval(".xans-product-additional", (el) => (el as HTMLElement).innerText?.trim() || "")
         .catch(() => "")
 
       if (additional) {
@@ -46,7 +46,7 @@ export class BastongDetailParser implements IDetailParser {
       result.color = await page
         .$$eval('select[name*="option"] option', (els) => {
           const colors = els
-            .map((el) => el.innerText?.trim())
+            .map((el) => (el as HTMLElement).innerText?.trim())
             .filter((t) => t && !t.includes("선택") && !t.includes("---") && t !== "*")
           return colors.length > 0 ? [...new Set(colors)].slice(0, 20).join(", ") : null
         })
