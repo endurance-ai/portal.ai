@@ -98,12 +98,19 @@ pnpm lint         # ESLint
 | `scripts/import-brand-nodes.ts` | Fashion Genome v2 엑셀 → Supabase brand_nodes |
 | `scripts/import-products.ts` | 크롤링 JSON → Supabase products + product_reviews (자사몰 brand 자동 채움) |
 | `src/app/api/admin/crawl-coverage/route.ts` | 크롤링 커버리지 대시보드 API (플랫폼별 description/material/review 수집률) |
-| `src/components/result/look-breakdown.tsx` | 결과 — sticky 이미지 + 핫스팟 + 아코디언 + 가로스크롤 상품 |
-| `src/components/analysis/analyzing-view.tsx` | 분석 중 — progress bar + terminal readout |
+| `src/components/result/look-breakdown.tsx` | 결과 — sticky 이미지 + 핫스팟 + 아코디언 + ProductCard 가로스크롤 |
+| `src/components/result/product-card.tsx` | 상품 카드 — 오버레이 인터랙션 (매칭 이유 칩 + 설명 + View CTA) |
+| `src/components/result/sticky-refine-bar.tsx` | 스티키 리파인 바 — 대화형 리파인 입력 (세션 카운터, max 5턴) |
+| `src/components/result/feedback-flow.tsx` | 피드백 플로우 — 👍/👎 즉시 저장 → 태그 → 텍스트/이메일 |
+| `src/components/result/empty-results.tsx` | 빈 결과 — 재시도 유도 suggestion chips |
+| `src/app/api/feedback/route.ts` | 피드백 API — create + update, 👎 자동 pin, UUID/이메일 검증 |
+| `src/app/api/admin/user-voice/route.ts` | 어드민 User Voice API — 메트릭, 태그분포, 피드백 리스트+세션여정 |
+| `src/lib/feedback-tags.ts` | 피드백 태그 프리셋 (8개) + 공유 타입 |
+| `src/components/analysis/analyzing-view.tsx` | 분석 중 — Portal Warp 로딩 (파티클 + 키워드 플로팅 + 프로그레스 링) |
 | `src/components/upload/upload-zone.tsx` | 이미지 드래그 & 드롭 업로드 + 클라이언트 압축 (1280px, JPEG 0.8) |
 | `src/lib/supabase.ts` | Supabase 서버 클라이언트 (service role) |
 | `src/app/globals.css` | M3 테마 + B&W Minimal 토큰 |
-| `supabase/migrations/001~020` | analyses, brand_nodes, products, eval_reviews, eval_golden_set, api_access_logs, product_ai_analysis, search_quality_logs, analyses.is_pinned, season/pattern, data cleansing, product_reviews, drop rating |
+| `supabase/migrations/001~021` | analyses, brand_nodes, products, eval_reviews, eval_golden_set, api_access_logs, product_ai_analysis, search_quality_logs, analyses.is_pinned, season/pattern, data cleansing, product_reviews, drop rating, analysis_sessions, user_feedbacks |
 
 ## 비즈니스 규칙
 
@@ -150,6 +157,8 @@ pnpm lint         # ESLint
 | `docs/eval/26-04-07-prompt-eval-report.md` | 프롬프트 분석 품질 평가 리포트 |
 | `docs/superpowers/specs/2026-04-08-eval-page-improvements.md` | 품질 평가 페이지 개선 스펙 (v2) |
 | `docs/plans/26-04-08-crawler-architecture-redesign.md` | 크롤러 Strategy Pattern 리디자인 설계 |
+| `docs/superpowers/specs/2026-04-09-user-feedback-and-result-ux-design.md` | 유저 피드백 & 결과 UX 개선 디자인 스펙 |
+| `docs/superpowers/plans/2026-04-09-user-feedback-result-ux.md` | 유저 피드백 & 결과 UX 구현 플랜 (14 tasks) |
 
 ## 브레인스토밍 & 플래닝 보충 규칙
 
