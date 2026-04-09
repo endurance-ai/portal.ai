@@ -392,7 +392,7 @@ export default function Home() {
               exit={{ opacity: 0, scale: 1.02 }}
               className="w-full z-10"
             >
-              <AnalyzingView imageUrl={imageUrl} progress={progress} progressLabel={progressLabel} />
+              <AnalyzingView imageUrl={imageUrl} promptText={promptText} progress={progress} progressLabel={progressLabel} />
             </motion.div>
           )}
 

@@ -6,6 +6,7 @@ import Image from "next/image"
 
 interface AnalyzingViewProps {
   imageUrl: string
+  promptText?: string
   progress: number
   progressLabel: string
 }
@@ -56,7 +57,7 @@ const PARTICLES = Array.from({length: 12}, (_, i) => ({
   size: 2 + Math.random() * 2,
 }))
 
-export function AnalyzingView({imageUrl, progress, progressLabel}: AnalyzingViewProps) {
+export function AnalyzingView({imageUrl, promptText, progress, progressLabel}: AnalyzingViewProps) {
   const hasImage = !!imageUrl
   const phases = hasImage ? PHASE_MESSAGES : PROMPT_PHASE_MESSAGES
   const floatKeywords = hasImage ? FLOAT_KEYWORDS_IMAGE : FLOAT_KEYWORDS_PROMPT
@@ -190,17 +191,27 @@ export function AnalyzingView({imageUrl, progress, progressLabel}: AnalyzingView
             }}
           >
             {hasImage ? (
-              <Image
-                src={imageUrl}
-                alt="Your look"
-                fill
-                className="object-cover"
-              />
+              <>
+                <Image
+                  src={imageUrl}
+                  alt="Your look"
+                  fill
+                  className="object-cover"
+                />
+                {/* Prompt overlay on image */}
+                {promptText && (
+                  <div className="absolute inset-x-0 bottom-0 px-3 pb-3 pt-6" style={{background: "linear-gradient(transparent, rgba(9,9,11,0.85))"}}>
+                    <p className="text-[9px] font-mono text-foreground/90 text-center leading-snug line-clamp-2">
+                      &ldquo;{promptText}&rdquo;
+                    </p>
+                  </div>
+                )}
+              </>
             ) : (
-              <div className="w-full h-full bg-surface-dim flex items-center justify-center">
-                <span className="text-xs font-mono text-muted-foreground tracking-widest uppercase">
-                  Text
-                </span>
+              <div className="w-full h-full bg-surface-dim flex items-center justify-center p-4">
+                <p className="text-[11px] font-mono text-foreground/80 text-center leading-relaxed line-clamp-4">
+                  &ldquo;{promptText || "..."}&rdquo;
+                </p>
               </div>
             )}
           </div>
