@@ -1,34 +1,12 @@
 "use client"
 
-import {useEffect, useRef, useState} from "react"
+import {useRef, useState} from "react"
 import {AnimatePresence, motion} from "framer-motion"
 import Image from "next/image"
-import {ArrowUpRight, ChevronDown, Sparkles} from "lucide-react"
+import {ChevronDown} from "lucide-react"
 import {cn} from "@/lib/utils"
+import {ProductCard} from "@/components/result/product-card"
 
-/** Cafe24 /small/ → /big/ upgrade with fallback */
-function ProductImage({ src, alt, fill, sizes, className }: {
-  src: string; alt: string; fill?: boolean; sizes?: string; className?: string
-}) {
-  const [imgSrc, setImgSrc] = useState(() => src.replace("/small/", "/big/"))
-
-  useEffect(() => {
-    setImgSrc(src.replace("/small/", "/big/"))
-  }, [src])
-
-  return (
-    <Image
-      src={imgSrc}
-      alt={alt}
-      fill={fill}
-      sizes={sizes}
-      className={className}
-      onError={() => {
-        if (imgSrc !== src) setImgSrc(src)
-      }}
-    />
-  )
-}
 
 export interface Product {
   brand: string
@@ -40,6 +18,7 @@ export interface Product {
   description?: string
   material?: string
   reviewCount?: number
+  matchReasons?: { field: string; value: string }[]
 }
 
 export interface LookItem {
@@ -69,7 +48,7 @@ interface LookBreakdownProps {
   palette: { hex: string; label: string }[]
   items: LookItem[]
   moodMeta?: MoodMeta
-  onTryAnother: () => void
+  onTryAnother?: () => void
 }
 
 const CATEGORY_POSITIONS: Record<string, { top: number; left: number }> = {
@@ -92,7 +71,6 @@ export function LookBreakdown({
   palette,
   items,
   moodMeta,
-  onTryAnother,
 }: LookBreakdownProps) {
   const hasImage = !!imageUrl
   const [expandedIdx, setExpandedIdx] = useState<number | null>(
@@ -159,25 +137,6 @@ export function LookBreakdown({
           )}
         </motion.section>
       )}
-
-      {/* Refine Rail — AI-suggested refinement capsules */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.5 }}
-        className="flex items-center gap-2 overflow-x-auto"
-      >
-        <span className="text-[11px] font-mono font-semibold text-muted-foreground shrink-0">Refine:</span>
-        {["under 100K", "brighter", "more casual", "linen only", "oversized"].map((label) => (
-          <button
-            key={label}
-            disabled
-            className="shrink-0 px-2.5 py-1 rounded-full border border-white/15 text-[11px] font-mono text-white/40 cursor-not-allowed"
-          >
-            {label}
-          </button>
-        ))}
-      </motion.div>
 
       {/* Main layout: image left + accordion right */}
       <div className={cn("grid grid-cols-1 gap-6 items-start", hasImage && "lg:grid-cols-12")}>
@@ -404,86 +363,24 @@ export function LookBreakdown({
                           </div>
                         )}
 
-                        {/* Item refine capsules */}
-                        <div className="flex items-center gap-1.5">
-                          <Sparkles className="size-3 text-muted-foreground shrink-0" />
-                          {["cheaper", "different color", "slimmer fit", "shorter"].map((label) => (
-                            <button
-                              key={label}
-                              disabled
-                              className="px-2 py-0.5 rounded-full bg-secondary border border-border text-[10px] font-mono text-muted-foreground cursor-not-allowed"
-                            >
-                              {label}
-                            </button>
-                          ))}
-                        </div>
-
                         {/* Horizontal scroll product cards */}
                         {hasProducts ? (
                           <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent -mx-1 px-1 pb-2">
                             <div className="flex gap-3" style={{ minWidth: "min-content" }}>
                               {item.products.slice(0, 5).map((product, pi) => (
-                                <motion.a
+                                <ProductCard
                                   key={`${product.brand}-${pi}`}
-                                  href={product.link}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  initial={{ opacity: 0, x: 12 }}
-                                  animate={{ opacity: 1, x: 0 }}
-                                  transition={{ delay: pi * 0.06 }}
-                                  className="group/card bg-surface-dim border border-border rounded-lg overflow-hidden transition-all duration-200 hover:border-outline/50 hover:-translate-y-0.5 block shrink-0"
-                                  style={{ width: "calc(33.333% - 8px)", minWidth: "140px" }}
-                                >
-                                  {product.imageUrl ? (
-                                    <div className="relative w-full aspect-square bg-border/30">
-                                      <ProductImage
-                                        src={product.imageUrl}
-                                        alt={product.title || `${product.brand} product`}
-                                        fill
-                                        sizes="200px"
-                                        className="object-cover"
-                                      />
-                                    </div>
-                                  ) : (
-                                    <div className="w-full aspect-square bg-border/30" />
-                                  )}
-                                  <div className="p-3 space-y-1.5">
-                                    <div className="flex justify-between items-start">
-                                      <span className="text-[9px] font-mono font-bold uppercase text-muted-foreground truncate max-w-[55%]">
-                                        {product.brand}
-                                      </span>
-                                      <span className="text-[11px] font-bold text-primary">
-                                        {product.price}
-                                      </span>
-                                    </div>
-                                    {product.title && (
-                                      <p className="text-[10px] text-outline truncate">
-                                        {product.title}
-                                      </p>
-                                    )}
-                                    {product.description && (
-                                      <p className="text-[9px] text-muted-foreground line-clamp-2 leading-relaxed">
-                                        {product.description}
-                                      </p>
-                                    )}
-                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                      {product.material && (
-                                        <span className="px-1.5 py-0.5 rounded bg-border text-[10px] font-mono font-semibold text-outline uppercase">
-                                          {product.material.length > 20 ? product.material.slice(0, 20) + "…" : product.material}
-                                        </span>
-                                      )}
-                                      {!!product.reviewCount && product.reviewCount > 0 && (
-                                        <span className="text-[9px] font-mono text-muted-foreground">
-                                          리뷰 {product.reviewCount}건
-                                        </span>
-                                      )}
-                                    </div>
-                                    <span className="text-[10px] font-semibold text-on-surface-variant flex items-center gap-1 group-hover/card:text-primary transition-colors">
-                                      {product.platform}
-                                      <ArrowUpRight className="size-3 shrink-0" />
-                                    </span>
-                                  </div>
-                                </motion.a>
+                                  brand={product.brand}
+                                  price={product.price}
+                                  platform={product.platform}
+                                  imageUrl={product.imageUrl}
+                                  link={product.link}
+                                  title={product.title}
+                                  description={product.description}
+                                  reviewCount={product.reviewCount}
+                                  matchReasons={product.matchReasons}
+                                  index={pi}
+                                />
                               ))}
                             </div>
                           </div>
@@ -543,23 +440,6 @@ export function LookBreakdown({
         </div>
       </div>
 
-      {/* Actions */}
-      <motion.section
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.4 }}
-        className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-6"
-      >
-        <button
-          onClick={onTryAnother}
-          className="w-full sm:w-auto px-8 py-3 rounded-lg border border-primary text-primary font-bold text-xs tracking-widest uppercase hover:bg-primary/5 transition-colors"
-        >
-          Try Another Look
-        </button>
-        <button className="w-full sm:w-auto px-8 py-3 rounded-lg bg-primary text-background font-bold text-xs tracking-widest uppercase hover:bg-primary/90 transition-colors">
-          Save This Look
-        </button>
-      </motion.section>
     </div>
   )
 }
