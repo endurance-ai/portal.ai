@@ -82,12 +82,13 @@ async function pLimit<T>(
 // ─── 글로벌 토큰 버킷 (전체 worker 공유) ───────────
 
 const tokenBucket = {
-  interval: 2000,       // 토큰 발급 간격 (ms) — Bedrock Nova ~1 req/2s
+  interval: 1500,       // 토큰 발급 간격 (ms)
+  batchSize: 3,         // 한 번에 발급할 토큰 수
   queue: [] as Array<() => void>,
   timer: null as ReturnType<typeof setInterval> | null,
   rateLimitHits: 0,
 
-  /** 토큰 하나 획득될 때까지 대기 — 전체 worker가 순서대로 1개씩 */
+  /** 토큰 하나 획득될 때까지 대기 */
   async acquire(): Promise<void> {
     return new Promise((resolve) => {
       this.queue.push(resolve)
@@ -96,28 +97,33 @@ const tokenBucket = {
   },
 
   startDraining() {
-    // 즉시 첫 번째 토큰 발급
-    if (this.queue.length > 0) this.queue.shift()!()
-    this.timer = setInterval(() => {
-      if (this.queue.length > 0) {
-        this.queue.shift()!()
-      }
-    }, this.interval)
+    // 즉시 첫 배치 발급
+    this.drainBatch()
+    this.timer = setInterval(() => this.drainBatch(), this.interval)
+  },
+
+  drainBatch() {
+    const count = Math.min(this.batchSize, this.queue.length)
+    for (let i = 0; i < count; i++) {
+      this.queue.shift()!()
+    }
   },
 
   onSuccess() {
     this.rateLimitHits = Math.max(0, this.rateLimitHits - 1)
-    // 연속 성공 시 간격 줄이기 (최소 800ms)
+    // 연속 성공 시 간격 줄이기 (최소 500ms), 배치 늘리기 (최대 5)
     if (this.rateLimitHits === 0) {
-      this.interval = Math.max(800, Math.floor(this.interval * 0.95))
+      this.interval = Math.max(500, Math.floor(this.interval * 0.95))
+      this.batchSize = Math.min(5, this.batchSize + 1)
       this.restartTimer()
     }
   },
 
   onRateLimit() {
     this.rateLimitHits++
-    // 간격 50% 증가 (최대 8s)
+    // 간격 50% 증가 (최대 8s), 배치 줄이기 (최소 1)
     this.interval = Math.min(8000, Math.floor(this.interval * 1.5))
+    this.batchSize = Math.max(1, this.batchSize - 1)
     this.restartTimer()
   },
 

@@ -1,7 +1,7 @@
 "use client"
 
 import {useMemo, useState} from "react"
-import {motion, AnimatePresence} from "framer-motion"
+import {AnimatePresence, motion} from "framer-motion"
 import Image from "next/image"
 
 interface AnalyzingViewProps {
@@ -72,8 +72,8 @@ export function AnalyzingView({imageUrl, promptText, progress, progressLabel}: A
     [floatKeywords, progress],
   )
 
-  // Progress ring calculation (circumference of r=82 circle)
-  const circumference = 2 * Math.PI * 82
+  // Progress ring calculation (circumference of r=123 circle)
+  const circumference = 2 * Math.PI * 123
   const dashOffset = circumference - (circumference * Math.min(progress, 100)) / 100
 
   return (
@@ -119,16 +119,16 @@ export function AnalyzingView({imageUrl, promptText, progress, progressLabel}: A
       {/* Center content */}
       <div className="relative flex flex-col items-center z-10">
         {/* Portal */}
-        <div className="relative" style={{width: 200, height: 200}}>
+        <div className="relative" style={{width: 300, height: 300}}>
           {/* Outer dashed ring — rotates */}
           <motion.svg
-            viewBox="0 0 200 200"
+            viewBox="0 0 300 300"
             className="absolute inset-0"
             animate={{rotate: 360}}
             transition={{duration: 10, repeat: Infinity, ease: "linear"}}
           >
             <circle
-              cx="100" cy="100" r="96"
+              cx="150" cy="150" r="144"
               fill="none"
               stroke="rgba(85,180,168,0.12)"
               strokeWidth="1"
@@ -137,15 +137,15 @@ export function AnalyzingView({imageUrl, promptText, progress, progressLabel}: A
           </motion.svg>
 
           {/* Progress ring */}
-          <svg viewBox="0 0 200 200" className="absolute inset-0" style={{transform: "rotate(-90deg)"}}>
+          <svg viewBox="0 0 300 300" className="absolute inset-0" style={{transform: "rotate(-90deg)"}}>
             <circle
-              cx="100" cy="100" r="82"
+              cx="150" cy="150" r="123"
               fill="none"
               stroke="rgba(39,39,42,0.4)"
               strokeWidth="2"
             />
             <motion.circle
-              cx="100" cy="100" r="82"
+              cx="150" cy="150" r="123"
               fill="none"
               stroke="rgba(85,180,168,0.7)"
               strokeWidth="2.5"
@@ -161,7 +161,7 @@ export function AnalyzingView({imageUrl, promptText, progress, progressLabel}: A
             className="absolute rounded-full"
             style={{
               left: "50%", top: "50%",
-              width: 170, height: 170,
+              width: 255, height: 255,
               transform: "translate(-50%, -50%)",
             }}
             animate={{
@@ -179,7 +179,7 @@ export function AnalyzingView({imageUrl, promptText, progress, progressLabel}: A
             className="absolute overflow-hidden border-2 border-turquoise/30 rounded-full"
             style={{
               left: "50%", top: "50%",
-              width: 156, height: 156,
+              width: 234, height: 234,
               transform: "translate(-50%, -50%)",
             }}
           >
@@ -211,7 +211,7 @@ export function AnalyzingView({imageUrl, promptText, progress, progressLabel}: A
         </div>
 
         {/* Floating keywords */}
-        <div className="absolute pointer-events-none" style={{width: 400, height: 400, left: "50%", top: "50%", transform: "translate(-50%, -50%)"}}>
+        <div className="absolute pointer-events-none" style={{width: 500, height: 500, left: "50%", top: "50%", transform: "translate(-50%, -50%)"}}>
           <AnimatePresence>
             {visibleKeywords.map((kw) => (
               <motion.span

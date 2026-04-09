@@ -45,14 +45,10 @@ export function FeedbackFlow({sessionId, analysisId}: FeedbackFlowProps) {
       })
       const data = await res.json()
       if (data.feedbackId) feedbackIdRef.current = data.feedbackId
+      // 성공 시에만 다음 단계로 전환 (feedbackId가 있어야 태그/코멘트 저장 가능)
+      setStep(r === "up" ? "detail" : "tags")
     } catch {/* silent */} finally {
       thumbSubmitting.current = false
-    }
-
-    if (r === "up") {
-      setStep("detail")
-    } else {
-      setStep("tags")
     }
   }, [sessionId, analysisId])
 
@@ -70,11 +66,12 @@ export function FeedbackFlow({sessionId, analysisId}: FeedbackFlowProps) {
     if (feedbackIdRef.current && selectedTags.size > 0) {
       sendFeedback({
         feedbackId: feedbackIdRef.current,
+        sessionId,
         tags: Array.from(selectedTags),
       })
     }
     setStep("detail")
-  }, [selectedTags])
+  }, [selectedTags, sessionId])
 
   // Step 3 done: save detail update
   const handleSubmit = useCallback(async () => {
@@ -87,6 +84,7 @@ export function FeedbackFlow({sessionId, analysisId}: FeedbackFlowProps) {
           headers: {"Content-Type": "application/json"},
           body: JSON.stringify({
             feedbackId: feedbackIdRef.current,
+            sessionId,
             comment: comment.trim() || undefined,
             email: email.trim() || undefined,
           }),

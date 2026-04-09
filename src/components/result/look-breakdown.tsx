@@ -151,7 +151,7 @@ export function LookBreakdown({
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <div className="bg-card border border-border rounded-lg overflow-hidden corner-brackets">
+            <div className="bg-card border border-border rounded-lg overflow-hidden corner-brackets max-w-[400px] mx-auto">
               <div className="relative aspect-[3/4]">
                 <Image
                   src={imageUrl}
@@ -178,6 +178,7 @@ export function LookBreakdown({
                       onClick={() => toggleItem(i)}
                       aria-label={`View ${item.category}: ${item.name}`}
                       aria-expanded={isActive}
+                      aria-controls={`panel-${i}`}
                     >
                       <span
                         className={cn(
@@ -203,27 +204,6 @@ export function LookBreakdown({
               </div>
             </div>
 
-            {/* Vibe card below image */}
-            {moodMeta?.vibe && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.2 }}
-                className="mt-3 p-3 bg-card border border-border rounded-lg"
-              >
-                <div className="text-[9px] font-mono font-bold text-primary tracking-widest uppercase">
-                  Style Summary
-                </div>
-                <p className="text-xs font-semibold text-foreground italic mt-1">
-                  &ldquo;{moodMeta.vibe}&rdquo;
-                </p>
-                {moodMeta.summary && (
-                  <p className="text-[10px] text-outline mt-2 leading-relaxed">
-                    {moodMeta.summary}
-                  </p>
-                )}
-              </motion.div>
-            )}
           </motion.div>
         )}
 
@@ -370,7 +350,7 @@ export function LookBreakdown({
                         {hasProducts ? (
                           <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent -mx-1 px-1 pb-2">
                             <div className="flex gap-3" style={{ minWidth: "min-content" }}>
-                              {item.products.slice(0, 5).map((product, pi) => (
+                              {item.products.slice(0, 7).map((product, pi) => (
                                 <ProductCard
                                   key={`${product.brand}-${pi}`}
                                   brand={product.brand}
@@ -398,9 +378,9 @@ export function LookBreakdown({
                                 <div
                                   key={i}
                                   className="bg-surface-dim border border-border rounded-lg overflow-hidden shrink-0"
-                                  style={{ width: "calc(33.333% - 8px)", minWidth: "140px" }}
+                                  style={{ width: "calc(33.333% - 8px)", minWidth: "120px", maxWidth: "200px" }}
                                 >
-                                  <div className="w-full aspect-square bg-border/20 relative overflow-hidden">
+                                  <div className="w-full aspect-[4/5] bg-border/20 relative overflow-hidden">
                                     <motion.div
                                       className="absolute inset-0"
                                       style={{
