@@ -9,11 +9,13 @@ import {type Gender} from "@/components/upload/gender-selector"
 import {SearchBar} from "@/components/search/search-bar"
 import {AnalyzingView} from "@/components/analysis/analyzing-view"
 import {parsePrice} from "@/lib/parse-price"
+import {useLocale} from "@/lib/i18n"
 
 type AppState = "upload" | "analyzing"
 
 export default function Home() {
   const router = useRouter()
+  const {t} = useLocale()
   const [state, setState] = useState<AppState>("upload")
   const [imageUrl, setImageUrl] = useState<string>("")
   const [gender, setGender] = useState<Gender>("male")
@@ -58,7 +60,7 @@ export default function Home() {
     setState("analyzing")
     setError(null)
     setProgress(0)
-    setProgressLabel(hasImage ? "Uploading image..." : "Analyzing prompt...")
+    setProgressLabel(hasImage ? t("upload.uploading") : t("upload.keywords"))
     fileRef.current = data.file ?? null
 
     // Progress simulation
@@ -73,9 +75,9 @@ export default function Home() {
 
     try {
       if (hasImage) {
-        setProgressLabel("Analyzing silhouette & texture...")
+        setProgressLabel(t("upload.silhouette"))
       } else {
-        setProgressLabel("Extracting keywords...")
+        setProgressLabel(t("upload.keywords"))
       }
 
       const formData = new FormData()
@@ -97,7 +99,7 @@ export default function Home() {
 
       clearInterval(ticker)
       setProgress(100)
-      setProgressLabel("Complete")
+      setProgressLabel(t("upload.complete"))
 
       const analysis = await analyzeRes.json()
 
@@ -108,7 +110,7 @@ export default function Home() {
         router.push(`/result/${analysis._logId}`)
       } else {
         setState("upload")
-        setError("Analysis completed but no result ID returned.")
+        setError(t("upload.noResultId"))
       }
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {
@@ -125,10 +127,10 @@ export default function Home() {
       setError(
         err instanceof Error
           ? err.message
-          : "Failed to analyze. Please try again.",
+          : t("upload.failed"),
       )
     }
-  }, [gender, imageUrl, router])
+  }, [gender, imageUrl, router, t])
 
   return (
     <>
@@ -151,10 +153,10 @@ export default function Home() {
                 transition={{ duration: 0.6 }}
               >
                 <h1 className="text-4xl md:text-6xl font-extrabold text-foreground tracking-[-0.03em] leading-tight">
-                  Stop browsing.
+                  {t("hero.line1")}
                   <br />
                   <span className="text-muted-foreground">
-                    Start finding what to wear.
+                    {t("hero.line2")}
                   </span>
                 </h1>
               </motion.div>
@@ -184,23 +186,23 @@ export default function Home() {
                     </span>
                   ))}
                   <span className="text-[11px] font-mono font-medium text-white/12 tracking-wide">
-                    +17 more
+                    {t("stats.more")}
                   </span>
                 </div>
                 <div className="flex items-center justify-center gap-8">
                   <div className="flex flex-col items-center gap-0.5">
                     <span className="text-base font-mono font-bold text-white/30">26,000+</span>
-                    <span className="text-[10px] font-mono text-white/15 tracking-widest">products</span>
+                    <span className="text-[10px] font-mono text-white/15 tracking-widest">{t("stats.products")}</span>
                   </div>
                   <div className="w-px h-6 bg-white/10" />
                   <div className="flex flex-col items-center gap-0.5">
                     <span className="text-base font-mono font-bold text-white/30">22</span>
-                    <span className="text-[10px] font-mono text-white/15 tracking-widest">platforms</span>
+                    <span className="text-[10px] font-mono text-white/15 tracking-widest">{t("stats.platforms")}</span>
                   </div>
                   <div className="w-px h-6 bg-white/10" />
                   <div className="flex flex-col items-center gap-0.5">
                     <span className="text-base font-mono font-bold text-white/30">15</span>
-                    <span className="text-[10px] font-mono text-white/15 tracking-widest">style nodes</span>
+                    <span className="text-[10px] font-mono text-white/15 tracking-widest">{t("stats.styleNodes")}</span>
                   </div>
                 </div>
               </div>

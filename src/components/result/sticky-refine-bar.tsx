@@ -4,14 +4,8 @@ import {useCallback, useEffect, useRef, useState} from "react"
 import {motion} from "framer-motion"
 import {ArrowUp, Paperclip, RotateCcw, X} from "lucide-react"
 import {cn} from "@/lib/utils"
-
-const REFINE_PLACEHOLDERS = [
-  "More casual vibes...",
-  "Lower price range...",
-  "Show me different colors...",
-  "Slightly more oversized fit...",
-  "Something for spring...",
-]
+import {useLocale} from "@/lib/i18n"
+import type {DictKey} from "@/lib/i18n-dict"
 
 const MAX_REFINES = 5
 
@@ -30,6 +24,8 @@ export function StickyRefineBar({
   disabled,
   initialText,
 }: StickyRefineBarProps) {
+  const {t} = useLocale()
+  const REFINE_PLACEHOLDERS = Array.from({length: 5}, (_, i) => t(`refine.placeholder.${i}` as DictKey))
   const [text, setText] = useState(initialText || "")
   const [file, setFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -144,7 +140,7 @@ export function StickyRefineBar({
             onKeyDown={handleKeyDown}
             disabled={disabled || isMaxed}
             aria-label="Refine your look"
-            placeholder={isMaxed ? "Start fresh for new ideas" : REFINE_PLACEHOLDERS[placeholderIdx]}
+            placeholder={isMaxed ? t("refine.maxed") : REFINE_PLACEHOLDERS[placeholderIdx]}
             className="flex-1 min-w-0 bg-transparent text-sm text-background placeholder:text-background/40 outline-none h-9 font-medium truncate"
           />
 
@@ -188,8 +184,8 @@ export function StickyRefineBar({
         {/* Hint */}
         <p className="text-[10px] font-mono text-muted-foreground text-center mt-2">
           {isMaxed
-            ? "Maximum refinements reached — start fresh for new ideas"
-            : "Refine your look — previous context preserved"
+            ? t("refine.maxedHint")
+            : t("refine.hint")
           }
         </p>
       </div>

@@ -5,6 +5,7 @@ import {motion} from "framer-motion"
 import Image from "next/image"
 import {ArrowUpRight, Info, X} from "lucide-react"
 import {cn} from "@/lib/utils"
+import {useLocale} from "@/lib/i18n"
 
 function UpgradedImage({ src, alt, fill, sizes, className }: {
   src: string; alt: string; fill?: boolean; sizes?: string; className?: string
@@ -46,6 +47,7 @@ export function ProductCard({
   brand, price, platform, imageUrl, link, title,
   description, reviewCount, matchReasons, index,
 }: ProductCardProps) {
+  const {t} = useLocale()
   const [flipped, setFlipped] = useState(false)
 
   return (
@@ -130,7 +132,7 @@ export function ProductCard({
             {/* Close */}
             <div className="flex items-center justify-between">
               <p className="text-[10px] font-mono font-bold text-turquoise tracking-[0.1em] uppercase">
-                Why this pick
+                {t("product.whyThisPick")}
               </p>
               <button
                 onClick={() => setFlipped(false)}
@@ -177,7 +179,7 @@ export function ProductCard({
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-1.5 py-2 bg-primary text-background rounded-md text-xs font-mono font-bold uppercase tracking-wider hover:opacity-90 transition-opacity"
             >
-              View <ArrowUpRight className="size-3.5" />
+              {t("product.view")} <ArrowUpRight className="size-3.5" />
             </a>
           </div>
         </div>

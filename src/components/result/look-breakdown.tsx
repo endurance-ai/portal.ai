@@ -7,6 +7,7 @@ import {ChevronDown} from "lucide-react"
 import {cn} from "@/lib/utils"
 import {ProductCard} from "@/components/result/product-card"
 import {EmptyResults} from "@/components/result/empty-results"
+import {useLocale} from "@/lib/i18n"
 
 
 export interface Product {
@@ -75,6 +76,7 @@ export function LookBreakdown({
   moodMeta,
   onSuggestionClick,
 }: LookBreakdownProps) {
+  const {t} = useLocale()
   const hasImage = !!imageUrl
   const [expandedIdx, setExpandedIdx] = useState<number | null>(
     items.length > 0 ? 0 : null
@@ -124,7 +126,7 @@ export function LookBreakdown({
           {palette.length > 0 && (
             <div className="flex items-center gap-2">
               <span className="text-[9px] font-mono font-bold text-on-surface-variant tracking-widest uppercase">
-                Color Map
+                {t("look.colorMap")}
               </span>
               <div className="flex -space-x-1">
                 {palette.map((color) => (
@@ -196,10 +198,10 @@ export function LookBreakdown({
               </div>
               <div className="px-3 py-2 border-t border-border flex justify-between items-center">
                 <span className="text-[9px] font-mono font-bold text-outline tracking-widest uppercase">
-                  The Look
+                  {t("look.title")}
                 </span>
                 <span className="text-[9px] font-mono font-bold text-on-surface-variant tracking-widest uppercase">
-                  AI Scan
+                  {t("look.aiScan")}
                 </span>
               </div>
             </div>
@@ -212,7 +214,7 @@ export function LookBreakdown({
           {/* Section heading */}
           <div className="flex items-center gap-3">
             <span className="text-[10px] font-mono font-bold text-on-surface-variant tracking-[0.2em] uppercase">
-              Garment Index
+              {t("look.garmentIndex")}
             </span>
             <div className="flex-1 h-px bg-border" />
           </div>
@@ -371,7 +373,7 @@ export function LookBreakdown({
                           /* Skeleton loading */
                           <div className="space-y-2">
                             <span className="text-[9px] font-mono text-on-surface-variant tracking-widest uppercase animate-pulse">
-                              Searching products...
+                              {t("result.searching")}
                             </span>
                             <div className="flex gap-3">
                               {[0, 1, 2].map((i) => (

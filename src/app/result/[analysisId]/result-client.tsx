@@ -12,6 +12,7 @@ import {LookBreakdown} from "@/components/result/look-breakdown"
 import {FeedbackFlow} from "@/components/result/feedback-flow"
 import {StickyRefineBar} from "@/components/result/sticky-refine-bar"
 import {parsePrice, type PriceFilter} from "@/lib/parse-price"
+import {useLocale} from "@/lib/i18n"
 
 interface SearchItem {
   id: string
@@ -64,6 +65,7 @@ export function ResultClient({
   moodTags,
 }: ResultClientProps) {
   const router = useRouter()
+  const {t} = useLocale()
   const [items, setItems] = useState<LookItem[]>(() =>
     rawItems.map((item) => ({
       id: item.id,
@@ -148,7 +150,7 @@ export function ResultClient({
     if (refining) return
     setRefining(true)
     setRefineProgress(5)
-    setRefineLabel("Refining your look...")
+    setRefineLabel(t("result.refining"))
 
     // Progress simulation
     let simulated = 5
@@ -187,7 +189,7 @@ export function ResultClient({
         return
       }
       setRefineProgress(100)
-      setRefineLabel("Complete")
+      setRefineLabel(t("upload.complete"))
       const result = await res.json()
       if (result._logId) {
         router.push(`/result/${result._logId}`)
@@ -226,7 +228,7 @@ export function ResultClient({
           {promptText && (
             <div className="max-w-4xl mx-auto mb-6 px-4">
               <p className="text-sm text-muted-foreground font-mono">
-                <span className="text-foreground">Search:</span> &quot;{promptText}&quot;
+                <span className="text-foreground">{t("result.search")}</span> &quot;{promptText}&quot;
               </p>
             </div>
           )}
@@ -246,7 +248,7 @@ export function ResultClient({
               href="/"
               className="px-8 py-3 bg-primary text-background rounded-lg text-sm font-mono font-bold uppercase tracking-wider hover:opacity-90 transition-opacity"
             >
-              Try Another Look
+              {t("result.tryAnother")}
             </Link>
           </div>
           <div className="h-28" />
