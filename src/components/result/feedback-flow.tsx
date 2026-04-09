@@ -183,7 +183,7 @@ export function FeedbackFlow({sessionId, analysisId}: FeedbackFlowProps) {
                       : "bg-card border-border text-muted-foreground hover:border-outline/50",
                   )}
                 >
-                  {tag.label}{selectedTags.has(tag.id) && " ✓"}
+                  {tag.labelEn}{selectedTags.has(tag.id) && " ✓"}
                 </button>
               ))}
             </div>
