@@ -77,14 +77,15 @@ pnpm lint         # ESLint
 | `src/app/api/analyze/route.ts` | GPT-4o-mini Vision/텍스트 — 프롬프트 전용, 프롬프트+이미지, 이미지 전용 3분기 |
 | `src/components/search/search-bar.tsx` | 채팅 입력 바 — textarea + 이미지 첨부 + 성별 + 전송 |
 | `src/lib/prompts/prompt-search.ts` | 프롬프트 전용 시스템 프롬프트 (텍스트 모드, Vision 안 씀) |
-| `src/app/api/search-products/route.ts` | 검색 엔진 v3 — enum 매칭 + 색상 인접 + 한국어 어휘 머지 + 플랫폼 다양성 + 시즌/패턴 + 가격 hard filter |
+| `src/app/api/search-products/route.ts` | 검색 엔진 v4 — enum 매칭 + 색상 인접 + 스타일 gradient + 브랜드 DNA + 한국어 어휘 + 가격 hard filter |
 | `src/lib/enums/product-enums.ts` | 공유 enum 정의 + validation + buildEnumReference() 프롬프트 빌더 |
-| `src/lib/enums/korean-vocab.ts` | 한국어 패션 용어 → enum 매핑 (70+항목, 검색엔진/프롬프트 공용) |
+| `src/lib/enums/korean-vocab.ts` | 한국어 패션 용어 → enum 매핑 (115+항목, 검색엔진/프롬프트 공용) |
 | `src/lib/enums/color-adjacency.ts` | 색상 인접 맵 (16색, 검색 시 유사 색상 폴백) |
+| `src/lib/enums/style-adjacency.ts` | 스타일 노드 유사도 맵 (15노드, gradient scoring) |
 | `src/lib/enums/season-pattern.ts` | season(5종) + pattern(10종) enum 정의 |
 | `scripts/eval-search.ts` | 검색 품질 자동 평가 스크립트 (골든셋 기반) |
 | `scripts/eval-prompt-v2.ts` | 프롬프트 분석 품질 자동 평가 v2 (일관성/베이스라인/회귀감지) |
-| `src/app/admin/search-quality/page.tsx` | 어드민 검색 품질 대시보드 |
+| `src/app/admin/search-debugger/page.tsx` | 어드민 검색 디버거 (쿼리 테스트 + score breakdown 시각화) |
 | `src/lib/fashion-genome.ts` | 15개 스타일 노드 + 12개 감도 태그 정의 + 프롬프트 빌더 |
 | `src/lib/style-nodes.ts` | 노드 컬러/레이블/설명 설정 (어드민 UI용) |
 | `src/lib/r2.ts` | Cloudflare R2 이미지 업로드 클라이언트 |
@@ -123,7 +124,7 @@ pnpm lint         # ESLint
 | 무드 분석 | 태그 + score + vibe + season + occasion |
 | 아이템 상세 | fit, fabric, color, detail, position 추출 |
 | 성별 판단 | detectedGender → 검색 쿼리에 men/women 반영 |
-| 상품 검색 | enum 매칭 (subcategory 0.25 + colorFamily 0.20 + colorAdjacent 0.10 + styleNode 0.30/0.15 + fit 0.15 + fabric 0.15 + season 0.15 + pattern 0.15 + moodTags 0.05×N) → 상위 7개, 브랜드당 max 2, 플랫폼당 max 3 |
+| 상품 검색 | enum 매칭 (subcategory 0.25 + colorFamily 0.20 + colorAdjacent 0.10 + styleNode gradient 0.30/0.15 + fit 0.15 + fabric 0.15 + season 0.15 + pattern 0.15 + brandDna 0.20 + moodTags 0.05×N) → 상위 7개, 브랜드당 max 2, 플랫폼당 max 3 |
 | 가격 필터 | 프롬프트에서 parsePrice로 추출 → priceFilter가 있으면 DB+인메모리 hard filter (null price 제외, 범위 밖 무조건 제거) |
 | 분석 로깅 | AI 원본 응답 + 검색 쿼리/결과 전체 Supabase 저장 |
 | 파일 제한 | 10MB 이하, JPEG/PNG/WebP/HEIC만 허용 |

@@ -5,6 +5,7 @@ import {SIMILAR_SUBCATEGORIES} from "@/lib/enums/subcategory-similar"
 import {isAdjacentColor} from "@/lib/enums/color-adjacency"
 import {buildKoreanKeywordsMap} from "@/lib/enums/korean-vocab"
 import {SUBCATEGORY_DEFAULT_SEASON} from "@/lib/enums/season-pattern"
+import {getStyleSimilarity} from "@/lib/enums/style-adjacency"
 
 // ─── 타입 ─────────────────────────────────────────────────
 
@@ -28,6 +29,7 @@ type SearchRequest = {
   moodTags?: string[]
   priceFilter?: { minPrice?: number; maxPrice?: number }
   _logId?: string
+  _includeScoring?: boolean
 }
 
 type ScoreBreakdown = {
@@ -43,6 +45,7 @@ type ScoreBreakdown = {
   moodTags: number
   season: number
   pattern: number
+  brandDna: number
   totalScore: number
 }
 
@@ -89,6 +92,7 @@ const WEIGHTS = {
   moodTagMax: 3,
   season: 0.15,
   pattern: 0.15,
+  brandDna: 0.20,
 } as const
 
 // 한국어 어휘 매핑에서 빌드한 키워드를 머지
@@ -216,6 +220,29 @@ export async function POST(request: NextRequest) {
       `🔍 검색 v2 시작 — ${queries.length}개 아이템 | 성별: ${genderFilter || "전체"} | 노드: ${primaryNode || "없음"}→${secondaryNode || "없음"}${priceFilter ? ` | 가격: ${priceFilter.minPrice || 0}~${priceFilter.maxPrice || "∞"}원` : ""}`
     )
 
+    // ─── Brand DNA 조회 (브랜드 성향 부스팅용) ───
+    // 스타일 노드/무드 태그가 없으면 매칭 기준이 없으므로 쿼리 스킵
+    type BrandDna = { style_node: string; sensitivity_tags: string[] }
+    const brandDnaMap = new Map<string, BrandDna>()
+    if (primaryNode || secondaryNode || (moodTags && moodTags.length > 0)) {
+      const { data: brandNodes } = await supabase
+        .from("brand_nodes")
+        .select("brand_name_normalized, style_node, sensitivity_tags")
+        .limit(500)
+      if (brandNodes) {
+        for (const bn of brandNodes) {
+          brandDnaMap.set(
+            (bn.brand_name_normalized as string).toLowerCase(),
+            {
+              style_node: bn.style_node as string,
+              sensitivity_tags: (bn.sensitivity_tags as string[]) ?? [],
+            }
+          )
+        }
+        logger.info(`   🧬 Brand DNA 로드: ${brandDnaMap.size}개 브랜드`)
+      }
+    }
+
     // 아이템 간 중복 제거용 — 같은 상품이 여러 아이템에서 나오면 먼저 나온 쪽에만 포함
     const globalSeenProducts = new Set<string>()
 
@@ -230,26 +257,25 @@ export async function POST(request: NextRequest) {
       if (item.searchQuery) itemKeywords.push(...item.searchQuery.toLowerCase().split(/\s+/).map(sanitizeKeyword).filter(Boolean))
       if (item.searchQueryKo) itemKeywords.push(...item.searchQueryKo.split(/\s+/).map(sanitizeKeyword).filter(Boolean))
 
-      const products = await searchByEnums(item, genderFilter, dbCategories, primaryNode, secondaryNode, moodTags, priceFilter, itemKeywords)
+      const products = await searchByEnums(item, genderFilter, dbCategories, primaryNode, secondaryNode, moodTags, priceFilter, itemKeywords, brandDnaMap)
 
-      // 이전 아이템에서 이미 사용된 상품 제외
+      // 이전 아이템에서 이미 사용된 상품 제외 + 전체 dedup 기록
       const deduped = products.filter((p) => {
         const key = `${p.brand}::${p.title}`.toLowerCase()
         if (globalSeenProducts.has(key)) return false
+        globalSeenProducts.add(key)
         return true
       })
 
       const finalProducts = deduped.slice(0, TARGET_RESULTS)
 
       for (const p of finalProducts) {
-        const key = `${p.brand}::${p.title}`.toLowerCase()
-        globalSeenProducts.add(key)
 
         const s = p._scoring
         logger.info(
           `      📊 ${p.brand} | ${p.title.slice(0, 40)} | ` +
           `total=${s?.totalScore.toFixed(2)} (sub=${s?.subcategory.toFixed(2)} name=${s?.nameMatch.toFixed(2)} kw=${s?.keywords.toFixed(2)} col=${s?.colorFamily.toFixed(2)}+${s?.colorAdjacent.toFixed(2)} ` +
-          `node=${s?.styleNode.toFixed(2)} fit=${s?.fit.toFixed(2)} fab=${s?.fabric.toFixed(2)} mood=${s?.moodTags.toFixed(2)} szn=${s?.season.toFixed(2)} pat=${s?.pattern.toFixed(2)}) [${p.platform}]`
+          `node=${s?.styleNode.toFixed(2)} fit=${s?.fit.toFixed(2)} fab=${s?.fabric.toFixed(2)} mood=${s?.moodTags.toFixed(2)} szn=${s?.season.toFixed(2)} pat=${s?.pattern.toFixed(2)} dna=${s?.brandDna.toFixed(2)}) [${p.platform}]`
         )
       }
 
@@ -326,11 +352,14 @@ export async function POST(request: NextRequest) {
         })
     }
 
-    // 응답에서 _scoring, _rawPrice 제거 (프론트에는 안 보냄, DB에만 저장)
+    // _rawPrice 항상 제거, _scoring은 _includeScoring 플래그 시에만 포함
+    const includeScoring = body._includeScoring === true
     const cleanResults = results.map((r) => ({
       id: r.id,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      products: r.products.map(({ _scoring, _rawPrice, ...rest }) => rest),
+      products: r.products.map(({ _rawPrice, _scoring, ...rest }) =>
+        includeScoring ? { ...rest, _scoring } : rest
+      ),
     }))
 
     return NextResponse.json({ results: cleanResults })
@@ -351,6 +380,7 @@ async function searchByEnums(
   moodTags: string[] | undefined,
   priceFilter: { minPrice?: number; maxPrice?: number } | undefined,
   itemKeywords: string[],
+  brandDnaMap: Map<string, { style_node: string; sensitivity_tags: string[] }>,
 ): Promise<(FormattedProduct & { _rawPrice: number })[]> {
   // ─── 경로 1: AI analysis 기반 검색 ───
   // subcategory + 유사 subcategory를 DB 단계에서 필터 (limit 200 내 누락 방지)
@@ -462,7 +492,7 @@ async function searchByEnums(
     ...(item.searchQueryKo ? [item.searchQueryKo] : []),
     ...(item.searchQuery ? [item.searchQuery] : []),
     ...(item.subcategory ? (SUBCATEGORY_NAME_KEYWORDS[item.subcategory] ?? []) : []),
-  ].filter(Boolean).slice(0, 5)
+  ].filter(Boolean).slice(0, 5).map(sanitizeKeyword).filter(Boolean)
 
   if (directKeywords.length > 0) {
     // name, description, material 모두에서 키워드 검색
@@ -616,13 +646,13 @@ async function searchByEnums(
         }
       }
 
-      // ── 스타일 노드 ──
-      let styleNodeScore = 0
-      if (primaryNode && row.style_node === primaryNode) {
-        styleNodeScore = WEIGHTS.stylePrimary
-      } else if (secondaryNode && row.style_node === secondaryNode) {
-        styleNodeScore = WEIGHTS.styleSecondary
-      }
+      // ── 스타일 노드 (gradient scoring) ──
+      const primarySim = getStyleSimilarity(primaryNode, row.style_node)
+      const secondarySim = getStyleSimilarity(secondaryNode, row.style_node)
+      const styleNodeScore = Math.max(
+        WEIGHTS.stylePrimary * primarySim,
+        WEIGHTS.styleSecondary * secondarySim,
+      )
 
       // ── 무드 태그 ──
       const rowMoodTags = Array.isArray(row.mood_tags) ? (row.mood_tags as string[]) : []
@@ -630,10 +660,30 @@ async function searchByEnums(
       const overlapCount = rowMoodTags.filter((t) => requestMoodTags.includes(t)).length
       const moodScore = Math.min(overlapCount, WEIGHTS.moodTagMax) * WEIGHTS.moodTagEach
 
+      // ── 브랜드 DNA 부스팅 ──
+      let brandDnaScore = 0
+      if (p.brand && brandDnaMap.size > 0) {
+        const brandKey = p.brand.toLowerCase()
+        const dna = brandDnaMap.get(brandKey)
+        if (dna) {
+          // 브랜드 스타일 노드와 유저 스타일 유사도
+          const brandStyleSim = Math.max(
+            getStyleSimilarity(primaryNode, dna.style_node),
+            getStyleSimilarity(secondaryNode, dna.style_node) * 0.5,
+          )
+          // 브랜드 감도 태그와 유저 무드 태그 겹침
+          const tagOverlap = requestMoodTags.length > 0
+            ? dna.sensitivity_tags.filter((t) => requestMoodTags.includes(t)).length / Math.max(requestMoodTags.length, 1)
+            : 0
+          // 스타일 60% + 태그 40% 가중 합산
+          brandDnaScore = WEIGHTS.brandDna * (brandStyleSim * 0.6 + tagOverlap * 0.4)
+        }
+      }
+
       const totalScore =
         subcategoryScore + nameMatchScore + keywordsScore +
         fitScore + fabricScore + colorFamilyScore + colorAdjacentScore +
-        styleNodeScore + moodScore + seasonScore + patternScore
+        styleNodeScore + moodScore + seasonScore + patternScore + brandDnaScore
 
       const scoring: ScoreBreakdown = {
         subcategory: subcategoryExact,
@@ -648,6 +698,7 @@ async function searchByEnums(
         moodTags: moodScore,
         season: seasonScore,
         pattern: patternScore,
+        brandDna: brandDnaScore,
         totalScore,
       }
 

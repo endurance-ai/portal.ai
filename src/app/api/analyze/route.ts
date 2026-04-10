@@ -562,11 +562,19 @@ RULES:
       _sequenceNumber: sequenceNum,
     })
   } catch (error: unknown) {
-    logger.error({ error }, "💥 분석 중 예외 발생")
+    const errMsg = error instanceof Error ? error.message : String(error)
+    const errName = error instanceof Error ? error.name : "Unknown"
+    const errCause = error instanceof Error && "cause" in error ? String(error.cause) : undefined
+    logger.error(
+      { errName, errMsg, errCause, stack: error instanceof Error ? error.stack?.split("\n").slice(0, 3).join(" | ") : undefined },
+      `💥 분석 중 예외 발생 — ${errName}: ${errMsg}`
+    )
     const message =
-      error instanceof Error && error.message.includes("quota")
+      errMsg.includes("quota")
         ? "OpenAI API quota exceeded. Please check billing."
-        : "Failed to analyze image. Please try again."
+        : errMsg.includes("ECONNREFUSED") || errMsg.includes("ETIMEDOUT") || errMsg.includes("fetch failed")
+        ? "AI service temporarily unavailable. Please try again."
+        : "Failed to analyze. Please try again."
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
