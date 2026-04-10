@@ -270,6 +270,28 @@ export const KOREAN_VOCAB: Record<string, KoreanVocabEntry> = {
   "귀걸이": { subcategory: "earrings", category: "Accessories", keywords: ["귀걸이", "이어링", "earrings"] },
   "이어링": { subcategory: "earrings", category: "Accessories", keywords: ["이어링", "귀걸이", "earrings"] },
   "뱅글": { subcategory: "bracelet", category: "Accessories", keywords: ["뱅글", "bangle"] },
+
+  // ─── 빈출 용어 보강 (크롤링 데이터 기반) ───
+  "롱슬리브": { subcategory: "t-shirt", category: "Top", keywords: ["롱슬리브", "긴팔", "long sleeve"] },
+  "하이넥": { subcategory: "turtleneck", category: "Top", keywords: ["하이넥", "터틀넥", "high neck"] },
+  "하이넥니트": { subcategory: "turtleneck", category: "Top", keywords: ["하이넥니트", "터틀넥니트", "high neck knit"] },
+  "보트넥": { subcategory: "t-shirt", category: "Top", keywords: ["보트넥", "boat neck"] },
+  "오프숄더": { subcategory: "blouse", category: "Top", keywords: ["오프숄더", "off shoulder"] },
+  "뷔스티에": { subcategory: "camisole", category: "Top", keywords: ["뷔스티에", "bustier"] },
+  "홀터넥": { subcategory: "tank-top", category: "Top", keywords: ["홀터넥", "홀터", "halter neck"] },
+  "홀터": { subcategory: "tank-top", category: "Top", keywords: ["홀터", "홀터넥", "halter"] },
+  "트랙탑": { subcategory: "sweatshirt", category: "Top", keywords: ["트랙탑", "트랙자켓", "track top"] },
+  "미디원피스": { subcategory: "midi-dress", category: "Dress", keywords: ["미디원피스", "미디드레스", "midi dress"] },
+  "미디드레스": { subcategory: "midi-dress", category: "Dress", keywords: ["미디드레스", "미디원피스", "midi dress"] },
+  "랩드레스": { subcategory: "wrap-dress", category: "Dress", keywords: ["랩드레스", "랩원피스", "wrap dress"] },
+  "미니드레스": { subcategory: "mini-dress", category: "Dress", keywords: ["미니드레스", "미니원피스", "mini dress"] },
+  "맥시드레스": { subcategory: "maxi-dress", category: "Dress", keywords: ["맥시드레스", "맥시원피스", "maxi dress"] },
+  "하프팬츠": { subcategory: "shorts", category: "Bottom", keywords: ["하프팬츠", "반바지", "half pants"] },
+  "밴딩팬츠": { subcategory: "joggers", category: "Bottom", keywords: ["밴딩팬츠", "밴딩바지", "banding pants"] },
+  "트레이닝팬츠": { subcategory: "sweatpants", category: "Bottom", keywords: ["트레이닝팬츠", "트레이닝바지", "training pants"] },
+  "트랙팬츠": { subcategory: "sweatpants", category: "Bottom", keywords: ["트랙팬츠", "트랙바지", "track pants"] },
+  "핀턱팬츠": { subcategory: "trousers", category: "Bottom", keywords: ["핀턱팬츠", "핀턱", "pintuck pants"] },
+  "미디스커트": { subcategory: "skirt", category: "Bottom", keywords: ["미디스커트", "미디치마", "midi skirt"] },
 }
 
 // ─── 한국어 → pattern 매핑 ─────────────────────────
@@ -345,6 +367,16 @@ export const KOREAN_PATTERN_VOCAB: Record<string, string> = {
   "땡땡이": "dot",
   "자카드": "abstract",
   "핀스트라이프": "stripe",
+  // 빈출 보강
+  "엠브로이더": "graphic",
+  "엠브로이더드": "graphic",
+  "엠브로이더리": "graphic",
+  "패치워크": "abstract",
+  "시퀸": "graphic",
+  "스팽글": "graphic",
+  "프린지": "abstract",
+  "셔링": "abstract",
+  "프릴": "abstract",
 }
 
 // ─── 한국어 → fit 매핑 ──────────────────────────────
@@ -390,6 +422,15 @@ export const KOREAN_FIT_VOCAB: Record<string, string> = {
   "드롭숄더": "oversized",
   "밑단넓은": "oversized",
   "테이퍼드핏": "regular",
+  // 빈출 보강
+  "오버사이즈드": "oversized",
+  "테일러드": "regular",
+  "테일러드핏": "regular",
+  "스트레이트핏": "regular",
+  "벌룬": "oversized",
+  "벌룬핏": "oversized",
+  "와이드핏": "relaxed",
+  "세미와이드": "relaxed",
 }
 
 // ─── 한국어 → fabric 매핑 ───────────────────────────
@@ -503,6 +544,13 @@ export const KOREAN_FABRIC_VOCAB: Record<string, string> = {
   "뽀글이": "fleece",
   "프렌치테리": "cotton",
   "쭈리": "cotton",
+  // 빈출 보강
+  "리브": "knit",
+  "리브니트": "knit",
+  "심리스": "knit",
+  "오간디": "chiffon",
+  "드레이프": "silk",
+  "스쿠버": "polyester",
 }
 
 // ─── 한국어 → colorFamily 매핑 ──────────────────────

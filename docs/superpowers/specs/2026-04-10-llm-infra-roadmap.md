@@ -460,19 +460,28 @@ LangSmith가 제공하는 것:
 
 ---
 
-### Phase 1: 검색 품질 즉시 개선 (코드만, 1-2일)
+### Phase 1: 검색 품질 즉시 개선 (코드만, 1-2일) — ✅ 완료 (2026-04-10)
 
 **P1 + P4 일부 해결**
 
 작업:
-1. 스타일 노드 거리 맵 추가 → gradient scoring
-2. 검색 API에 score_breakdown 응답 추가
-3. 어드민에 score breakdown 시각화
+1. ~~스타일 노드 거리 맵 추가 → gradient scoring~~ ✅
+2. ~~검색 API에 score_breakdown 응답 추가~~ ✅
+3. ~~어드민에 score breakdown 시각화~~ ✅ (검색 디버거 페이지로 구현)
+
+추가 완료:
+4. ~~한국어 어휘 확장 (subcategory 21개 + pattern 10개 + fit 8개 + fabric 6개)~~ ✅
+5. ~~브랜드 DNA 부스팅 (brand_nodes.style_node + sensitivity_tags 기반)~~ ✅
+6. ~~분석 API 에러 로깅 개선~~ ✅
 
 변경 파일:
-- `src/app/api/search-products/route.ts` (스코어링 + 응답)
-- 신규: `src/lib/enums/style-adjacency.ts`
-- `src/app/admin/search-quality/page.tsx` (시각화)
+- `src/app/api/search-products/route.ts` (gradient scoring + brandDna + score 노출)
+- `src/lib/enums/style-adjacency.ts` (신규 — 15노드 유사도 맵)
+- `src/lib/enums/korean-vocab.ts` (45개 매핑 추가)
+- `src/app/admin/search-debugger/page.tsx` (신규 — 검색 디버거)
+- `src/components/admin/search-debugger-results.tsx` (신규 — breakdown 시각화)
+- `src/components/admin/sidebar.tsx` (검색 디버거 탭 추가)
+- `src/app/api/analyze/route.ts` (에러 로깅 개선)
 
 인프라: 없음
 
@@ -549,7 +558,7 @@ portal-ai 계정
 ### Phase 5: 고도화 (장기)
 
 - FashionSigLIP 이미지 임베딩 → 이미지 ↔ 이미지 유사도 검색
-- 브랜드 DNA 부스팅 (brand_nodes 활용)
+- ~~브랜드 DNA 부스팅 (brand_nodes 활용)~~ ✅ Phase 1에서 선행 완료
 - 유저 프로필/선호 학습 (피드백 데이터 기반)
 - BGE-M3 파인튜닝 (크롤링 데이터로 패션 도메인 특화)
 - pgvector → Qdrant 마이그레이션 (상품 수 100K+ 시)
