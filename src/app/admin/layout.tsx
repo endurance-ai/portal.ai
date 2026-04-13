@@ -22,14 +22,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   if (!user) {
     return (
-      <div className="min-h-dvh bg-background text-foreground">
+      <div className="dark min-h-dvh bg-background text-foreground">
         {children}
       </div>
     )
   }
 
   return (
-    <div className="flex h-dvh bg-background text-foreground">
+    <div className="dark flex h-dvh bg-background text-foreground">
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header email={user.email} />
