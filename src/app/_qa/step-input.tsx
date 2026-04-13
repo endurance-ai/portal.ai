@@ -24,51 +24,50 @@ export function StepInput({
   return (
     <motion.div
       key="step-input"
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -12 }}
-      transition={{ duration: 0.35 }}
-      className="w-full max-w-2xl mx-auto space-y-8 text-center"
+      initial={{opacity: 0, y: 12}}
+      animate={{opacity: 1, y: 0}}
+      exit={{opacity: 0, y: -12}}
+      transition={{duration: 0.35}}
+      className="w-full max-w-[1024px] mx-auto pt-12 pb-8"
     >
-      <div className="space-y-3">
-        <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground">
-          Step 1 / 4
-        </p>
-        <h1 className="text-2xl md:text-4xl font-extrabold text-foreground tracking-[-0.03em] leading-tight">
-          Show us a reference.
+      <div className="grid md:grid-cols-[1.2fr_1fr] gap-10 md:gap-16 items-end">
+        {/* Headline */}
+        <h1 className="text-[52px] md:text-[82px] font-medium text-ink tracking-[-0.045em] leading-[0.96]">
+          The look you love,
           <br />
-          <span className="text-muted-foreground">We&apos;ll take it from there.</span>
+          <b className="font-bold">piece by piece.</b>
         </h1>
-        <p className="text-sm text-muted-foreground max-w-md mx-auto pt-2">
-          Drop an image or describe what you saw. We&apos;ll analyze it and ask you a few
-          quick questions to find the right alternatives.
-        </p>
-      </div>
 
-      {error && (
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-red-400 text-sm font-mono bg-red-500/10 border border-red-500/20 px-4 py-2 rounded-lg"
-        >
-          {error}
-        </motion.p>
-      )}
-
-      <SearchBar
-        gender={gender}
-        onGenderChange={onGenderChange}
-        onSubmit={onSubmit}
-        disabled={loading}
-      />
-
-      <div className="flex flex-col items-center gap-3">
-        <GenderSelector value={gender} onChange={onGenderChange} />
-        {loading && loadingLabel && (
-          <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground animate-pulse">
-            {loadingLabel}
+        {/* Caption + input */}
+        <div className="pb-3">
+          <p className="text-[15px] font-normal text-ink-muted leading-[1.55] tracking-[-0.01em] max-w-[360px]">
+            Upload a photograph or describe a mood. We read the outfit — fabric, cut,
+            proportion — and return <b className="font-semibold text-ink">every piece
+            that could belong</b>.
           </p>
-        )}
+
+          {error && (
+            <p className="mt-4 text-[13px] font-medium text-destructive">{error}</p>
+          )}
+
+          <div className="mt-8">
+            <SearchBar
+              gender={gender}
+              onGenderChange={onGenderChange}
+              onSubmit={onSubmit}
+              disabled={loading}
+            />
+          </div>
+
+          <div className="mt-5 flex items-center justify-between">
+            <GenderSelector value={gender} onChange={onGenderChange} />
+            {loading && loadingLabel && (
+              <p className="text-[11px] font-medium text-ink-quiet tracking-[-0.01em] animate-pulse">
+                {loadingLabel}
+              </p>
+            )}
+          </div>
+        </div>
       </div>
     </motion.div>
   )

@@ -277,7 +277,7 @@ export default function Home() {
   return (
     <>
       <Header />
-      <main className="flex-grow flex flex-col items-center px-6 pt-24 pb-12 relative overflow-x-hidden industrial-grid min-h-screen">
+      <main className="flex-grow flex flex-col items-center px-6 md:px-14 pt-28 pb-12 relative min-h-screen">
         <div className="w-full max-w-5xl mx-auto mb-10 z-10">
           <AgentProgress
             current={state.step}
@@ -383,35 +383,23 @@ export default function Home() {
             )}
           </AnimatePresence>
 
-          {state.step === "input" && !state.searching && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.3 }}
-              className="mt-12 text-center"
-            >
-              <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground/40">
-                Q&amp;A Agent · Beta
-              </p>
-            </motion.div>
-          )}
 
           {(state.step === "attributes" || state.step === "refine") && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.4 }}
-              className="mt-8 flex items-center justify-center gap-3 text-[10px] font-mono uppercase tracking-wider text-muted-foreground/50"
+              className="mt-8 hidden md:flex items-center justify-center gap-3 text-[11px] font-medium text-ink-quiet tracking-[-0.01em]"
             >
-              <span className="hidden md:inline">
-                <kbd className="px-1.5 py-0.5 rounded border border-border bg-muted text-foreground">
+              <span>
+                <kbd className="px-2 py-0.5 border border-line bg-cream text-ink text-[11px] font-medium">
                   Enter
                 </kbd>{" "}
                 next
               </span>
-              <span className="hidden md:inline opacity-50">·</span>
-              <span className="hidden md:inline">
-                <kbd className="px-1.5 py-0.5 rounded border border-border bg-muted text-foreground">
+              <span className="text-line">·</span>
+              <span>
+                <kbd className="px-2 py-0.5 border border-line bg-cream text-ink text-[11px] font-medium">
                   Esc
                 </kbd>{" "}
                 back

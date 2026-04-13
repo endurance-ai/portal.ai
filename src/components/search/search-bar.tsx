@@ -183,10 +183,10 @@ export function SearchBar({ gender, onGenderChange, onSubmit, disabled }: Search
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         className={cn(
-          "rounded-2xl border bg-card transition-colors duration-200",
+          "border bg-cream transition-colors duration-200",
           isDragging
-            ? "border-primary/50 bg-surface-dim"
-            : "border-border focus-within:border-primary/30"
+            ? "border-ink bg-line-mute"
+            : "border-line focus-within:border-ink-soft"
         )}
       >
         {/* Image area: drop zone when empty, preview when attached */}
@@ -206,12 +206,12 @@ export function SearchBar({ gender, onGenderChange, onSubmit, disabled }: Search
                   <img
                     src={previewUrl}
                     alt="Attached image"
-                    className="h-16 w-16 rounded-lg object-cover border border-border"
+                    className="h-16 w-16 object-cover border border-line"
                   />
                   <button
                     type="button"
                     onClick={handleRemoveImage}
-                    className="absolute -top-1.5 -right-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-foreground text-background shadow-sm transition-opacity hover:opacity-80"
+                    className="absolute -top-1.5 -right-1.5 flex h-6 w-6 items-center justify-center bg-foreground text-background shadow-sm transition-opacity hover:opacity-80"
                     aria-label="Remove image"
                   >
                     <X className="size-3" />
@@ -234,23 +234,23 @@ export function SearchBar({ gender, onGenderChange, onSubmit, disabled }: Search
               )}
             >
               <div className={cn(
-                "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-dashed transition-colors duration-150",
+                "flex h-12 w-12 shrink-0 items-center justify-center border border-dashed transition-colors duration-150",
                 isDragging
-                  ? "border-primary/60 bg-primary/5"
-                  : "border-border group-hover/drop:border-primary/40 group-hover/drop:bg-primary/5",
+                  ? "border-ink bg-line-mute"
+                  : "border-line group-hover/drop:border-ink-soft group-hover/drop:bg-line-mute",
               )}>
                 <ImagePlus className={cn(
                   "size-5 transition-colors duration-150",
                   isDragging
-                    ? "text-primary/70"
-                    : "text-muted-foreground group-hover/drop:text-primary/60",
+                    ? "text-ink"
+                    : "text-ink-quiet group-hover/drop:text-ink-soft",
                 )} />
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-medium text-muted-foreground group-hover/drop:text-foreground transition-colors">
                   Add a photo for better matches
                 </p>
-                <p className="text-[11px] text-on-surface-variant font-mono">
+                <p className="text-[11px] text-ink-quiet font-medium">
                   Drop or click — JPG, PNG, HEIC, WEBP
                 </p>
               </div>
@@ -289,14 +289,14 @@ export function SearchBar({ gender, onGenderChange, onSubmit, disabled }: Search
                 onClick={() => fileInputRef.current?.click()}
                 disabled={disabled}
                 className={cn(
-                  "flex h-8 items-center gap-1.5 px-2 rounded-xl transition-colors duration-150",
-                  "text-muted-foreground hover:text-foreground hover:bg-surface-dim",
+                  "flex h-8 items-center gap-1.5 px-2 transition-colors duration-150",
+                  "text-muted-foreground hover:text-foreground hover:bg-line-mute",
                   "disabled:cursor-not-allowed disabled:opacity-40"
                 )}
                 aria-label="Change image"
               >
                 <Camera className="size-3.5" />
-                <span className="text-[11px] font-mono">Change</span>
+                <span className="text-[11px] font-medium">Change</span>
               </button>
             )}
 
@@ -309,7 +309,7 @@ export function SearchBar({ gender, onGenderChange, onSubmit, disabled }: Search
             onClick={handleSubmit}
             disabled={!canSubmit}
             className={cn(
-              "flex h-8 w-8 items-center justify-center rounded-xl transition-colors duration-150",
+              "flex h-8 w-8 items-center justify-center transition-colors duration-150",
               canSubmit
                 ? "bg-foreground text-background hover:opacity-80"
                 : "bg-muted text-muted-foreground cursor-not-allowed"

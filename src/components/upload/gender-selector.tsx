@@ -21,7 +21,7 @@ export function GenderSelector({ value, onChange }: GenderSelectorProps) {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: 0.15 }}
-      className="flex items-center justify-center gap-0 rounded-full bg-muted/50 border border-border p-[3px] w-fit mx-auto"
+      className="flex items-center gap-0 border border-line p-[2px] w-fit"
     >
       {OPTIONS.map((opt) => (
         <button
@@ -29,16 +29,16 @@ export function GenderSelector({ value, onChange }: GenderSelectorProps) {
           type="button"
           onClick={() => onChange(opt.value)}
           className={cn(
-            "relative px-5 py-1.5 text-sm font-medium rounded-full transition-colors duration-200 select-none",
+            "relative px-4 py-1 text-[13px] font-medium transition-colors duration-200 select-none tracking-[-0.01em]",
             value === opt.value
-              ? "text-background"
-              : "text-muted-foreground hover:text-foreground"
+              ? "text-cream"
+              : "text-ink-soft hover:text-ink"
           )}
         >
           {value === opt.value && (
             <motion.div
               layoutId="gender-pill"
-              className="absolute inset-0 bg-foreground rounded-full"
+              className="absolute inset-0 bg-ink"
               transition={{ type: "spring", bounce: 0.15, duration: 0.4 }}
             />
           )}
