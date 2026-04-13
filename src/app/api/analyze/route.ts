@@ -7,12 +7,27 @@ import {ANALYZE_SYSTEM_PROMPT, ANALYZE_USER_PROMPT} from "@/lib/prompts/analyze"
 import {PROMPT_SEARCH_SYSTEM, PROMPT_SEARCH_USER} from "@/lib/prompts/prompt-search"
 import {uploadImage} from "@/lib/r2"
 
+// LiteLLM 프록시는 LITELLM_BASE_URL이 설정되고 LITELLM_DISABLED !== "true" 일 때만 사용.
+// 프록시가 죽으면 LITELLM_DISABLED=true 로 .env.local 에 추가하면 OpenAI direct로 폴백.
+const useLiteLLM =
+  !!process.env.LITELLM_BASE_URL &&
+  process.env.LITELLM_DISABLED !== "true"
+
 const openai = new OpenAI({
-  apiKey: process.env.LITELLM_API_KEY || process.env.OPENAI_API_KEY,
-  baseURL: process.env.LITELLM_BASE_URL
-    ? `${process.env.LITELLM_BASE_URL}/v1`
-    : undefined,
+  apiKey: useLiteLLM
+    ? process.env.LITELLM_API_KEY || process.env.OPENAI_API_KEY
+    : process.env.OPENAI_API_KEY,
+  baseURL: useLiteLLM ? `${process.env.LITELLM_BASE_URL}/v1` : undefined,
+  timeout: 90_000, // 90초 (Vision 호출이 느릴 수 있음)
+  maxRetries: 2,
 })
+
+if (useLiteLLM) {
+  // 운영 로그(Vercel)에 내부 인프라 URL 노출 방지 — boolean signal만 출력
+  console.info("[analyze] OpenAI client → LiteLLM proxy (enabled)")
+} else {
+  console.info("[analyze] OpenAI client → direct OpenAI API")
+}
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic"]
@@ -569,12 +584,31 @@ RULES:
       { errName, errMsg, errCause, stack: error instanceof Error ? error.stack?.split("\n").slice(0, 3).join(" | ") : undefined },
       `💥 분석 중 예외 발생 — ${errName}: ${errMsg}`
     )
-    const message =
-      errMsg.includes("quota")
-        ? "OpenAI API quota exceeded. Please check billing."
-        : errMsg.includes("ECONNREFUSED") || errMsg.includes("ETIMEDOUT") || errMsg.includes("fetch failed")
-        ? "AI service temporarily unavailable. Please try again."
-        : "Failed to analyze. Please try again."
-    return NextResponse.json({ error: message }, { status: 500 })
+    const isTimeout =
+      errMsg.toLowerCase().includes("timed out") ||
+      errMsg.toLowerCase().includes("timeout") ||
+      errName === "APIConnectionTimeoutError"
+    const isUnreachable =
+      errMsg.includes("ECONNREFUSED") ||
+      errMsg.includes("ETIMEDOUT") ||
+      errMsg.includes("fetch failed") ||
+      errMsg.includes("ENETUNREACH")
+    const isQuota = errMsg.toLowerCase().includes("quota")
+
+    if ((isTimeout || isUnreachable) && useLiteLLM) {
+      logger.warn(
+        "🔌 LiteLLM proxy 연결 실패로 추정. .env.local에 LITELLM_DISABLED=true 추가 후 dev 서버 재시작 권장.",
+      )
+    }
+
+    const message = isQuota
+      ? "OpenAI API quota exceeded. Please check billing."
+      : isTimeout
+      ? "Analysis took too long. The AI service may be slow — please try again."
+      : isUnreachable
+      ? "AI service unreachable. Please check your connection or try again."
+      : "Failed to analyze. Please try again."
+    const status = isTimeout ? 504 : isUnreachable ? 503 : 500
+    return NextResponse.json({ error: message }, { status })
   }
 }
