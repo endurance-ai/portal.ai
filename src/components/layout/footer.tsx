@@ -1,27 +1,13 @@
 export function Footer() {
   return (
-    <footer className="w-full py-10 bg-card border-t border-border">
-      <div className="flex flex-col md:flex-row justify-between items-center px-8 gap-6 max-w-7xl mx-auto">
-        <div className="text-sm font-extrabold tracking-tighter text-foreground">
-          portal<span className="text-muted-foreground">.ai</span>
-        </div>
-        <div className="text-[10px] font-mono font-bold tracking-widest text-on-surface-variant uppercase">
-          Powered by AI
-        </div>
-        <div className="flex gap-8">
-          {["Privacy", "Terms", "Support"].map((item) => (
-            <a
-              key={item}
-              href="#"
-              className="text-xs font-medium tracking-wide text-on-surface-variant hover:text-primary transition-colors"
-            >
-              {item}
-            </a>
-          ))}
-        </div>
-        <div className="text-xs font-medium tracking-wide text-on-surface-variant">
-          &copy; 2026 portal.ai
-        </div>
+    <footer className="border-t border-line mt-24">
+      <div className="max-w-[1280px] mx-auto px-12 md:px-14 py-6 flex justify-between items-baseline">
+        <span className="text-xs font-medium text-ink-quiet tracking-[-0.01em]">
+          © PORTAL · an index of garments
+        </span>
+        <span className="text-xs font-medium text-ink-quiet tracking-[-0.01em]">
+          Seoul · Spring 2026
+        </span>
       </div>
     </footer>
   )
