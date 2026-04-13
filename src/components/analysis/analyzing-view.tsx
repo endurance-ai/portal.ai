@@ -151,6 +151,7 @@ export function AnalyzingView({imageUrl, promptText, progress, progressLabel}: A
               strokeWidth="2.5"
               strokeLinecap="round"
               strokeDasharray={circumference}
+              initial={{strokeDashoffset: circumference}}
               animate={{strokeDashoffset: dashOffset}}
               transition={{duration: 0.6, ease: "easeOut"}}
             />

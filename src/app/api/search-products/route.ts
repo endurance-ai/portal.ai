@@ -6,6 +6,7 @@ import {isAdjacentColor} from "@/lib/enums/color-adjacency"
 import {buildKoreanKeywordsMap} from "@/lib/enums/korean-vocab"
 import {SUBCATEGORY_DEFAULT_SEASON} from "@/lib/enums/season-pattern"
 import {getStyleSimilarity} from "@/lib/enums/style-adjacency"
+import {type LockedAttributes, passesLockedFilter, toleranceToTargetCount,} from "@/lib/search/locked-filter"
 
 // ─── 타입 ─────────────────────────────────────────────────
 
@@ -20,6 +21,8 @@ type SearchQuery = {
   searchQueryKo?: string
   season?: string
   pattern?: string
+  /** Q&A 에이전트 — 유저가 락한 속성. 매칭되지 않으면 hard filter로 제외. */
+  lockedAttributes?: LockedAttributes
 }
 
 type SearchRequest = {
@@ -28,9 +31,12 @@ type SearchRequest = {
   styleNode?: { primary: string; secondary?: string }
   moodTags?: string[]
   priceFilter?: { minPrice?: number; maxPrice?: number }
+  /** Q&A 에이전트 — 0.0(tight)~1.0(loose). 결과 개수 조절(5~10). */
+  styleTolerance?: number
   _logId?: string
   _includeScoring?: boolean
 }
+
 
 type ScoreBreakdown = {
   subcategory: number
@@ -199,6 +205,11 @@ export async function POST(request: NextRequest) {
       maxPrice: Number.isFinite(Number(rawPF.maxPrice)) ? Number(rawPF.maxPrice) : undefined,
     } : undefined
 
+    // styleTolerance 검증 (0.0~1.0). 결과 개수 5~10 사이에서 동적 조절.
+    const rawTol = Number(body.styleTolerance)
+    const styleTolerance = Number.isFinite(rawTol) ? Math.min(1, Math.max(0, rawTol)) : null
+    const targetCount = toleranceToTargetCount(styleTolerance, TARGET_RESULTS)
+
     const searchStart = Date.now()
 
     if (!Array.isArray(queries) || queries.length === 0) {
@@ -217,7 +228,7 @@ export async function POST(request: NextRequest) {
     const secondaryNode = styleNode?.secondary
 
     logger.info(
-      `🔍 검색 v2 시작 — ${queries.length}개 아이템 | 성별: ${genderFilter || "전체"} | 노드: ${primaryNode || "없음"}→${secondaryNode || "없음"}${priceFilter ? ` | 가격: ${priceFilter.minPrice || 0}~${priceFilter.maxPrice || "∞"}원` : ""}`
+      `🔍 검색 v2 시작 — ${queries.length}개 아이템 | 성별: ${genderFilter || "전체"} | 노드: ${primaryNode || "없음"}→${secondaryNode || "없음"}${priceFilter ? ` | 가격: ${priceFilter.minPrice || 0}~${priceFilter.maxPrice || "∞"}원` : ""}${styleTolerance !== null ? ` | tolerance=${styleTolerance.toFixed(2)} → top ${targetCount}` : ""}`
     )
 
     // ─── Brand DNA 조회 (브랜드 성향 부스팅용) ───
@@ -267,7 +278,7 @@ export async function POST(request: NextRequest) {
         return true
       })
 
-      const finalProducts = deduped.slice(0, TARGET_RESULTS)
+      const finalProducts = deduped.slice(0, targetCount)
 
       for (const p of finalProducts) {
 
@@ -585,6 +596,18 @@ async function searchByEnums(
 
       // 비정상 가격 필터
       if (p.price !== null && p.price < MIN_VALID_PRICE) return null
+
+      // ── lockedAttributes hard filter (Q&A 에이전트) ──
+      // 유저가 락한 속성은 반드시 일치해야 함. 미일치/미상이면 즉시 제외.
+      // 의도적 부작용: AI 분석 없이 "직접 검색"으로 병합된 상품(row의 모든 enum 컬럼이 null)은
+      // lock 속성 일치 여부를 검증할 수 없으므로 lock이 1개라도 있으면 전량 탈락한다.
+      // 이는 안전 우선 설계 — "잠금 속성을 검증할 수 없는 상품은 보이지 않는 게 낫다".
+      if (
+        item.lockedAttributes &&
+        !passesLockedFilter(row as unknown as Record<string, unknown>, item.lockedAttributes)
+      ) {
+        return null
+      }
 
       // ── subcategory 스코어 ──
       let subcategoryExact = 0

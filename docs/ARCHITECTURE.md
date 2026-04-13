@@ -1,6 +1,17 @@
 # MOODFIT — 아키텍처 & 기술 선정 이유
 
-> 최종 업데이트: 2026-03-30
+> 최종 업데이트: 2026-04-13
+>
+> ⚠️ **부분 stale 경고**: 본 문서의 일부 다이어그램/설명(SerpApi, 3-screen 상태 머신, `useState` 단일 관리)은
+> 2026-04-13 이전 POC 시점 기준이며, 현재는 다음으로 대체됨:
+> - 상품 검색: SerpApi → **자체 Cafe24/Shopify 크롤링 DB(26K+ 상품)** + `product_ai_analysis` JOIN 검색 엔진 v4
+> - 메인 플로우: 3-screen (upload/analyzing/result) → **4단계 Q&A 에이전트** (input/attributes/refine/results, `useReducer`)
+> - 자세한 설계 배경: `docs/research/26-04-13-product-direction-qa-synthesis.md`
+> - MVP 구현 플랜: `docs/plans/26-04-13-qa-agent-mvp.md`
+> - GABI UX 벤치마크: `docs/research/26-04-13-gabi-ux-deep-analysis.md`
+>
+> 본 문서는 차주 전면 리라이트 예정. 그 전까지는 CLAUDE.md의 "프로젝트 구조" 섹션을
+> 단일 진실(source of truth)로 사용할 것.
 
 AI 이미지 기반 패션 룩 분해 & 크로스플랫폼 상품 추천 서비스. 핀터레스트 스크린샷 한 장으로 "이 스타일 뭔데? 어디서 사?" 에 답한다.
 

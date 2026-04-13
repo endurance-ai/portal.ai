@@ -1,228 +1,425 @@
 "use client"
 
-import {useCallback, useRef, useState} from "react"
-import {useRouter} from "next/navigation"
+import {useCallback, useEffect, useReducer, useRef, useState} from "react"
 import {AnimatePresence, motion} from "framer-motion"
 import {Header} from "@/components/layout/header"
 import {Footer} from "@/components/layout/footer"
-import {type Gender} from "@/components/upload/gender-selector"
-import {SearchBar} from "@/components/search/search-bar"
 import {AnalyzingView} from "@/components/analysis/analyzing-view"
-import {parsePrice} from "@/lib/parse-price"
-import {useLocale} from "@/lib/i18n"
-
-type AppState = "upload" | "analyzing"
+import {AgentProgress} from "./_qa/agent-progress"
+import {StepInput} from "./_qa/step-input"
+import {StepAttributes} from "./_qa/step-attributes"
+import {StepRefine} from "./_qa/step-refine"
+import {StepResults} from "./_qa/step-results"
+import {type AgentProduct, type AnalyzedItem, INITIAL_AGENT_STATE, type LockableAttr,} from "./_qa/types"
+import {agentReducer} from "./_qa/agent-reducer"
 
 export default function Home() {
-  const router = useRouter()
-  const {t} = useLocale()
-  const [state, setState] = useState<AppState>("upload")
-  const [imageUrl, setImageUrl] = useState<string>("")
-  const [gender, setGender] = useState<Gender>("male")
-  const [promptText, setPromptText] = useState<string>("")
-  const [error, setError] = useState<string | null>(null)
-  const [progress, setProgress] = useState(0)
-  const [progressLabel, setProgressLabel] = useState("")
-  const fileRef = useRef<File | null>(null)
-  const abortRef = useRef<AbortController | null>(null)
-  const isSubmitting = useRef(false)
+  const [state, dispatch] = useReducer(agentReducer, INITIAL_AGENT_STATE)
+  const objectUrlRef = useRef<string | null>(null)
+  const analyzeAbortRef = useRef<AbortController | null>(null)
+  const searchAbortRef = useRef<AbortController | null>(null)
+  const tickerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const handleSubmit = useCallback(async (data: { prompt?: string; file?: File }) => {
-    if (isSubmitting.current) return
-    isSubmitting.current = true
-    try { abortRef.current?.abort() } catch { /* ignore previous abort */ }
-    abortRef.current = new AbortController()
-    const { signal } = abortRef.current
+  // Step 1 분석 진행 시뮬레이션 (UI feedback only — 실제 진행과 무관)
+  const [analyzeProgress, setAnalyzeProgress] = useState(0)
+  const [analyzeLabel, setAnalyzeLabel] = useState("")
 
-    const hasImage = !!data.file
-
-    // Revoke previous blob URL before creating new one
-    if (imageUrl) URL.revokeObjectURL(imageUrl)
-
-    let url = ""
-    if (data.file) {
-      url = URL.createObjectURL(data.file)
-      setImageUrl(url)
-    } else {
-      setImageUrl("")
+  const stopTicker = useCallback(() => {
+    if (tickerRef.current) {
+      clearInterval(tickerRef.current)
+      tickerRef.current = null
     }
+  }, [])
 
-    if (data.prompt) setPromptText(data.prompt)
-    else setPromptText("")
+  useEffect(() => {
+    return () => stopTicker()
+  }, [stopTicker])
 
-    const { priceFilter, cleanPrompt } = data.prompt
-      ? parsePrice(data.prompt)
-      : { priceFilter: null, cleanPrompt: "" }
-
-    // suppress unused var — priceFilter is passed via formData below
-    void priceFilter
-
-    setState("analyzing")
-    setError(null)
-    setProgress(0)
-    setProgressLabel(hasImage ? t("upload.uploading") : t("upload.keywords"))
-    fileRef.current = data.file ?? null
-
-    // Progress simulation
-    let simulated = 5
-    const speed = hasImage ? 3 : 12
-    const cap = hasImage ? 85 : 90
-    const ticker = setInterval(() => {
-      simulated += Math.random() * speed + 0.5
-      if (simulated > cap) simulated = cap
-      setProgress(Math.round(simulated))
-    }, 400)
-
-    try {
-      if (hasImage) {
-        setProgressLabel(t("upload.silhouette"))
-      } else {
-        setProgressLabel(t("upload.keywords"))
+  // Step 1 → analyze
+  const handleAnalyze = useCallback(
+    async (data: { prompt?: string; file?: File }) => {
+      // 이전 blob URL 해제
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current)
+        objectUrlRef.current = null
       }
 
-      const formData = new FormData()
-      if (data.file) formData.append("image", data.file)
-      if (data.prompt) formData.append("prompt", cleanPrompt || data.prompt)
-      if (data.prompt) formData.append("originalPrompt", data.prompt)
-      formData.append("gender", gender)
+      // 이전 analyze 요청 취소 (유저가 이전 분석 끝나기 전에 새 요청 하면)
+      analyzeAbortRef.current?.abort()
+      const controller = new AbortController()
+      analyzeAbortRef.current = controller
 
-      const analyzeRes = await fetch("/api/analyze", {
-        method: "POST",
-        body: formData,
-        signal,
-      })
+      let imageUrl = ""
+      if (data.file) {
+        imageUrl = URL.createObjectURL(data.file)
+        objectUrlRef.current = imageUrl
+      }
+      const promptText = data.prompt ?? ""
+      const hasImage = !!data.file
 
-      if (!analyzeRes.ok) {
-        const errorData = await analyzeRes.json().catch(() => ({}))
-        throw new Error(errorData.error || "Analysis failed")
+      dispatch({ type: "ANALYZE_START", imageUrl, promptText })
+
+      // Progress 시뮬레이션 시작 (5 → cap 까지 점진 증가)
+      stopTicker()
+      setAnalyzeProgress(5)
+      setAnalyzeLabel(hasImage ? "Reading silhouette" : "Parsing keywords")
+      let simulated = 5
+      const speed = hasImage ? 3 : 12
+      const cap = hasImage ? 85 : 90
+      tickerRef.current = setInterval(() => {
+        simulated += Math.random() * speed + 0.5
+        if (simulated > cap) simulated = cap
+        setAnalyzeProgress(Math.round(simulated))
+      }, 400)
+
+      try {
+        const formData = new FormData()
+        if (data.file) formData.append("image", data.file)
+        if (data.prompt) {
+          formData.append("prompt", data.prompt)
+          formData.append("originalPrompt", data.prompt)
+        }
+        formData.append("gender", state.gender)
+
+        const res = await fetch("/api/analyze", {
+          method: "POST",
+          body: formData,
+          signal: controller.signal,
+        })
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          throw new Error(err.error || "Analysis failed")
+        }
+        const result = await res.json()
+        const items = (Array.isArray(result.items) ? result.items : []) as AnalyzedItem[]
+        if (items.length === 0) {
+          throw new Error("No items detected. Try a different image or prompt.")
+        }
+        stopTicker()
+        setAnalyzeProgress(100)
+        setAnalyzeLabel("Analysis complete")
+        dispatch({
+          type: "ANALYZE_SUCCESS",
+          analysisId: result._logId ?? "",
+          items,
+          styleNode: result.styleNode ?? null,
+          moodTags: Array.isArray(result.mood?.tags)
+            ? result.mood.tags.map((t: { label: string }) => t.label).filter(Boolean)
+            : [],
+        })
+      } catch (e) {
+        // AbortError는 의도된 취소이므로 에러로 표시하지 않음
+        if (e instanceof Error && e.name === "AbortError") return
+        stopTicker()
+        setAnalyzeProgress(0)
+        setAnalyzeLabel("")
+        dispatch({
+          type: "ANALYZE_ERROR",
+          error: e instanceof Error ? e.message : "Analysis failed",
+        })
+      }
+    },
+    [state.gender, stopTicker],
+  )
+
+  // Step 4 → search
+  // overrideLocked: 직전에 dispatch된 lock 변경을 즉시 반영하고 싶을 때 사용 (stale closure 회피)
+  const runSearch = useCallback(
+    async (overrideLocked?: LockableAttr[]) => {
+      const item = state.items.find((i) => i.id === state.selectedItemId)
+      if (!item) return
+
+      // 이전 검색 취소
+      searchAbortRef.current?.abort()
+      const controller = new AbortController()
+      searchAbortRef.current = controller
+
+      dispatch({ type: "SEARCH_START" })
+
+      // 방어: overrideLocked가 배열이 아니면 (e.g. 실수로 이벤트 객체 전달) state 사용
+      const effectiveLocked = Array.isArray(overrideLocked)
+        ? overrideLocked
+        : state.lockedAttrs
+
+      // locked attribute → query 필드 매핑
+      const lockedAttributes: Record<string, string> = {}
+      for (const attr of effectiveLocked) {
+        const value = item[attr as keyof AnalyzedItem]
+        if (typeof value === "string" && value) {
+          lockedAttributes[attr] = value
+        }
       }
 
-      clearInterval(ticker)
-      setProgress(100)
-      setProgressLabel(t("upload.complete"))
+      const priceFilter =
+        state.priceMin !== null || state.priceMax !== null
+          ? {
+              minPrice: state.priceMin ?? undefined,
+              maxPrice: state.priceMax ?? undefined,
+            }
+          : null
 
-      const analysis = await analyzeRes.json()
-
-      isSubmitting.current = false
-
-      // 결과 페이지로 이동
-      if (analysis._logId) {
-        router.push(`/result/${analysis._logId}`)
-      } else {
-        setState("upload")
-        setError(t("upload.noResultId"))
+      try {
+        const res = await fetch("/api/search-products", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            gender: state.gender,
+            styleNode: state.styleNode,
+            moodTags: state.moodTags,
+            _logId: state.analysisId || undefined,
+            priceFilter,
+            styleTolerance: state.styleTolerance,
+            queries: [
+              {
+                id: item.id,
+                category: item.category,
+                subcategory: item.subcategory,
+                fit: item.fit,
+                fabric: item.fabric,
+                colorFamily: item.colorFamily,
+                searchQuery: item.searchQuery,
+                searchQueryKo: item.searchQueryKo,
+                season: item.season,
+                pattern: item.pattern,
+                lockedAttributes,
+              },
+            ],
+          }),
+          signal: controller.signal,
+        })
+        if (!res.ok) throw new Error("Search failed")
+        const data = await res.json()
+        const products: AgentProduct[] = data.results?.[0]?.products ?? []
+        dispatch({ type: "SEARCH_SUCCESS", products })
+      } catch (e) {
+        if (e instanceof Error && e.name === "AbortError") return
+        dispatch({
+          type: "SEARCH_ERROR",
+          error: e instanceof Error ? e.message : "Search failed",
+        })
       }
-    } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") {
-        clearInterval(ticker)
-        isSubmitting.current = false
-        return
-      }
-      isSubmitting.current = false
-      clearInterval(ticker)
-      setImageUrl("")
-      setState("upload")
-      if (url) URL.revokeObjectURL(url)
-      console.error("Analysis error:", err)
-      setError(
-        err instanceof Error
-          ? err.message
-          : t("upload.failed"),
+    },
+    [
+      state.items,
+      state.selectedItemId,
+      state.lockedAttrs,
+      state.priceMin,
+      state.priceMax,
+      state.styleTolerance,
+      state.gender,
+      state.styleNode,
+      state.moodTags,
+      state.analysisId,
+    ],
+  )
+
+  const selectedItem = state.items.find((i) => i.id === state.selectedItemId) ?? null
+
+  // 키보드 네비게이션 — runSearch + step + lockedAttrs.length를 ref에 저장해
+  // mount 1회만 listener 등록 (deps에 runSearch 넣으면 search state 바뀔 때마다
+  // re-subscribe 발생하는 비용 회피).
+  const runSearchRef = useRef(runSearch)
+  const kbStateRef = useRef({ step: state.step, canAdvanceStep2: state.lockedAttrs.length > 0 })
+  useEffect(() => {
+    runSearchRef.current = runSearch
+  }, [runSearch])
+  useEffect(() => {
+    kbStateRef.current = {
+      step: state.step,
+      canAdvanceStep2: state.lockedAttrs.length > 0,
+    }
+  }, [state.step, state.lockedAttrs.length])
+
+  useEffect(() => {
+    function isFormField(target: EventTarget | null): boolean {
+      if (!(target instanceof HTMLElement)) return false
+      const tag = target.tagName
+      return (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        target.isContentEditable
       )
     }
-  }, [gender, imageUrl, router, t])
+
+    function handler(e: KeyboardEvent) {
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      if (isFormField(e.target)) return
+
+      const { step: currentStep, canAdvanceStep2 } = kbStateRef.current
+
+      if (e.key === "Enter") {
+        if (currentStep === "attributes" && canAdvanceStep2) {
+          e.preventDefault()
+          dispatch({ type: "GO_TO_REFINE" })
+        } else if (currentStep === "refine") {
+          e.preventDefault()
+          void runSearchRef.current()
+        }
+      } else if (e.key === "Escape") {
+        if (currentStep === "attributes") {
+          e.preventDefault()
+          dispatch({ type: "GO_TO_STEP", step: "input" })
+        } else if (currentStep === "refine") {
+          e.preventDefault()
+          dispatch({ type: "GO_TO_STEP", step: "attributes" })
+        } else if (currentStep === "results") {
+          e.preventDefault()
+          dispatch({ type: "GO_TO_STEP", step: "refine" })
+        }
+      }
+    }
+
+    window.addEventListener("keydown", handler)
+    return () => window.removeEventListener("keydown", handler)
+  }, [])
 
   return (
     <>
       <Header />
+      <main className="flex-grow flex flex-col items-center px-6 pt-24 pb-12 relative overflow-x-hidden industrial-grid min-h-screen">
+        <div className="w-full max-w-5xl mx-auto mb-10 z-10">
+          <AgentProgress
+            current={state.step}
+            onStepClick={(s) => dispatch({ type: "GO_TO_STEP", step: s })}
+          />
+        </div>
 
-      <main className="flex-grow flex flex-col items-center justify-center px-6 pt-24 pb-12 relative overflow-x-hidden industrial-grid min-h-screen">
-        <AnimatePresence mode="wait">
-          {state === "upload" && (
+        <div className="w-full z-10 flex-1 flex flex-col items-center justify-start">
+          <AnimatePresence mode="wait">
+            {state.step === "input" && state.searching && (
+              <motion.div
+                key="analyzing"
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 1.02 }}
+                className="w-full"
+              >
+                <AnalyzingView
+                  imageUrl={state.imageUrl}
+                  promptText={state.promptText}
+                  progress={analyzeProgress}
+                  progressLabel={analyzeLabel}
+                />
+              </motion.div>
+            )}
+
+            {state.step === "input" && !state.searching && (
+              <motion.div
+                key="input"
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 1.02 }}
+                className="w-full"
+              >
+                <StepInput
+                  gender={state.gender}
+                  onGenderChange={(g) => dispatch({ type: "SET_GENDER", gender: g })}
+                  onSubmit={handleAnalyze}
+                  error={state.searchError}
+                  loading={false}
+                />
+              </motion.div>
+            )}
+
+            {state.step === "attributes" && selectedItem && (
+              <StepAttributes
+                key="attributes"
+                imageUrl={state.imageUrl}
+                items={state.items}
+                selectedItemId={state.selectedItemId}
+                lockedAttrs={state.lockedAttrs}
+                onSelectItem={(id) => dispatch({ type: "SELECT_ITEM", itemId: id })}
+                onToggleLock={(attr) => dispatch({ type: "TOGGLE_LOCK", attr })}
+                onBack={() => dispatch({ type: "GO_TO_STEP", step: "input" })}
+                onNext={() => dispatch({ type: "GO_TO_REFINE" })}
+              />
+            )}
+
+            {state.step === "refine" && selectedItem && (
+              <StepRefine
+                key="refine"
+                tolerance={state.styleTolerance}
+                priceMin={state.priceMin}
+                priceMax={state.priceMax}
+                reason={state.refineReason}
+                onSetTolerance={(v) => dispatch({ type: "SET_TOLERANCE", value: v })}
+                onSetPrice={(min, max) => dispatch({ type: "SET_PRICE", min, max })}
+                onSetReason={(r) => dispatch({ type: "SET_REASON", reason: r })}
+                onBack={() => dispatch({ type: "GO_TO_STEP", step: "attributes" })}
+                onNext={() => {
+                  void runSearch()
+                }}
+              />
+            )}
+
+            {state.step === "results" && selectedItem && (
+              <StepResults
+                key="results"
+                imageUrl={state.imageUrl}
+                selectedItem={selectedItem}
+                lockedAttrs={state.lockedAttrs}
+                products={state.products}
+                searching={state.searching}
+                error={state.searchError}
+                onRefineAgain={() => dispatch({ type: "GO_TO_STEP", step: "refine" })}
+                onUnlockAttr={(attr) => {
+                  // 안전성: dispatch는 비동기 배치되므로 runSearch가 stale state.lockedAttrs를
+                  // 읽음. overrideLocked로 새 lock 배열을 명시적으로 전달해 우회.
+                  // runSearch가 의존하는 다른 state(items, selectedItemId, gender, ...)는
+                  // 이 핸들러 내에서 변경되지 않으므로 stale 안전.
+                  const newLocked = state.lockedAttrs.filter((a) => a !== attr)
+                  dispatch({ type: "TOGGLE_LOCK", attr })
+                  void runSearch(newLocked)
+                }}
+                onReset={() => {
+                  if (objectUrlRef.current) {
+                    URL.revokeObjectURL(objectUrlRef.current)
+                    objectUrlRef.current = null
+                  }
+                  dispatch({ type: "RESET" })
+                }}
+              />
+            )}
+          </AnimatePresence>
+
+          {state.step === "input" && !state.searching && (
             <motion.div
-              key="upload"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="w-full max-w-2xl text-center space-y-10 z-10"
+              transition={{ delay: 0.3 }}
+              className="mt-12 text-center"
             >
-              <motion.div
-                className="space-y-4"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-              >
-                <h1 className="text-4xl md:text-6xl font-extrabold text-foreground tracking-[-0.03em] leading-tight">
-                  {t("hero.line1")}
-                  <br />
-                  <span className="text-muted-foreground">
-                    {t("hero.line2")}
-                  </span>
-                </h1>
-              </motion.div>
-
-              {error && (
-                <motion.p
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="text-red-400 text-sm font-mono bg-red-500/10 border border-red-500/20 px-4 py-2 rounded-lg"
-                >
-                  {error}
-                </motion.p>
-              )}
-
-              <SearchBar
-                gender={gender}
-                onGenderChange={setGender}
-                onSubmit={handleSubmit}
-              />
-
-              {/* Platform logos + Stats */}
-              <div className="space-y-6 pt-4">
-                <div className="flex items-center justify-center gap-5 flex-wrap">
-                  {["AMOMENTO", "Slow Steady Club", "ETC Seoul", "SCULP Store", "Freight"].map((name) => (
-                    <span key={name} className="text-[11px] font-mono font-semibold text-white/20 tracking-wide">
-                      {name}
-                    </span>
-                  ))}
-                  <span className="text-[11px] font-mono font-medium text-white/12 tracking-wide">
-                    {t("stats.more")}
-                  </span>
-                </div>
-                <div className="flex items-center justify-center gap-8">
-                  <div className="flex flex-col items-center gap-0.5">
-                    <span className="text-base font-mono font-bold text-white/30">26,000+</span>
-                    <span className="text-[10px] font-mono text-white/15 tracking-widest">{t("stats.products")}</span>
-                  </div>
-                  <div className="w-px h-6 bg-white/10" />
-                  <div className="flex flex-col items-center gap-0.5">
-                    <span className="text-base font-mono font-bold text-white/30">22</span>
-                    <span className="text-[10px] font-mono text-white/15 tracking-widest">{t("stats.platforms")}</span>
-                  </div>
-                  <div className="w-px h-6 bg-white/10" />
-                  <div className="flex flex-col items-center gap-0.5">
-                    <span className="text-base font-mono font-bold text-white/30">15</span>
-                    <span className="text-[10px] font-mono text-white/15 tracking-widest">{t("stats.styleNodes")}</span>
-                  </div>
-                </div>
-              </div>
+              <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground/40">
+                Q&amp;A Agent · Beta
+              </p>
             </motion.div>
           )}
 
-          {state === "analyzing" && (
+          {(state.step === "attributes" || state.step === "refine") && (
             <motion.div
-              key="analyzing"
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 1.02 }}
-              className="w-full z-10"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4 }}
+              className="mt-8 flex items-center justify-center gap-3 text-[10px] font-mono uppercase tracking-wider text-muted-foreground/50"
             >
-              <AnalyzingView imageUrl={imageUrl} promptText={promptText} progress={progress} progressLabel={progressLabel} />
+              <span className="hidden md:inline">
+                <kbd className="px-1.5 py-0.5 rounded border border-border bg-muted text-foreground">
+                  Enter
+                </kbd>{" "}
+                next
+              </span>
+              <span className="hidden md:inline opacity-50">·</span>
+              <span className="hidden md:inline">
+                <kbd className="px-1.5 py-0.5 rounded border border-border bg-muted text-foreground">
+                  Esc
+                </kbd>{" "}
+                back
+              </span>
             </motion.div>
           )}
-        </AnimatePresence>
+        </div>
       </main>
-
       <Footer />
     </>
   )
