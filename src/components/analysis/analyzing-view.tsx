@@ -29,7 +29,7 @@ export function AnalyzingView({imageUrl, promptText, progress, progressLabel}: A
             src={imageUrl}
             alt=""
             fill
-            className="object-cover grayscale"
+            className="object-cover"
             unoptimized
           />
         </div>
