@@ -1,7 +1,6 @@
 "use client"
 
 import {motion} from "framer-motion"
-import Image from "next/image"
 import {cn} from "@/lib/utils"
 import {SectionMarker} from "@/components/ui/section-marker"
 import {
@@ -30,16 +29,8 @@ function attrsFor(item: AnalyzedItem): LockableAttr[] {
   })
 }
 
-export function StepAttributes({
-  imageUrl,
-  items,
-  selectedItemId,
-  lockedAttrs,
-  onSelectItem,
-  onToggleLock,
-  onBack,
-  onNext,
-}: StepAttributesProps) {
+export function StepAttributes(props: StepAttributesProps) {
+  const {items, selectedItemId, lockedAttrs, onSelectItem, onToggleLock, onBack, onNext} = props
   const selected = items.find((i) => i.id === selectedItemId) ?? items[0]
   const canAdvance = lockedAttrs.length > 0 && lockedAttrs.length <= MAX_LOCKED_ATTRS
 
@@ -59,37 +50,49 @@ export function StepAttributes({
         You can choose up to {MAX_LOCKED_ATTRS}.
       </p>
 
-      {/* Items grid */}
+      {/* Items grid — text-driven catalog cards (no images) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
-        {items.map((item) => {
+        {items.map((item, idx) => {
           const isSel = item.id === selected?.id
+          const colorVal = item.colorFamily || item.color || null
           return (
             <button
               key={item.id}
               type="button"
               onClick={() => onSelectItem(item.id)}
               className={cn(
-                "group text-left p-3 transition-colors",
+                "group text-left p-5 transition-colors",
                 isSel
                   ? "border-2 border-ink"
                   : "border border-line hover:border-ink-soft",
               )}
             >
-              <div className="relative aspect-square bg-line-mute overflow-hidden mb-3">
-                {imageUrl && (
-                  <Image src={imageUrl} alt="" fill className="object-cover" unoptimized />
-                )}
-              </div>
-              <div className="text-[14px] font-semibold text-ink tracking-[-0.02em]">
+              {/* Number */}
+              <span className="text-[12px] font-medium text-ink-quiet tabular-nums tracking-[-0.01em]">
+                {String(idx + 1).padStart(2, "0")}
+              </span>
+
+              {/* Name — large */}
+              <div className="mt-3 text-[20px] font-semibold text-ink tracking-[-0.03em] leading-[1.15]">
                 {item.name || item.subcategory || item.category}
               </div>
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {attrsFor(item).slice(0, 4).map((attr) => {
+
+              {/* Color dot + primary attributes */}
+              <div className="mt-3 flex items-center gap-1.5 text-[12px] font-medium text-stone tracking-[-0.01em]">
+                {colorVal && (
+                  <span className="inline-block w-2.5 h-2.5 rounded-full bg-ink flex-shrink-0" />
+                )}
+                {[colorVal, item.fit, item.fabric].filter(Boolean).join(" · ")}
+              </div>
+
+              {/* Attribute chips (small, muted) */}
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {attrsFor(item).slice(0, 5).map((attr) => {
                   const val = item[attr as keyof AnalyzedItem] as string
                   return (
                     <span
                       key={attr}
-                      className="text-[11px] font-medium text-ink-soft border border-line px-2 py-0.5 tracking-[-0.01em]"
+                      className="text-[10px] font-medium text-ink-quiet border border-line px-2 py-0.5 tracking-[0.02em] uppercase"
                     >
                       {val}
                     </span>

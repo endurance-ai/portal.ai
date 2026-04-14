@@ -43,8 +43,13 @@ export function AnalyzingView({imageUrl, promptText, progress, progressLabel}: A
       )}
 
       {/* Percent — 크게 */}
-      <div className="text-[96px] font-light text-ink leading-none tracking-[-0.06em] tabular-nums mt-2">
-        {progress}
+      <div className="mt-2 flex items-baseline justify-center gap-1">
+        <span className="text-[96px] font-light text-ink leading-none tracking-[-0.06em] tabular-nums">
+          {progress}
+        </span>
+        <span className="text-[28px] font-light text-ink-quiet tracking-[-0.02em]">
+          %
+        </span>
       </div>
 
       {/* 라벨 */}
