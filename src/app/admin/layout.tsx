@@ -1,4 +1,5 @@
 import { createSupabaseServer } from "@/lib/supabase-server"
+import { ThemeProvider } from "@/components/admin/theme-provider"
 import { Sidebar } from "@/components/admin/sidebar"
 import { Header } from "@/components/admin/header"
 
@@ -22,21 +23,25 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   if (!user) {
     return (
-      <div className="dark min-h-dvh bg-background text-foreground">
-        {children}
-      </div>
+      <ThemeProvider>
+        <div className="dark min-h-dvh bg-background text-foreground">
+          {children}
+        </div>
+      </ThemeProvider>
     )
   }
 
   return (
-    <div className="dark flex h-dvh bg-background text-foreground">
-      <Sidebar />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <Header email={user.email} />
-        <main className="flex-1 overflow-y-auto p-4 pb-20 md:pb-4">
-          {children}
-        </main>
+    <ThemeProvider>
+      <div className="dark flex h-dvh bg-background text-foreground">
+        <Sidebar />
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <Header email={user.email} />
+          <main className="flex-1 overflow-y-auto p-4 pb-20 md:pb-4">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </ThemeProvider>
   )
 }
