@@ -1,4 +1,3 @@
-import Link from "next/link"
 import {cn} from "@/lib/utils"
 
 interface WordmarkProps {
@@ -26,8 +25,8 @@ export function Wordmark({href = "/", className, size = "md"}: WordmarkProps) {
 
   if (!href) return inner
   return (
-    <Link href={href} className="hover:opacity-70 transition-opacity">
+    <a href={href} className="hover:opacity-70 transition-opacity">
       {inner}
-    </Link>
+    </a>
   )
 }
