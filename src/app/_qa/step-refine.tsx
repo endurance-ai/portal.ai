@@ -17,24 +17,20 @@ interface StepRefineProps {
   onNext: () => void
 }
 
-const REASONS: {id: RefineReason; label: string}[] = [
-  {id: "price", label: "Price"},
-  {id: "size", label: "Size"},
-  {id: "variety", label: "Variety"},
-  {id: "brand", label: "Brand"},
-]
-
 export function StepRefine({
   tolerance,
   priceMin,
   priceMax,
-  reason,
   onSetTolerance,
   onSetPrice,
-  onSetReason,
   onBack,
   onNext,
 }: StepRefineProps) {
+  const formatNumber = (n: number | null): string => {
+    if (n === null) return ""
+    return n.toLocaleString("ko-KR")
+  }
+
   const parsePrice = (v: string): number | null => {
     const cleaned = v.replace(/[^0-9]/g, "")
     if (cleaned === "") return null
@@ -90,17 +86,18 @@ export function StepRefine({
       {/* Price */}
       <div className="border-t border-line pt-6 mb-10">
         <div className="text-[11px] font-medium uppercase tracking-[0.1em] text-ink-quiet mb-3">
-          Price (KRW, optional)
+          Budget — KRW
         </div>
         <div className="grid grid-cols-2 gap-4">
           <label className="flex items-baseline border-b border-ink pb-2 gap-2">
             <span className="text-[11px] text-ink-quiet uppercase tracking-[0.08em] min-w-[28px]">
               Min
             </span>
+            <span className="text-[15px] font-medium text-ink-quiet">₩</span>
             <input
               inputMode="numeric"
               placeholder="—"
-              value={priceMin ?? ""}
+              value={formatNumber(priceMin)}
               onChange={(e) => handleMin(e.target.value)}
               className="flex-1 bg-transparent outline-none text-[15px] font-medium text-ink tabular-nums tracking-[-0.01em] placeholder:text-ink-quiet"
             />
@@ -109,41 +106,15 @@ export function StepRefine({
             <span className="text-[11px] text-ink-quiet uppercase tracking-[0.08em] min-w-[28px]">
               Max
             </span>
+            <span className="text-[15px] font-medium text-ink-quiet">₩</span>
             <input
               inputMode="numeric"
               placeholder="—"
-              value={priceMax ?? ""}
+              value={formatNumber(priceMax)}
               onChange={(e) => handleMax(e.target.value)}
               className="flex-1 bg-transparent outline-none text-[15px] font-medium text-ink tabular-nums tracking-[-0.01em] placeholder:text-ink-quiet"
             />
           </label>
-        </div>
-      </div>
-
-      {/* Reason */}
-      <div className="border-t border-line pt-6 mb-10">
-        <div className="text-[11px] font-medium uppercase tracking-[0.1em] text-ink-quiet mb-3">
-          Why another?
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {REASONS.map((r) => {
-            const isOn = reason === r.id
-            return (
-              <button
-                key={r.id}
-                type="button"
-                onClick={() => onSetReason(isOn ? null : r.id)}
-                className={cn(
-                  "text-[13px] font-medium px-4 py-1.5 border rounded-full transition-colors tracking-[-0.01em]",
-                  isOn
-                    ? "bg-ink text-cream border-ink"
-                    : "border-line text-ink-soft hover:border-ink hover:text-ink",
-                )}
-              >
-                {r.label}
-              </button>
-            )
-          })}
         </div>
       </div>
 
