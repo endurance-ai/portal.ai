@@ -1,29 +1,13 @@
 import type {Metadata} from "next"
-import {Roboto, Roboto_Mono} from "next/font/google"
 import {Analytics} from "@vercel/analytics/next"
-import {ThemeProvider} from "@/components/admin/theme-provider"
 import {LocaleProvider} from "@/lib/i18n"
 import {Toaster} from "@/components/ui/sonner"
 import "./globals.css"
 
-const roboto = Roboto({
-  variable: "--font-sans",
-  subsets: ["latin"],
-  weight: ["400", "500", "700", "900"],
-  display: "swap",
-})
-
-const robotoMono = Roboto_Mono({
-  variable: "--font-mono",
-  subsets: ["latin"],
-  weight: ["400", "500", "700"],
-  display: "swap",
-})
-
 export const metadata: Metadata = {
-  title: "portal.ai | One Photo. Every Option.",
+  title: "PORTAL — The look you love, piece by piece.",
   description:
-    "Upload one outfit photo — we break down every piece and find it across platforms.",
+    "Upload a photograph or describe a mood. We return every piece that could belong.",
 }
 
 export default function RootLayout({
@@ -32,13 +16,17 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${roboto.variable} ${robotoMono.variable} h-full antialiased`}>
+    <html lang="en" suppressHydrationWarning className="light h-full antialiased">
+      <head>
+        <link
+          rel="stylesheet"
+          href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/variable/pretendardvariable.css"
+        />
+      </head>
       <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
-        <ThemeProvider>
-          <LocaleProvider>
-            {children}
-          </LocaleProvider>
-        </ThemeProvider>
+        <LocaleProvider>
+          {children}
+        </LocaleProvider>
         <Toaster richColors position="bottom-right" />
         <Analytics />
       </body>

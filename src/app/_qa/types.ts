@@ -102,4 +102,4 @@ export const INITIAL_AGENT_STATE: AgentState = {
   searchError: null,
 }
 
-export const MAX_LOCKED_ATTRS = 2
+export const MAX_LOCKED_ATTRS = 3

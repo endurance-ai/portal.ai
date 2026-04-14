@@ -8,26 +8,30 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
-  --font-mono: var(--font-mono);
+  --font-mono: var(--font-sans);
   --font-heading: var(--font-sans);
 
-  /* M3 custom color roles */
-  --color-primary-dim: #FFFFFF60;
-  --color-primary-container: #FFFFFF12;
-  --color-surface-dim: #0f0f12;
-  --color-surface-container: #18181B;
-  --color-on-surface-variant: #52525B;
-  --color-outline: #71717A;
-  --color-outline-variant: #27272A;
-  --color-outline-focus: #FFFFFF20;
+  /* Editorial tokens */
+  --color-cream: var(--cream);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-stone: var(--stone);
+  --color-line: var(--line);
+  --color-line-mute: var(--line-mute);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-quiet: var(--ink-quiet);
 
-  /* Turquoise accent system */
+  /* Admin M3 compat tokens */
   --color-turquoise: var(--turquoise);
   --color-turquoise-dim: var(--turquoise-dim);
   --color-turquoise-muted: var(--turquoise-muted);
   --color-turquoise-foreground: var(--turquoise-foreground);
+  --color-surface-dim: var(--surface-dim);
+  --color-on-surface-variant: var(--on-surface-variant);
+  --color-outline: var(--outline);
+  --color-outline-variant: var(--outline-variant);
 
-  /* shadcn defaults */
+  /* shadcn defaults (kept for admin) */
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -67,55 +71,51 @@
 }
 
 :root {
-  /* M3 Surface & Background */
-  --background: #09090B;
-  --foreground: #FAFAFA;
+  /* Editorial palette */
+  --cream: #fafaf7;
+  --ink: #111111;
+  --ink-muted: #3a3a3a;
+  --stone: #7b7468;
+  --line: #d8d4ca;
+  --line-mute: #e0dcd0;
+  --ink-soft: #666666;
+  --ink-quiet: #888888;
 
-  /* M3 Primary */
-  --primary: #FFFFFF;
-  --primary-foreground: #09090B;
-
-  /* M3 Secondary */
-  --secondary: #27272A;
-  --secondary-foreground: #FAFAFA;
-
-  /* M3 Surface variants */
-  --card: #18181B;
-  --card-foreground: #FAFAFA;
-  --popover: #18181B;
-  --popover-foreground: #FAFAFA;
-
-  /* M3 Muted / On-surface-variant */
-  --muted: #27272A;
-  --muted-foreground: #A1A1AA;
-
-  /* M3 Accent (surface tint) */
-  --accent: #27272A;
-  --accent-foreground: #FAFAFA;
-
+  /* Base mapping (user-facing surfaces) */
+  --background: var(--cream);
+  --foreground: var(--ink);
+  --primary: var(--ink);
+  --primary-foreground: var(--cream);
+  --secondary: var(--line-mute);
+  --secondary-foreground: var(--ink);
+  --card: var(--cream);
+  --card-foreground: var(--ink);
+  --popover: var(--cream);
+  --popover-foreground: var(--ink);
+  --muted: var(--line-mute);
+  --muted-foreground: var(--stone);
+  --accent: var(--line-mute);
+  --accent-foreground: var(--ink);
   --destructive: oklch(0.577 0.245 27.325);
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--ink);
 
-  /* M3 Outline */
-  --border: #27272A;
-  --input: #27272A;
-  --ring: #FFFFFF;
+  /* Font stack — Pretendard via CDN */
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
+    system-ui, sans-serif;
 
-  /* Charts */
+  /* Radius */
+  --radius: 0.375rem;
+
+  /* Charts (admin 전용 — 기존 값 유지) */
   --chart-1: #55B4A8;
   --chart-2: #A1A1AA;
   --chart-3: #71717A;
   --chart-4: #3D9B8F;
   --chart-5: #27272A;
 
-  --radius: 0.75rem;
-
-  /* Turquoise accent */
-  --turquoise: #55B4A8;
-  --turquoise-dim: #3D9B8F;
-  --turquoise-muted: #55B4A815;
-  --turquoise-foreground: #FFFFFF;
-
-  /* Sidebar */
+  /* Sidebar (admin 전용) */
   --sidebar: #18181B;
   --sidebar-foreground: #FAFAFA;
   --sidebar-primary: #55B4A8;
@@ -126,37 +126,35 @@
   --sidebar-ring: #55B4A8;
 }
 
-.light {
-  --background: #FAFAFA;
-  --foreground: #09090B;
-  --primary: #09090B;
-  --primary-foreground: #FAFAFA;
-  --secondary: #F4F4F5;
-  --secondary-foreground: #09090B;
-  --card: #FFFFFF;
-  --card-foreground: #09090B;
-  --popover: #FFFFFF;
-  --popover-foreground: #09090B;
-  --muted: #F4F4F5;
-  --muted-foreground: #71717A;
-  --accent: #F4F4F5;
-  --accent-foreground: #09090B;
-  --border: #E4E4E7;
-  --input: #E4E4E7;
-  --ring: #09090B;
-  --chart-1: #09090B;
-  --chart-2: #71717A;
-  --chart-3: #A1A1AA;
-  --chart-4: #D4D4D8;
-  --chart-5: #E4E4E7;
-  --sidebar: #FFFFFF;
-  --sidebar-foreground: #09090B;
-  --sidebar-primary: #09090B;
-  --sidebar-primary-foreground: #FAFAFA;
-  --sidebar-accent: #F4F4F5;
-  --sidebar-accent-foreground: #09090B;
-  --sidebar-border: #E4E4E7;
-  --sidebar-ring: #09090B;
+/* Admin은 기존 다크 유지 — .dark 클래스를 /admin 레이아웃에서 적용 */
+.dark {
+  --background: #09090B;
+  --foreground: #FAFAFA;
+  --primary: #FFFFFF;
+  --primary-foreground: #09090B;
+  --secondary: #27272A;
+  --secondary-foreground: #FAFAFA;
+  --card: #18181B;
+  --card-foreground: #FAFAFA;
+  --popover: #18181B;
+  --popover-foreground: #FAFAFA;
+  --muted: #27272A;
+  --muted-foreground: #A1A1AA;
+  --accent: #27272A;
+  --accent-foreground: #FAFAFA;
+  --border: #27272A;
+  --input: #27272A;
+  --ring: #FFFFFF;
+
+  /* Admin 전용 토큰 (기존 M3 호환) */
+  --turquoise: #55B4A8;
+  --turquoise-dim: #3D9B8F;
+  --turquoise-muted: #55B4A815;
+  --turquoise-foreground: #FFFFFF;
+  --surface-dim: #0f0f12;
+  --on-surface-variant: #52525B;
+  --outline: #71717A;
+  --outline-variant: #27272A;
 }
 
 @layer base {
@@ -165,52 +163,9 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "ss01", "ss02", "kern";
   }
   html {
     @apply font-sans;
   }
-}
-
-/* Subtle grid background */
-.industrial-grid {
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
-  background-size: 32px 32px;
-}
-
-/* Corner brackets for panels */
-.corner-brackets {
-  position: relative;
-}
-.corner-brackets::before,
-.corner-brackets::after {
-  content: "";
-  position: absolute;
-  width: 16px;
-  height: 16px;
-  pointer-events: none;
-  z-index: 10;
-}
-.corner-brackets::before {
-  top: 8px;
-  left: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
-  border-left: 1px solid rgba(255, 255, 255, 0.12);
-}
-.corner-brackets::after {
-  bottom: 8px;
-  right: 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-  border-right: 1px solid rgba(255, 255, 255, 0.12);
-}
-
-/* Scan line animation — GPU-accelerated via composite layer */
-@keyframes scan-line {
-  0% { top: -5%; }
-  100% { top: 105%; }
-}
-.animate-scan-line {
-  will-change: top;
-  animation: scan-line 3s linear infinite;
 }
