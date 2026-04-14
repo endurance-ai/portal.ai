@@ -2,7 +2,7 @@
 
 import {motion} from "framer-motion"
 import {SearchBar} from "@/components/search/search-bar"
-import {type Gender, GenderSelector} from "@/components/upload/gender-selector"
+import {type Gender} from "@/components/upload/gender-selector"
 
 interface StepInputProps {
   gender: Gender
@@ -59,8 +59,7 @@ export function StepInput({
             />
           </div>
 
-          <div className="mt-5 flex items-center justify-between">
-            <GenderSelector value={gender} onChange={onGenderChange} />
+          <div className="mt-5 flex items-center justify-end">
             {loading && loadingLabel && (
               <p className="text-[11px] font-medium text-ink-quiet tracking-[-0.01em] animate-pulse">
                 {loadingLabel}
