@@ -20,7 +20,7 @@ export default function AboutPage() {
           <h1 className="text-[52px] md:text-[72px] font-medium text-ink tracking-[-0.045em] leading-[0.96] mb-12">
             Read the look.
             <br />
-            <b className="font-bold">Return the pieces.</b>
+            <span className="font-bold">Return the pieces.</span>
           </h1>
 
           <div className="space-y-5 text-[15px] font-normal text-ink-muted leading-[1.65] tracking-[-0.01em]">

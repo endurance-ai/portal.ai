@@ -27,7 +27,7 @@ export function AnalyzingView({imageUrl, promptText, progress, progressLabel}: A
         <div className="relative w-[120px] h-[150px] mb-2">
           <Image
             src={imageUrl}
-            alt=""
+            alt={promptText || "Uploaded outfit"}
             fill
             className="object-cover"
             unoptimized
@@ -44,10 +44,10 @@ export function AnalyzingView({imageUrl, promptText, progress, progressLabel}: A
 
       {/* Percent — 크게 */}
       <div className="mt-2 flex items-baseline justify-center gap-1">
-        <span className="text-[96px] font-light text-ink leading-none tracking-[-0.06em] tabular-nums">
+        <span className="text-[96px] font-normal text-ink leading-none tracking-[-0.06em] tabular-nums">
           {progress}
         </span>
-        <span className="text-[28px] font-light text-ink-quiet tracking-[-0.02em]">
+        <span className="text-[28px] font-normal text-ink-quiet tracking-[-0.02em]">
           %
         </span>
       </div>

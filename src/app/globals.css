@@ -21,6 +21,16 @@
   --color-ink-soft: var(--ink-soft);
   --color-ink-quiet: var(--ink-quiet);
 
+  /* Admin M3 compat tokens */
+  --color-turquoise: var(--turquoise);
+  --color-turquoise-dim: var(--turquoise-dim);
+  --color-turquoise-muted: var(--turquoise-muted);
+  --color-turquoise-foreground: var(--turquoise-foreground);
+  --color-surface-dim: var(--surface-dim);
+  --color-on-surface-variant: var(--on-surface-variant);
+  --color-outline: var(--outline);
+  --color-outline-variant: var(--outline-variant);
+
   /* shadcn defaults (kept for admin) */
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -135,6 +145,16 @@
   --border: #27272A;
   --input: #27272A;
   --ring: #FFFFFF;
+
+  /* Admin 전용 토큰 (기존 M3 호환) */
+  --turquoise: #55B4A8;
+  --turquoise-dim: #3D9B8F;
+  --turquoise-muted: #55B4A815;
+  --turquoise-foreground: #FFFFFF;
+  --surface-dim: #0f0f12;
+  --on-surface-variant: #52525B;
+  --outline: #71717A;
+  --outline-variant: #27272A;
 }
 
 @layer base {

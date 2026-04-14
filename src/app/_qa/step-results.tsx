@@ -146,9 +146,11 @@ function ProductCard({
   product: AgentProduct
   lockVisible: boolean
 }) {
+  const safeLink = /^https?:\/\//.test(product.link) ? product.link : "#"
+
   return (
     <Link
-      href={product.link}
+      href={safeLink}
       target="_blank"
       rel="noopener noreferrer"
       className="group block"

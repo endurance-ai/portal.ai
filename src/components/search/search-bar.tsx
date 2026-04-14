@@ -211,7 +211,7 @@ export function SearchBar({ gender, onGenderChange, onSubmit, disabled }: Search
                   <button
                     type="button"
                     onClick={handleRemoveImage}
-                    className="absolute -top-1.5 -right-1.5 flex h-6 w-6 items-center justify-center bg-foreground text-background shadow-sm transition-opacity hover:opacity-80"
+                    className="absolute -top-1.5 -right-1.5 flex h-6 w-6 items-center justify-center bg-foreground text-background transition-opacity hover:opacity-80"
                     aria-label="Remove image"
                   >
                     <X className="size-3" />
