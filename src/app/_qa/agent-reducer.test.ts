@@ -22,7 +22,7 @@ describe("agentReducer", () => {
     it("changes gender", () => {
       const next = agentReducer(INITIAL_AGENT_STATE, { type: "SET_GENDER", gender: "female" })
       expect(next.gender).toBe("female")
-      expect(next.step).toBe("input") // unchanged
+      expect(next.step).toBe("input")
     })
   })
 
@@ -51,7 +51,7 @@ describe("agentReducer", () => {
   })
 
   describe("ANALYZE_SUCCESS", () => {
-    it("transitions to attributes step + selects first item", () => {
+    it("transitions to confirm step + selects first item", () => {
       const next = agentReducer(INITIAL_AGENT_STATE, {
         type: "ANALYZE_SUCCESS",
         analysisId: "abc-123",
@@ -59,7 +59,7 @@ describe("agentReducer", () => {
         styleNode: { primary: "F", secondary: "G" },
         moodTags: ["minimal"],
       })
-      expect(next.step).toBe("attributes")
+      expect(next.step).toBe("confirm")
       expect(next.selectedItemId).toBe("item-1")
       expect(next.lockedAttrs).toEqual([])
       expect(next.analysisId).toBe("abc-123")
@@ -86,12 +86,12 @@ describe("agentReducer", () => {
       const next = agentReducer(startedState, { type: "ANALYZE_ERROR", error: "boom" })
       expect(next.searching).toBe(false)
       expect(next.searchError).toBe("boom")
-      expect(next.step).toBe("input") // unchanged
+      expect(next.step).toBe("input")
     })
   })
 
   describe("SELECT_ITEM", () => {
-    it("changes selected item AND clears lockedAttrs (different attributes)", () => {
+    it("changes selected item AND clears lockedAttrs and editedItem", () => {
       const state = {
         ...INITIAL_AGENT_STATE,
         items: [sampleItem, sampleItem2],
@@ -101,6 +101,54 @@ describe("agentReducer", () => {
       const next = agentReducer(state, { type: "SELECT_ITEM", itemId: "item-2" })
       expect(next.selectedItemId).toBe("item-2")
       expect(next.lockedAttrs).toEqual([])
+      expect(next.editedItem).toBe(null)
+    })
+  })
+
+  describe("EDIT_ITEM_ATTR", () => {
+    it("stores edited attribute", () => {
+      const next = agentReducer(INITIAL_AGENT_STATE, {
+        type: "EDIT_ITEM_ATTR",
+        key: "colorFamily",
+        value: "NAVY",
+      })
+      expect(next.editedItem).toEqual({ colorFamily: "NAVY" })
+    })
+
+    it("accumulates edits", () => {
+      let state = agentReducer(INITIAL_AGENT_STATE, {
+        type: "EDIT_ITEM_ATTR",
+        key: "colorFamily",
+        value: "NAVY",
+      })
+      state = agentReducer(state, { type: "EDIT_ITEM_ATTR", key: "fit", value: "slim" })
+      expect(state.editedItem).toEqual({ colorFamily: "NAVY", fit: "slim" })
+    })
+  })
+
+  describe("CONFIRM_ITEM", () => {
+    it("merges edits into items and goes to hold", () => {
+      const state = {
+        ...INITIAL_AGENT_STATE,
+        items: [sampleItem],
+        selectedItemId: "item-1",
+        editedItem: { colorFamily: "NAVY" },
+      }
+      const next = agentReducer(state, { type: "CONFIRM_ITEM" })
+      expect(next.step).toBe("hold")
+      expect(next.editedItem).toBe(null)
+      expect(next.items[0].colorFamily).toBe("NAVY")
+    })
+
+    it("goes to hold even without edits", () => {
+      const state = {
+        ...INITIAL_AGENT_STATE,
+        items: [sampleItem],
+        selectedItemId: "item-1",
+        editedItem: null,
+      }
+      const next = agentReducer(state, { type: "CONFIRM_ITEM" })
+      expect(next.step).toBe("hold")
     })
   })
 
@@ -120,43 +168,24 @@ describe("agentReducer", () => {
     })
 
     it("respects MAX_LOCKED_ATTRS limit", () => {
-      const lockedAttrs = ["colorFamily", "fit"].slice(0, MAX_LOCKED_ATTRS) as (
-        | "colorFamily"
-        | "fit"
-      )[]
+      const lockedAttrs: ("colorFamily" | "fit" | "fabric")[] = ["colorFamily", "fit", "fabric"]
       const state = { ...INITIAL_AGENT_STATE, lockedAttrs }
-      const next = agentReducer(state, { type: "TOGGLE_LOCK", attr: "fabric" })
-      // 가득 찼으면 추가 안 됨, 그대로
-      expect(next.lockedAttrs).toEqual(lockedAttrs)
-    })
-
-    it("can still remove existing lock when at limit", () => {
-      const state = {
-        ...INITIAL_AGENT_STATE,
-        lockedAttrs: ["colorFamily", "fit"] as ("colorFamily" | "fit")[],
-      }
-      const next = agentReducer(state, { type: "TOGGLE_LOCK", attr: "colorFamily" })
-      expect(next.lockedAttrs).toEqual(["fit"])
+      const next = agentReducer(state, { type: "TOGGLE_LOCK", attr: "season" })
+      expect(next.lockedAttrs).toEqual(lockedAttrs) // 가득 찼으면 추가 안 됨
     })
   })
 
-  describe("GO_TO_REFINE / GO_TO_STEP", () => {
-    it("GO_TO_REFINE moves to refine step", () => {
-      const next = agentReducer(INITIAL_AGENT_STATE, { type: "GO_TO_REFINE" })
-      expect(next.step).toBe("refine")
+  describe("SET_SIMILARITY", () => {
+    it("sets similarity level and updates tolerance", () => {
+      const next = agentReducer(INITIAL_AGENT_STATE, { type: "SET_SIMILARITY", level: "tight" })
+      expect(next.similarityLevel).toBe("tight")
+      expect(next.styleTolerance).toBe(0.0)
     })
 
-    it("GO_TO_STEP can move to any step", () => {
-      const next = agentReducer(INITIAL_AGENT_STATE, { type: "GO_TO_STEP", step: "results" })
-      expect(next.step).toBe("results")
-    })
-  })
-
-  describe("SET_TOLERANCE", () => {
-    it("clamps to 0~1 range", () => {
-      expect(agentReducer(INITIAL_AGENT_STATE, { type: "SET_TOLERANCE", value: 0.5 }).styleTolerance).toBe(0.5)
-      expect(agentReducer(INITIAL_AGENT_STATE, { type: "SET_TOLERANCE", value: 1.5 }).styleTolerance).toBe(1)
-      expect(agentReducer(INITIAL_AGENT_STATE, { type: "SET_TOLERANCE", value: -0.3 }).styleTolerance).toBe(0)
+    it("loose maps to tolerance 1.0", () => {
+      const next = agentReducer(INITIAL_AGENT_STATE, { type: "SET_SIMILARITY", level: "loose" })
+      expect(next.similarityLevel).toBe("loose")
+      expect(next.styleTolerance).toBe(1.0)
     })
   })
 
@@ -181,7 +210,7 @@ describe("agentReducer", () => {
 
   describe("SEARCH_START / SEARCH_SUCCESS / SEARCH_ERROR", () => {
     it("SEARCH_START moves to results and sets searching=true", () => {
-      const state = { ...INITIAL_AGENT_STATE, step: "refine" as const, searchError: "old" }
+      const state = { ...INITIAL_AGENT_STATE, step: "conditions" as const, searchError: "old" }
       const next = agentReducer(state, { type: "SEARCH_START" })
       expect(next.step).toBe("results")
       expect(next.searching).toBe(true)
@@ -193,13 +222,7 @@ describe("agentReducer", () => {
       const next = agentReducer(state, {
         type: "SEARCH_SUCCESS",
         products: [
-          {
-            brand: "B",
-            price: "₩1,000",
-            platform: "P",
-            imageUrl: "",
-            link: "",
-          },
+          { brand: "B", price: "₩1,000", platform: "P", imageUrl: "", link: "" },
         ],
       })
       expect(next.searching).toBe(false)
@@ -211,6 +234,13 @@ describe("agentReducer", () => {
       const next = agentReducer(state, { type: "SEARCH_ERROR", error: "bad" })
       expect(next.searching).toBe(false)
       expect(next.searchError).toBe("bad")
+    })
+  })
+
+  describe("FEEDBACK_SUBMITTED", () => {
+    it("sets feedbackSubmitted to true", () => {
+      const next = agentReducer(INITIAL_AGENT_STATE, { type: "FEEDBACK_SUBMITTED" })
+      expect(next.feedbackSubmitted).toBe(true)
     })
   })
 
@@ -229,7 +259,7 @@ describe("agentReducer", () => {
   })
 
   describe("end-to-end flow", () => {
-    it("simulates full happy path: input → attributes → refine → results", () => {
+    it("simulates full 6-step happy path", () => {
       let state = INITIAL_AGENT_STATE
 
       // 1. Start analyze
@@ -237,7 +267,7 @@ describe("agentReducer", () => {
       expect(state.step).toBe("input")
       expect(state.searching).toBe(true)
 
-      // 2. Analyze success
+      // 2. Analyze success → confirm
       state = agentReducer(state, {
         type: "ANALYZE_SUCCESS",
         analysisId: "a1",
@@ -245,29 +275,35 @@ describe("agentReducer", () => {
         styleNode: { primary: "F" },
         moodTags: [],
       })
-      expect(state.step).toBe("attributes")
+      expect(state.step).toBe("confirm")
 
-      // 3. Lock 2 attributes
+      // 3. Edit + confirm → hold
+      state = agentReducer(state, { type: "EDIT_ITEM_ATTR", key: "colorFamily", value: "NAVY" })
+      state = agentReducer(state, { type: "CONFIRM_ITEM" })
+      expect(state.step).toBe("hold")
+      expect(state.items[0].colorFamily).toBe("NAVY")
+
+      // 4. Lock attributes
       state = agentReducer(state, { type: "TOGGLE_LOCK", attr: "subcategory" })
       state = agentReducer(state, { type: "TOGGLE_LOCK", attr: "colorFamily" })
       expect(state.lockedAttrs).toEqual(["subcategory", "colorFamily"])
 
-      // 4. Go to refine
-      state = agentReducer(state, { type: "GO_TO_REFINE" })
-      expect(state.step).toBe("refine")
-
-      // 5. Adjust tolerance + budget
-      state = agentReducer(state, { type: "SET_TOLERANCE", value: 0.7 })
+      // 5. Set conditions
+      state = agentReducer(state, { type: "GO_TO_STEP", step: "conditions" })
+      state = agentReducer(state, { type: "SET_SIMILARITY", level: "tight" })
       state = agentReducer(state, { type: "SET_PRICE", min: null, max: 200_000 })
+      expect(state.styleTolerance).toBe(0.0)
 
-      // 6. Start search
+      // 6. Search
       state = agentReducer(state, { type: "SEARCH_START" })
       expect(state.step).toBe("results")
-      expect(state.searching).toBe(true)
-
-      // 7. Receive results
       state = agentReducer(state, { type: "SEARCH_SUCCESS", products: [] })
       expect(state.searching).toBe(false)
+
+      // 7. Feedback
+      state = agentReducer(state, { type: "GO_TO_STEP", step: "feedback" })
+      state = agentReducer(state, { type: "FEEDBACK_SUBMITTED" })
+      expect(state.feedbackSubmitted).toBe(true)
     })
   })
 })

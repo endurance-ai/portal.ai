@@ -92,37 +92,37 @@ describe("passesLockedFilter — defensive (corrupt input)", () => {
 
 describe("toleranceToTargetCount", () => {
   it("returns default when tolerance is null/undefined", () => {
-    expect(toleranceToTargetCount(null)).toBe(7)
-    expect(toleranceToTargetCount(undefined)).toBe(7)
-    expect(toleranceToTargetCount(null, 7)).toBe(7)
+    expect(toleranceToTargetCount(null)).toBe(15)
+    expect(toleranceToTargetCount(undefined)).toBe(15)
+    expect(toleranceToTargetCount(null, 15)).toBe(15)
   })
 
   it("uses given default when null", () => {
-    expect(toleranceToTargetCount(null, 7)).toBe(7)
+    expect(toleranceToTargetCount(null, 12)).toBe(12)
   })
 
-  it("returns 5 at tolerance 0 (tight)", () => {
-    expect(toleranceToTargetCount(0)).toBe(5)
+  it("returns 10 at tolerance 0 (tight)", () => {
+    expect(toleranceToTargetCount(0)).toBe(10)
   })
 
-  it("returns 10 at tolerance 1 (loose)", () => {
-    expect(toleranceToTargetCount(1)).toBe(10)
+  it("returns 20 at tolerance 1 (loose)", () => {
+    expect(toleranceToTargetCount(1)).toBe(20)
   })
 
-  it("returns ~7-8 at mid tolerance", () => {
-    expect(toleranceToTargetCount(0.5)).toBe(8)
+  it("returns 15 at mid tolerance", () => {
+    expect(toleranceToTargetCount(0.5)).toBe(15)
   })
 
-  it("clamps tolerance > 1 to 10", () => {
-    expect(toleranceToTargetCount(1.5)).toBe(10)
+  it("clamps tolerance > 1 to 20", () => {
+    expect(toleranceToTargetCount(1.5)).toBe(20)
   })
 
-  it("clamps tolerance < 0 to 5", () => {
-    expect(toleranceToTargetCount(-0.5)).toBe(5)
+  it("clamps tolerance < 0 to 10", () => {
+    expect(toleranceToTargetCount(-0.5)).toBe(10)
   })
 
   it("returns default for non-finite values", () => {
-    expect(toleranceToTargetCount(NaN)).toBe(7)
-    expect(toleranceToTargetCount(Infinity)).toBe(7)
+    expect(toleranceToTargetCount(NaN)).toBe(15)
+    expect(toleranceToTargetCount(Infinity)).toBe(15)
   })
 })

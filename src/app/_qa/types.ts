@@ -1,4 +1,4 @@
-export type AgentStep = "input" | "attributes" | "refine" | "results"
+export type AgentStep = "input" | "confirm" | "hold" | "conditions" | "results" | "feedback"
 
 export type LockableAttr =
   | "subcategory"
@@ -24,6 +24,16 @@ export const ATTR_LABELS: Record<LockableAttr, string> = {
   fabric: "Fabric",
   season: "Season",
   pattern: "Pattern",
+}
+
+/** 유저에게 보이는 친절한 한국어 라벨 */
+export const ATTR_LABELS_KO: Record<LockableAttr, string> = {
+  subcategory: "카테고리",
+  colorFamily: "색감",
+  fit: "핏",
+  fabric: "소재",
+  season: "시즌",
+  pattern: "패턴",
 }
 
 export interface AnalyzedItem {
@@ -58,9 +68,18 @@ export interface AgentProduct {
 
 export type RefineReason = "price" | "size" | "variety" | "brand"
 
+/** 유사도 3단계 */
+export type SimilarityLevel = "tight" | "medium" | "loose"
+
+export const SIMILARITY_OPTIONS: { value: SimilarityLevel; label: string; tolerance: number }[] = [
+  { value: "tight", label: "거의 똑같은 느낌만", tolerance: 0.0 },
+  { value: "medium", label: "비슷한 분위기면 OK", tolerance: 0.5 },
+  { value: "loose", label: "좀 다른 스타일도 보고 싶어요", tolerance: 1.0 },
+]
+
 export interface AgentState {
   step: AgentStep
-  // Step 1
+  // Step 1 — Reference
   analysisId: string | null
   imageUrl: string
   promptText: string
@@ -68,18 +87,25 @@ export interface AgentState {
   items: AnalyzedItem[]
   styleNode: { primary: string; secondary?: string } | null
   moodTags: string[]
-  // Step 2
+  // Step 2 — Confirm
   selectedItemId: string | null
+  editedItem: Partial<AnalyzedItem> | null  // 유저가 수정한 속성
+  // Step 3 — Hold
   lockedAttrs: LockableAttr[]
-  // Step 3
-  styleTolerance: number   // 0.0 (Tight) ~ 1.0 (Loose)
+  // Step 4 — Conditions
+  similarityLevel: SimilarityLevel
+  styleTolerance: number
   priceMin: number | null
   priceMax: number | null
   refineReason: RefineReason | null
-  // Step 4
+  // Step 5 — Results
   products: AgentProduct[]
   searching: boolean
   searchError: string | null
+  analyzeProgress: number
+  analyzeLabel: string
+  // Step 6 — Feedback
+  feedbackSubmitted: boolean
 }
 
 export const INITIAL_AGENT_STATE: AgentState = {
@@ -92,7 +118,9 @@ export const INITIAL_AGENT_STATE: AgentState = {
   styleNode: null,
   moodTags: [],
   selectedItemId: null,
+  editedItem: null,
   lockedAttrs: [],
+  similarityLevel: "medium",
   styleTolerance: 0.5,
   priceMin: null,
   priceMax: null,
@@ -100,6 +128,9 @@ export const INITIAL_AGENT_STATE: AgentState = {
   products: [],
   searching: false,
   searchError: null,
+  analyzeProgress: 0,
+  analyzeLabel: "",
+  feedbackSubmitted: false,
 }
 
 export const MAX_LOCKED_ATTRS = 3
