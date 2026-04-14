@@ -53,16 +53,17 @@ export function passesLockedFilter(
 }
 
 /**
- * styleTolerance(0.0~1.0) → 결과 개수 (5~10)
- * tolerance가 null/undefined면 기본 7개.
+ * styleTolerance(0.0~1.0) → 결과 개수 (10~20)
+ * tight(0.0)=10, medium(0.5)=15, loose(1.0)=20
+ * tolerance가 null/undefined면 기본 15개.
  */
 export function toleranceToTargetCount(
   tolerance: number | null | undefined,
-  defaultCount = 7,
+  defaultCount = 15,
 ): number {
   if (tolerance === null || tolerance === undefined || !Number.isFinite(tolerance)) {
     return defaultCount
   }
   const clamped = Math.min(1, Math.max(0, tolerance))
-  return Math.round(5 + clamped * 5)
+  return Math.round(10 + clamped * 10)
 }

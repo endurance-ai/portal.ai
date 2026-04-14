@@ -4,6 +4,7 @@ import Link from "next/link"
 import {usePathname} from "next/navigation"
 import {Wordmark} from "@/components/ui/wordmark"
 import {cn} from "@/lib/utils"
+import {useLocale} from "@/lib/i18n"
 
 const NAV = [
   {href: "/", label: "Index"},
@@ -13,6 +14,7 @@ const NAV = [
 
 export function Header() {
   const pathname = usePathname()
+  const {locale, setLocale} = useLocale()
 
   return (
     <header className="fixed top-0 w-full z-50 bg-cream border-b border-line">
@@ -35,9 +37,13 @@ export function Header() {
               </Link>
             )
           })}
-          <span className="text-[13px] font-medium text-ink-soft tracking-[-0.01em]">
-            EN
-          </span>
+          <button
+            type="button"
+            onClick={() => setLocale(locale === "en" ? "ko" : "en")}
+            className="text-[13px] font-medium tracking-[-0.01em] text-ink-soft hover:text-ink transition-colors"
+          >
+            {locale === "en" ? "EN" : "KO"}
+          </button>
         </div>
       </nav>
     </header>

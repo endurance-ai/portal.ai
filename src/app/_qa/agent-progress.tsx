@@ -6,9 +6,11 @@ import {type AgentStep} from "./types"
 
 const STEPS: {id: AgentStep; label: string}[] = [
   {id: "input", label: "Reference"},
-  {id: "attributes", label: "Hold"},
-  {id: "refine", label: "Refine"},
+  {id: "confirm", label: "Confirm"},
+  {id: "hold", label: "Hold"},
+  {id: "conditions", label: "Conditions"},
   {id: "results", label: "Pieces"},
+  {id: "feedback", label: "Feedback"},
 ]
 
 interface AgentProgressProps {
@@ -16,10 +18,6 @@ interface AgentProgressProps {
   onStepClick?: (step: AgentStep) => void
 }
 
-/**
- * DESIGN.md §4.8 — 4 얇은 bar + "01 / 04" 숫자.
- * 완료 #111, 미완료 #d8d4ca.
- */
 export function AgentProgress({current, onStepClick}: AgentProgressProps) {
   const currentIdx = STEPS.findIndex((s) => s.id === current)
 
@@ -74,7 +72,6 @@ export function AgentProgress({current, onStepClick}: AgentProgressProps) {
         </span>
       </div>
 
-      {/* 현재 step label */}
       <div className="mt-3 text-center">
         <span className="text-[11px] font-medium uppercase tracking-[0.15em] text-ink">
           {STEPS[currentIdx]?.label}

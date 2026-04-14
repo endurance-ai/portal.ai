@@ -79,6 +79,65 @@ export const dict = {
     "tag.color_off": "Color mismatch",
     "tag.brand_unfamiliar": "Unfamiliar brands",
     "tag.other": "Other",
+
+    // Q&A Flow — Step 2 Confirm
+    "qa.confirm.title": "Here's what we found. Look right?",
+    "qa.confirm.desc": "Pick the item you'd like to search for.",
+    "qa.confirm.edit": "Anything to adjust?",
+    "qa.confirm.cta": "Looks good, continue",
+    "qa.confirm.back": "Back",
+
+    // Q&A Flow — Step 3 Hold
+    "qa.hold.title": "What matters most?",
+    "qa.hold.desc": "Pick what's essential — up to 3.",
+    "qa.hold.hint": "Everything else will be matched flexibly.",
+    "qa.hold.cta": "Search with these",
+
+    // Q&A Flow — Step 4 Conditions
+    "qa.conditions.title": "How close should the match be?",
+    "qa.similarity.tight": "Almost identical",
+    "qa.similarity.medium": "Similar vibe is fine",
+    "qa.similarity.loose": "Open to different styles too",
+    "qa.conditions.budget": "Have a budget in mind?",
+    "qa.conditions.budgetHint": "Leave empty to search without a limit.",
+    "qa.conditions.cta": "Find pieces",
+
+    // Q&A Flow — Step 5 Results
+    "qa.results.searching": "Searching\u2026",
+    "qa.results.empty": "Nothing found yet.",
+    "qa.results.emptyHint": "Try widening the conditions?",
+    "qa.results.widen": "Widen conditions",
+    "qa.results.raiseBudget": "Raise budget",
+    "qa.results.held": "Held:",
+    "qa.results.startOver": "Start over",
+    "qa.results.adjust": "Adjust conditions",
+    "qa.results.toFeedback": "Share feedback",
+
+    // Q&A Flow — Step 6 Feedback
+    "qa.feedback.title": "How were the results?",
+    "qa.feedback.prompt": "Did the results match what you had in mind?",
+    "qa.feedback.up": "Yes, this is what I wanted",
+    "qa.feedback.down": "Not quite — something's off",
+    "qa.feedback.adjustBack": "Adjust & search again",
+    "qa.feedback.whatOff": "What felt off? (select all that apply)",
+    "qa.feedback.goodPrompt": "What did you like? (optional)",
+    "qa.feedback.badPrompt": "Tell us more — it really helps. (optional)",
+    "qa.feedback.commentPlaceholder": "Anything you'd like to share\u2026",
+    "qa.feedback.emailTitle": "Be the first to know when we launch.",
+    "qa.feedback.emailSub": "You're one of our earliest users — thank you for shaping this with us.",
+    "qa.feedback.send": "Send feedback",
+    "qa.feedback.thanks": "Thank you.",
+    "qa.feedback.thanksSub": "Your voice is shaping portal.ai.",
+    "qa.feedback.thanksEmail": "We'll let you know first when we launch.",
+    "qa.feedback.restart": "Start a new search",
+
+    // Attr labels (friendly)
+    "attr.subcategory": "Type",
+    "attr.colorFamily": "Color",
+    "attr.fit": "Fit",
+    "attr.fabric": "Fabric",
+    "attr.season": "Season",
+    "attr.pattern": "Pattern",
   },
   ko: {
     // Hero
@@ -160,6 +219,65 @@ export const dict = {
     "tag.color_off": "색감이 달라요",
     "tag.brand_unfamiliar": "브랜드가 낯설어요",
     "tag.other": "기타",
+
+    // Q&A Flow — Step 2 Confirm
+    "qa.confirm.title": "이렇게 찾아볼게요. 맞나요?",
+    "qa.confirm.desc": "찾고 싶은 아이템을 골라주세요.",
+    "qa.confirm.edit": "수정할 부분이 있나요?",
+    "qa.confirm.cta": "이대로 진행할게요",
+    "qa.confirm.back": "뒤로",
+
+    // Q&A Flow — Step 3 Hold
+    "qa.hold.title": "꼭 있어야 하는 건 뭔가요?",
+    "qa.hold.desc": "꼭 지켜야 할 부분을 골라주세요. (최대 3개)",
+    "qa.hold.hint": "선택하지 않은 부분은 유연하게 매칭돼요.",
+    "qa.hold.cta": "이걸로 찾아볼게요",
+
+    // Q&A Flow — Step 4 Conditions
+    "qa.conditions.title": "어느 정도로 비슷한 걸 찾아드릴까요?",
+    "qa.similarity.tight": "거의 똑같은 느낌만",
+    "qa.similarity.medium": "비슷한 분위기면 OK",
+    "qa.similarity.loose": "좀 다른 스타일도 보고 싶어요",
+    "qa.conditions.budget": "생각하신 예산이 있으신가요?",
+    "qa.conditions.budgetHint": "비워두시면 예산 상관없이 찾아드릴게요.",
+    "qa.conditions.cta": "찾아볼게요",
+
+    // Q&A Flow — Step 5 Results
+    "qa.results.searching": "찾고 있어요\u2026",
+    "qa.results.empty": "아직 찾지 못했어요.",
+    "qa.results.emptyHint": "조건을 조금 넓혀보시겠어요?",
+    "qa.results.widen": "조건 넓히기",
+    "qa.results.raiseBudget": "예산 올리기",
+    "qa.results.held": "고정:",
+    "qa.results.startOver": "새로 시작하기",
+    "qa.results.adjust": "조건 바꾸기",
+    "qa.results.toFeedback": "의견 남기기",
+
+    // Q&A Flow — Step 6 Feedback
+    "qa.feedback.title": "결과가 어떠셨나요?",
+    "qa.feedback.prompt": "찾으시던 느낌에 가까웠나요?",
+    "qa.feedback.up": "원하던 느낌이에요",
+    "qa.feedback.down": "아쉬운 부분이 있어요",
+    "qa.feedback.adjustBack": "조건 바꿔서 다시 찾기",
+    "qa.feedback.whatOff": "어떤 부분이 아쉬웠나요? (복수 선택 가능)",
+    "qa.feedback.goodPrompt": "어떤 점이 좋았는지 알려주세요. (선택)",
+    "qa.feedback.badPrompt": "자세히 알려주시면 큰 도움이 돼요. (선택)",
+    "qa.feedback.commentPlaceholder": "자유롭게 적어주세요\u2026",
+    "qa.feedback.emailTitle": "서비스가 출시되면 가장 먼저 알려드릴게요.",
+    "qa.feedback.emailSub": "이 서비스의 소중한 초기 유저예요. 함께 만들어가요.",
+    "qa.feedback.send": "의견 보내기",
+    "qa.feedback.thanks": "감사합니다.",
+    "qa.feedback.thanksSub": "서비스를 함께 만들어주셔서 감사해요.",
+    "qa.feedback.thanksEmail": "출시되면 가장 먼저 알려드릴게요.",
+    "qa.feedback.restart": "새로 시작하기",
+
+    // Attr labels (friendly)
+    "attr.subcategory": "카테고리",
+    "attr.colorFamily": "색감",
+    "attr.fit": "핏",
+    "attr.fabric": "소재",
+    "attr.season": "시즌",
+    "attr.pattern": "패턴",
   },
 } as const
 

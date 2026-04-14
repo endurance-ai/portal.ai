@@ -1,17 +1,26 @@
 "use client"
 
-import {useCallback, useEffect, useReducer, useRef, useState} from "react"
+import {useCallback, useEffect, useReducer, useRef} from "react"
 import {AnimatePresence, motion} from "framer-motion"
 import {Header} from "@/components/layout/header"
 import {Footer} from "@/components/layout/footer"
 import {AnalyzingView} from "@/components/analysis/analyzing-view"
 import {AgentProgress} from "./_qa/agent-progress"
 import {StepInput} from "./_qa/step-input"
-import {StepAttributes} from "./_qa/step-attributes"
-import {StepRefine} from "./_qa/step-refine"
+import {StepConfirm} from "./_qa/step-confirm"
+import {StepHold} from "./_qa/step-hold"
+import {StepConditions} from "./_qa/step-conditions"
 import {StepResults} from "./_qa/step-results"
-import {type AgentProduct, type AnalyzedItem, INITIAL_AGENT_STATE, type LockableAttr,} from "./_qa/types"
+import {StepFeedback} from "./_qa/step-feedback"
+import {
+    type AgentProduct,
+    type AnalyzedItem,
+    INITIAL_AGENT_STATE,
+    type LockableAttr,
+    type SimilarityLevel,
+} from "./_qa/types"
 import {agentReducer} from "./_qa/agent-reducer"
+import {type FeedbackRating, type FeedbackTagId} from "@/lib/feedback-tags"
 
 export default function Home() {
   const [state, dispatch] = useReducer(agentReducer, INITIAL_AGENT_STATE)
@@ -19,10 +28,6 @@ export default function Home() {
   const analyzeAbortRef = useRef<AbortController | null>(null)
   const searchAbortRef = useRef<AbortController | null>(null)
   const tickerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  // Step 1 분석 진행 시뮬레이션 (UI feedback only — 실제 진행과 무관)
-  const [analyzeProgress, setAnalyzeProgress] = useState(0)
-  const [analyzeLabel, setAnalyzeLabel] = useState("")
 
   const stopTicker = useCallback(() => {
     if (tickerRef.current) {
@@ -38,13 +43,11 @@ export default function Home() {
   // Step 1 → analyze
   const handleAnalyze = useCallback(
     async (data: { prompt?: string; file?: File }) => {
-      // 이전 blob URL 해제
       if (objectUrlRef.current) {
         URL.revokeObjectURL(objectUrlRef.current)
         objectUrlRef.current = null
       }
 
-      // 이전 analyze 요청 취소 (유저가 이전 분석 끝나기 전에 새 요청 하면)
       analyzeAbortRef.current?.abort()
       const controller = new AbortController()
       analyzeAbortRef.current = controller
@@ -59,17 +62,16 @@ export default function Home() {
 
       dispatch({ type: "ANALYZE_START", imageUrl, promptText })
 
-      // Progress 시뮬레이션 시작 (5 → cap 까지 점진 증가)
+      // Progress simulation
       stopTicker()
-      setAnalyzeProgress(5)
-      setAnalyzeLabel(hasImage ? "Reading silhouette" : "Reading the look")
       let simulated = 5
       const speed = hasImage ? 3 : 12
       const cap = hasImage ? 85 : 90
+      dispatch({ type: "ANALYZE_PROGRESS", progress: 5, label: hasImage ? "Reading silhouette" : "Reading the look" })
       tickerRef.current = setInterval(() => {
         simulated += Math.random() * speed + 0.5
         if (simulated > cap) simulated = cap
-        setAnalyzeProgress(Math.round(simulated))
+        dispatch({ type: "ANALYZE_PROGRESS", progress: Math.round(simulated), label: "" })
       }, 400)
 
       try {
@@ -96,11 +98,9 @@ export default function Home() {
           throw new Error("No items detected. Try a different image or prompt.")
         }
         stopTicker()
-        setAnalyzeProgress(100)
-        setAnalyzeLabel("Done.")
         dispatch({
           type: "ANALYZE_SUCCESS",
-          analysisId: result._logId ?? "",
+          analysisId: result._logId || null,
           items,
           styleNode: result.styleNode ?? null,
           moodTags: Array.isArray(result.mood?.tags)
@@ -108,11 +108,8 @@ export default function Home() {
             : [],
         })
       } catch (e) {
-        // AbortError는 의도된 취소이므로 에러로 표시하지 않음
         if (e instanceof Error && e.name === "AbortError") return
         stopTicker()
-        setAnalyzeProgress(0)
-        setAnalyzeLabel("")
         dispatch({
           type: "ANALYZE_ERROR",
           error: e instanceof Error ? e.message : "Analysis failed",
@@ -122,26 +119,22 @@ export default function Home() {
     [state.gender, stopTicker],
   )
 
-  // Step 4 → search
-  // overrideLocked: 직전에 dispatch된 lock 변경을 즉시 반영하고 싶을 때 사용 (stale closure 회피)
+  // Search
   const runSearch = useCallback(
     async (overrideLocked?: LockableAttr[]) => {
       const item = state.items.find((i) => i.id === state.selectedItemId)
       if (!item) return
 
-      // 이전 검색 취소
       searchAbortRef.current?.abort()
       const controller = new AbortController()
       searchAbortRef.current = controller
 
       dispatch({ type: "SEARCH_START" })
 
-      // 방어: overrideLocked가 배열이 아니면 (e.g. 실수로 이벤트 객체 전달) state 사용
       const effectiveLocked = Array.isArray(overrideLocked)
         ? overrideLocked
         : state.lockedAttrs
 
-      // locked attribute → query 필드 매핑
       const lockedAttributes: Record<string, string> = {}
       for (const attr of effectiveLocked) {
         const value = item[attr as keyof AnalyzedItem]
@@ -213,59 +206,87 @@ export default function Home() {
     ],
   )
 
+  // Feedback submission
+  const handleFeedback = useCallback(
+    async (data: {
+      rating: FeedbackRating
+      tags: FeedbackTagId[]
+      comment: string
+      email: string
+    }) => {
+      try {
+        await fetch("/api/feedback", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            analysisId: state.analysisId,
+            rating: data.rating,
+            tags: data.tags,
+            comment: data.comment,
+            email: data.email,
+          }),
+        })
+      } catch {
+        // 피드백 전송 실패해도 UX에 영향 주지 않음
+      }
+      dispatch({ type: "FEEDBACK_SUBMITTED" })
+    },
+    [state.analysisId],
+  )
+
   const selectedItem = state.items.find((i) => i.id === state.selectedItemId) ?? null
 
-  // 키보드 네비게이션 — runSearch + step + lockedAttrs.length를 ref에 저장해
-  // mount 1회만 listener 등록 (deps에 runSearch 넣으면 search state 바뀔 때마다
-  // re-subscribe 발생하는 비용 회피).
+  // Keyboard navigation
   const runSearchRef = useRef(runSearch)
-  const kbStateRef = useRef({ step: state.step, canAdvanceStep2: state.lockedAttrs.length > 0 })
+  const kbStateRef = useRef({ step: state.step })
   useEffect(() => {
     runSearchRef.current = runSearch
   }, [runSearch])
   useEffect(() => {
-    kbStateRef.current = {
-      step: state.step,
-      canAdvanceStep2: state.lockedAttrs.length > 0,
-    }
-  }, [state.step, state.lockedAttrs.length])
+    kbStateRef.current = { step: state.step }
+  }, [state.step])
 
   useEffect(() => {
     function isFormField(target: EventTarget | null): boolean {
       if (!(target instanceof HTMLElement)) return false
       const tag = target.tagName
-      return (
-        tag === "INPUT" ||
-        tag === "TEXTAREA" ||
-        tag === "SELECT" ||
-        target.isContentEditable
-      )
+      return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable
     }
 
     function handler(e: KeyboardEvent) {
       if (e.metaKey || e.ctrlKey || e.altKey) return
       if (isFormField(e.target)) return
+      if (e.target instanceof HTMLElement && e.target.closest("[data-no-kb-nav]")) return
 
-      const { step: currentStep, canAdvanceStep2 } = kbStateRef.current
+      const { step: currentStep } = kbStateRef.current
 
       if (e.key === "Enter") {
-        if (currentStep === "attributes" && canAdvanceStep2) {
+        if (currentStep === "confirm") {
           e.preventDefault()
-          dispatch({ type: "GO_TO_REFINE" })
-        } else if (currentStep === "refine") {
+          dispatch({ type: "CONFIRM_ITEM" })
+        } else if (currentStep === "hold") {
+          e.preventDefault()
+          dispatch({ type: "GO_TO_STEP", step: "conditions" })
+        } else if (currentStep === "conditions") {
           e.preventDefault()
           void runSearchRef.current()
         }
       } else if (e.key === "Escape") {
-        if (currentStep === "attributes") {
+        if (currentStep === "confirm") {
           e.preventDefault()
           dispatch({ type: "GO_TO_STEP", step: "input" })
-        } else if (currentStep === "refine") {
+        } else if (currentStep === "hold") {
           e.preventDefault()
-          dispatch({ type: "GO_TO_STEP", step: "attributes" })
+          dispatch({ type: "GO_TO_STEP", step: "confirm" })
+        } else if (currentStep === "conditions") {
+          e.preventDefault()
+          dispatch({ type: "GO_TO_STEP", step: "hold" })
         } else if (currentStep === "results") {
           e.preventDefault()
-          dispatch({ type: "GO_TO_STEP", step: "refine" })
+          dispatch({ type: "GO_TO_STEP", step: "conditions" })
+        } else if (currentStep === "feedback") {
+          e.preventDefault()
+          dispatch({ type: "GO_TO_STEP", step: "results" })
         }
       }
     }
@@ -287,6 +308,7 @@ export default function Home() {
 
         <div className="w-full z-10 flex-1 flex flex-col items-center justify-start">
           <AnimatePresence mode="wait">
+            {/* Step 1 — Analyzing */}
             {state.step === "input" && state.searching && (
               <motion.div
                 key="analyzing"
@@ -298,12 +320,13 @@ export default function Home() {
                 <AnalyzingView
                   imageUrl={state.imageUrl}
                   promptText={state.promptText}
-                  progress={analyzeProgress}
-                  progressLabel={analyzeLabel}
+                  progress={state.analyzeProgress}
+                  progressLabel={state.analyzeLabel}
                 />
               </motion.div>
             )}
 
+            {/* Step 1 — Input */}
             {state.step === "input" && !state.searching && (
               <motion.div
                 key="input"
@@ -322,37 +345,47 @@ export default function Home() {
               </motion.div>
             )}
 
-            {state.step === "attributes" && selectedItem && (
-              <StepAttributes
-                key="attributes"
-                imageUrl={state.imageUrl}
+            {/* Step 2 — Confirm */}
+            {state.step === "confirm" && state.items.length > 0 && (
+              <StepConfirm
+                key="confirm"
                 items={state.items}
                 selectedItemId={state.selectedItemId}
-                lockedAttrs={state.lockedAttrs}
+                editedItem={state.editedItem}
                 onSelectItem={(id) => dispatch({ type: "SELECT_ITEM", itemId: id })}
-                onToggleLock={(attr) => dispatch({ type: "TOGGLE_LOCK", attr })}
+                onEditAttr={(key, value) => dispatch({ type: "EDIT_ITEM_ATTR", key, value })}
                 onBack={() => dispatch({ type: "GO_TO_STEP", step: "input" })}
-                onNext={() => dispatch({ type: "GO_TO_REFINE" })}
+                onConfirm={() => dispatch({ type: "CONFIRM_ITEM" })}
               />
             )}
 
-            {state.step === "refine" && selectedItem && (
-              <StepRefine
-                key="refine"
-                tolerance={state.styleTolerance}
+            {/* Step 3 — Hold */}
+            {state.step === "hold" && selectedItem && (
+              <StepHold
+                key="hold"
+                selectedItem={selectedItem}
+                lockedAttrs={state.lockedAttrs}
+                onToggleLock={(attr) => dispatch({ type: "TOGGLE_LOCK", attr })}
+                onBack={() => dispatch({ type: "GO_TO_STEP", step: "confirm" })}
+                onNext={() => dispatch({ type: "GO_TO_STEP", step: "conditions" })}
+              />
+            )}
+
+            {/* Step 4 — Conditions */}
+            {state.step === "conditions" && (
+              <StepConditions
+                key="conditions"
+                similarityLevel={state.similarityLevel}
                 priceMin={state.priceMin}
                 priceMax={state.priceMax}
-                reason={state.refineReason}
-                onSetTolerance={(v) => dispatch({ type: "SET_TOLERANCE", value: v })}
+                onSetSimilarity={(level: SimilarityLevel) => dispatch({ type: "SET_SIMILARITY", level })}
                 onSetPrice={(min, max) => dispatch({ type: "SET_PRICE", min, max })}
-                onSetReason={(r) => dispatch({ type: "SET_REASON", reason: r })}
-                onBack={() => dispatch({ type: "GO_TO_STEP", step: "attributes" })}
-                onNext={() => {
-                  void runSearch()
-                }}
+                onBack={() => dispatch({ type: "GO_TO_STEP", step: "hold" })}
+                onNext={() => void runSearch()}
               />
             )}
 
+            {/* Step 5 — Results */}
             {state.step === "results" && selectedItem && (
               <StepResults
                 key="results"
@@ -362,12 +395,9 @@ export default function Home() {
                 products={state.products}
                 searching={state.searching}
                 error={state.searchError}
-                onRefineAgain={() => dispatch({ type: "GO_TO_STEP", step: "refine" })}
+                onGoToFeedback={() => dispatch({ type: "GO_TO_STEP", step: "feedback" })}
+                onRefineAgain={() => dispatch({ type: "GO_TO_STEP", step: "hold" })}
                 onUnlockAttr={(attr) => {
-                  // 안전성: dispatch는 비동기 배치되므로 runSearch가 stale state.lockedAttrs를
-                  // 읽음. overrideLocked로 새 lock 배열을 명시적으로 전달해 우회.
-                  // runSearch가 의존하는 다른 state(items, selectedItemId, gender, ...)는
-                  // 이 핸들러 내에서 변경되지 않으므로 stale 안전.
                   const newLocked = state.lockedAttrs.filter((a) => a !== attr)
                   dispatch({ type: "TOGGLE_LOCK", attr })
                   void runSearch(newLocked)
@@ -381,10 +411,27 @@ export default function Home() {
                 }}
               />
             )}
+
+            {/* Step 6 — Feedback */}
+            {state.step === "feedback" && (
+              <StepFeedback
+                key="feedback"
+                analysisId={state.analysisId}
+                feedbackSubmitted={state.feedbackSubmitted}
+                onSubmitFeedback={handleFeedback}
+                onAdjust={() => dispatch({ type: "GO_TO_STEP", step: "hold" })}
+                onReset={() => {
+                  if (objectUrlRef.current) {
+                    URL.revokeObjectURL(objectUrlRef.current)
+                    objectUrlRef.current = null
+                  }
+                  dispatch({ type: "RESET" })
+                }}
+              />
+            )}
           </AnimatePresence>
 
-
-          {(state.step === "attributes" || state.step === "refine") && (
+          {(state.step === "confirm" || state.step === "hold" || state.step === "conditions") && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
