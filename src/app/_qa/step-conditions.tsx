@@ -67,10 +67,10 @@ export function StepConditions({
               )}
             >
               <div className={cn(
-                "w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0",
+                "w-4 h-4 border-2 flex items-center justify-center flex-shrink-0",
                 isActive ? "border-cream" : "border-current opacity-40",
               )}>
-                {isActive && <div className="w-2 h-2 rounded-full bg-cream" />}
+                {isActive && <div className="w-2 h-2 bg-cream" />}
               </div>
               <span className="text-[14px] font-medium tracking-[-0.01em]">
                 {t(`qa.similarity.${opt.value}` as DictKey)}

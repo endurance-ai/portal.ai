@@ -26,15 +26,6 @@ export const ATTR_LABELS: Record<LockableAttr, string> = {
   pattern: "Pattern",
 }
 
-/** 유저에게 보이는 친절한 한국어 라벨 */
-export const ATTR_LABELS_KO: Record<LockableAttr, string> = {
-  subcategory: "카테고리",
-  colorFamily: "색감",
-  fit: "핏",
-  fabric: "소재",
-  season: "시즌",
-  pattern: "패턴",
-}
 
 export interface AnalyzedItem {
   id: string
@@ -71,10 +62,10 @@ export type RefineReason = "price" | "size" | "variety" | "brand"
 /** 유사도 3단계 */
 export type SimilarityLevel = "tight" | "medium" | "loose"
 
-export const SIMILARITY_OPTIONS: { value: SimilarityLevel; label: string; tolerance: number }[] = [
-  { value: "tight", label: "거의 똑같은 느낌만", tolerance: 0.0 },
-  { value: "medium", label: "비슷한 분위기면 OK", tolerance: 0.5 },
-  { value: "loose", label: "좀 다른 스타일도 보고 싶어요", tolerance: 1.0 },
+export const SIMILARITY_OPTIONS: { value: SimilarityLevel; tolerance: number }[] = [
+  { value: "tight", tolerance: 0.0 },
+  { value: "medium", tolerance: 0.5 },
+  { value: "loose", tolerance: 1.0 },
 ]
 
 export interface AgentState {

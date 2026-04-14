@@ -29,7 +29,7 @@ export function CustomSelect({value, options, onChange, displayFn}: CustomSelect
   }, [open])
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative" data-no-kb-nav>
       <button
         type="button"
         onClick={() => setOpen(!open)}

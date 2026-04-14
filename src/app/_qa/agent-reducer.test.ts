@@ -81,8 +81,8 @@ describe("agentReducer", () => {
   })
 
   describe("ANALYZE_ERROR", () => {
-    it("sets error and clears searching", () => {
-      const startedState = { ...INITIAL_AGENT_STATE, searching: true }
+    it("sets error, clears searching, and resets step to input", () => {
+      const startedState = { ...INITIAL_AGENT_STATE, searching: true, step: "confirm" as const }
       const next = agentReducer(startedState, { type: "ANALYZE_ERROR", error: "boom" })
       expect(next.searching).toBe(false)
       expect(next.searchError).toBe("boom")

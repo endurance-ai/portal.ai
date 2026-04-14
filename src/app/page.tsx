@@ -100,7 +100,7 @@ export default function Home() {
         stopTicker()
         dispatch({
           type: "ANALYZE_SUCCESS",
-          analysisId: result._logId ?? "",
+          analysisId: result._logId || null,
           items,
           styleNode: result.styleNode ?? null,
           moodTags: Array.isArray(result.mood?.tags)
@@ -238,15 +238,12 @@ export default function Home() {
 
   // Keyboard navigation
   const runSearchRef = useRef(runSearch)
-  const kbStateRef = useRef({ step: state.step, canAdvanceHold: state.lockedAttrs.length >= 0 })
+  const kbStateRef = useRef({ step: state.step })
   useEffect(() => {
     runSearchRef.current = runSearch
   }, [runSearch])
   useEffect(() => {
-    kbStateRef.current = {
-      step: state.step,
-      canAdvanceHold: true,
-    }
+    kbStateRef.current = { step: state.step }
   }, [state.step])
 
   useEffect(() => {
@@ -259,6 +256,7 @@ export default function Home() {
     function handler(e: KeyboardEvent) {
       if (e.metaKey || e.ctrlKey || e.altKey) return
       if (isFormField(e.target)) return
+      if (e.target instanceof HTMLElement && e.target.closest("[data-no-kb-nav]")) return
 
       const { step: currentStep } = kbStateRef.current
 
@@ -348,7 +346,7 @@ export default function Home() {
             )}
 
             {/* Step 2 — Confirm */}
-            {state.step === "confirm" && (
+            {state.step === "confirm" && state.items.length > 0 && (
               <StepConfirm
                 key="confirm"
                 items={state.items}

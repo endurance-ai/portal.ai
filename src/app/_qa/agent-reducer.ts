@@ -85,6 +85,7 @@ export function agentReducer(state: AgentState, action: AgentAction): AgentState
         ...state,
         searching: false,
         searchError: action.error,
+        step: "input",
         analyzeProgress: 0,
         analyzeLabel: "",
       }

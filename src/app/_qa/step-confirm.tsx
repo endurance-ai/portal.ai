@@ -104,10 +104,7 @@ export function StepConfirm({
               <div className="mt-3 text-[20px] font-semibold text-ink tracking-[-0.03em] leading-[1.15]">
                 {item.name || item.subcategory || item.category}
               </div>
-              <div className="mt-3 flex items-center gap-1.5 text-[12px] font-medium text-stone tracking-[-0.01em]">
-                {colorVal && (
-                  <span className="inline-block w-2.5 h-2.5 rounded-full bg-ink flex-shrink-0" />
-                )}
+              <div className="mt-3 text-[12px] font-medium text-stone tracking-[-0.01em]">
                 {[colorVal, item.fit, item.fabric].filter(Boolean).map(v => d(v!)).join(" · ")}
               </div>
             </button>
