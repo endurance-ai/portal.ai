@@ -49,10 +49,10 @@ export function StepResults({
         numeral="IV."
         title={
           hasProducts
-            ? `${products.length} pieces, closely related.`
+            ? `${products.length} pieces, close.`
             : searching
-              ? "Searching\u2026"
-              : "No matches \u2014 yet."
+              ? "Looking\u2026"
+              : "Nothing close \u2014 yet."
         }
         aside="Step 4"
       />
@@ -61,7 +61,7 @@ export function StepResults({
       {lockedAttrs.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 mb-8">
           <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-ink-quiet">
-            Locked:
+            Held:
           </span>
           {lockedAttrs.map((attr) => {
             const val = selectedItem[attr as keyof AnalyzedItem]
@@ -71,9 +71,9 @@ export function StepResults({
                 type="button"
                 onClick={() => onUnlockAttr(attr)}
                 className="text-[12px] font-medium bg-ink text-cream px-2.5 py-1 hover:opacity-80 transition-opacity tracking-[-0.01em]"
-                aria-label={`Unlock ${ATTR_LABELS[attr]}`}
+                aria-label={`Release ${ATTR_LABELS[attr]}`}
               >
-                {ATTR_LABELS[attr]}: {String(val)} &times;
+                {ATTR_LABELS[attr]} — {String(val)} &times;
               </button>
             )
           })}
@@ -88,7 +88,7 @@ export function StepResults({
       {!searching && !hasProducts && !error && (
         <div className="py-16 text-center flex flex-col items-center gap-4">
           <p className="text-[15px] text-ink-muted max-w-[360px]">
-            Try loosening the look or raising the price range.
+            Try widening the hold or raising the budget.
           </p>
           <div className="flex flex-wrap justify-center gap-2">
             {["Looser cut", "More color", "Raise budget"].map((suggestion) => (
@@ -132,7 +132,7 @@ export function StepResults({
           onClick={onRefineAgain}
           className="text-[13px] font-semibold bg-ink text-cream border border-ink px-5 py-2 hover:opacity-85 transition-opacity tracking-[-0.01em]"
         >
-          Refine again &rarr;
+          Adjust &rarr;
         </button>
       </div>
     </motion.div>
@@ -170,7 +170,7 @@ function ProductCard({
         )}
         {lockVisible && (
           <span className="absolute top-2 left-2 text-[10px] font-semibold text-ink bg-cream px-1.5 py-0.5 tracking-[0.1em]">
-            LOCK
+            HELD
           </span>
         )}
         {product.matchReasons && product.matchReasons.length > 0 && (

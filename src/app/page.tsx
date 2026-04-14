@@ -62,7 +62,7 @@ export default function Home() {
       // Progress 시뮬레이션 시작 (5 → cap 까지 점진 증가)
       stopTicker()
       setAnalyzeProgress(5)
-      setAnalyzeLabel(hasImage ? "Reading silhouette" : "Parsing keywords")
+      setAnalyzeLabel(hasImage ? "Reading silhouette" : "Reading the look")
       let simulated = 5
       const speed = hasImage ? 3 : 12
       const cap = hasImage ? 85 : 90
@@ -97,7 +97,7 @@ export default function Home() {
         }
         stopTicker()
         setAnalyzeProgress(100)
-        setAnalyzeLabel("Analysis complete")
+        setAnalyzeLabel("Done.")
         dispatch({
           type: "ANALYZE_SUCCESS",
           analysisId: result._logId ?? "",

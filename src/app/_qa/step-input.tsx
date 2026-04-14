@@ -41,8 +41,8 @@ export function StepInput({
         {/* Caption + input */}
         <div className="pb-3">
           <p className="text-[15px] font-normal text-ink-muted leading-[1.55] tracking-[-0.01em] max-w-[360px]">
-            Upload a photograph or describe a mood. We read the outfit — fabric, cut,
-            proportion — and return <b className="font-semibold text-ink">every piece
+            Drop a photograph or describe a mood. We read the outfit — fabric, cut,
+            proportion — and surface <b className="font-semibold text-ink">every piece
             that could belong</b>.
           </p>
 

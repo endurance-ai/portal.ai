@@ -46,8 +46,7 @@ export function StepAttributes(props: StepAttributesProps) {
       <SectionMarker numeral="II." title="Which piece holds the feeling?" aside="Step 2" />
 
       <p className="text-[13px] font-medium text-ink-quiet tracking-[-0.01em] mb-8 max-w-[520px]">
-        Pick one piece. Lock 1–2 attributes to anchor the search.
-        You can choose up to {MAX_LOCKED_ATTRS}.
+        Pick one piece. Hold 1–{MAX_LOCKED_ATTRS} attributes to anchor the search.
       </p>
 
       {/* Items grid — text-driven catalog cards (no images) */}
@@ -104,12 +103,12 @@ export function StepAttributes(props: StepAttributesProps) {
         })}
       </div>
 
-      {/* Lock chips for selected item */}
+      {/* Hold chips for selected item */}
       {selected && (
         <div className="border-t border-line pt-6">
           <div className="flex items-baseline justify-between mb-4">
             <span className="text-[13px] font-semibold text-ink tracking-[-0.01em]">
-              Lock up to {MAX_LOCKED_ATTRS} attributes of{" "}
+              Hold up to {MAX_LOCKED_ATTRS} attributes of{" "}
               <em className="font-medium not-italic">
                 {selected.name || selected.subcategory}
               </em>
@@ -168,7 +167,7 @@ export function StepAttributes(props: StepAttributesProps) {
               : "border-line text-ink-quiet cursor-not-allowed",
           )}
         >
-          Continue &#8594;
+          Hold &amp; continue &#8594;
         </button>
       </div>
     </motion.div>

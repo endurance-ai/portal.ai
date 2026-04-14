@@ -6,9 +6,9 @@ import {type AgentStep} from "./types"
 
 const STEPS: {id: AgentStep; label: string}[] = [
   {id: "input", label: "Reference"},
-  {id: "attributes", label: "Lock"},
+  {id: "attributes", label: "Hold"},
   {id: "refine", label: "Refine"},
-  {id: "results", label: "Results"},
+  {id: "results", label: "Pieces"},
 ]
 
 interface AgentProgressProps {
