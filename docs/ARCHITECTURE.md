@@ -1,6 +1,6 @@
 # MOODFIT — 아키텍처 & 기술 선정 이유
 
-> 최종 업데이트: 2026-04-13
+> 최종 업데이트: 2026-04-17
 >
 > ⚠️ **부분 stale 경고**: 본 문서의 일부 다이어그램/설명(SerpApi, 3-screen 상태 머신, `useState` 단일 관리)은
 > 2026-04-13 이전 POC 시점 기준이며, 현재는 다음으로 대체됨:
@@ -221,6 +221,7 @@ stateDiagram-v2
 | 파일 업로드 | MIME 타입 + 파일 크기 서버 검증 | 10MB 제한, jpeg/png/webp/heic만 허용 |
 | 외부 이미지 | `next.config.ts` remotePatterns | googleusercontent, gstatic, ggpht, serpapi 허용 |
 | DB 로깅 | Supabase service role key | `.env.local` 서버 사이드, RLS 바이패스 |
+| 어드민 접근 | admin_profiles 승인 게이트 | 미들웨어 + layout + API 3중 체크; 신규 가입 → pending, 관리자 DB 수동 approved 전환 |
 | JSON 파싱 | markdown fence 제거 + try-catch | AI 출력 불안정 대비 |
 
 ---

@@ -1,10 +1,11 @@
-import { createServerClient } from "@supabase/ssr"
-import { NextResponse, type NextRequest } from "next/server"
+import {createServerClient} from "@supabase/ssr"
+import {type NextRequest, NextResponse} from "next/server"
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  if (pathname.startsWith("/admin/login") || pathname.startsWith("/admin/signup")) {
+  const PUBLIC_ADMIN_PATHS = ["/admin/login", "/admin/signup", "/admin/pending"]
+  if (PUBLIC_ADMIN_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
     return NextResponse.next()
   }
 
@@ -37,6 +38,18 @@ export async function middleware(request: NextRequest) {
   if (!user) {
     const url = request.nextUrl.clone()
     url.pathname = "/admin/login"
+    return NextResponse.redirect(url)
+  }
+
+  const { data: profile } = await supabase
+    .from("admin_profiles")
+    .select("status")
+    .eq("user_id", user.id)
+    .maybeSingle()
+
+  if (profile?.status !== "approved") {
+    const url = request.nextUrl.clone()
+    url.pathname = "/admin/pending"
     return NextResponse.redirect(url)
   }
 

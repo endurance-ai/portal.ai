@@ -1,12 +1,11 @@
-import { NextResponse } from "next/server"
-import { createSupabaseServer } from "@/lib/supabase-server"
-import { supabase } from "@/lib/supabase"
+import {NextResponse} from "next/server"
+import {requireApprovedAdmin} from "@/lib/admin-auth"
+import {supabase} from "@/lib/supabase"
 import * as XLSX from "xlsx"
 
 export async function GET() {
-  const authClient = await createSupabaseServer()
-  const { data: { user } } = await authClient.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const gate = await requireApprovedAdmin()
+  if (gate instanceof NextResponse) return gate
 
   const { data: brands } = await supabase
     .from("brand_nodes")
