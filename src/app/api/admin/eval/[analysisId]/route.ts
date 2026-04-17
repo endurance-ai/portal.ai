@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server"
-import { createSupabaseServer } from "@/lib/supabase-server"
-import { supabase } from "@/lib/supabase"
+import {NextRequest, NextResponse} from "next/server"
+import {requireApprovedAdmin} from "@/lib/admin-auth"
+import {supabase} from "@/lib/supabase"
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -8,9 +8,8 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ analysisId: string }> }
 ) {
-  const authClient = await createSupabaseServer()
-  const { data: { user } } = await authClient.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const gate = await requireApprovedAdmin()
+  if (gate instanceof NextResponse) return gate
 
   const { analysisId } = await params
   if (!UUID_RE.test(analysisId)) return NextResponse.json({ error: "invalid id" }, { status: 400 })
@@ -49,9 +48,9 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ analysisId: string }> }
 ) {
-  const authClient = await createSupabaseServer()
-  const { data: { user } } = await authClient.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const gate = await requireApprovedAdmin()
+  if (gate instanceof NextResponse) return gate
+  const { user } = gate
 
   const { analysisId } = await params
   if (!UUID_RE.test(analysisId)) return NextResponse.json({ error: "invalid id" }, { status: 400 })
@@ -106,9 +105,8 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ analysisId: string }> }
 ) {
-  const authClient = await createSupabaseServer()
-  const { data: { user } } = await authClient.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const gate = await requireApprovedAdmin()
+  if (gate instanceof NextResponse) return gate
 
   const { analysisId } = await params
   if (!UUID_RE.test(analysisId)) return NextResponse.json({ error: "invalid id" }, { status: 400 })
@@ -163,9 +161,8 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ analysisId: string }> }
 ) {
-  const authClient = await createSupabaseServer()
-  const { data: { user } } = await authClient.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const gate = await requireApprovedAdmin()
+  if (gate instanceof NextResponse) return gate
 
   const { analysisId } = await params
   if (!UUID_RE.test(analysisId)) return NextResponse.json({ error: "invalid id" }, { status: 400 })

@@ -1,11 +1,10 @@
-import { NextRequest, NextResponse } from "next/server"
-import { createSupabaseServer } from "@/lib/supabase-server"
-import { supabase } from "@/lib/supabase"
+import {NextRequest, NextResponse} from "next/server"
+import {requireApprovedAdmin} from "@/lib/admin-auth"
+import {supabase} from "@/lib/supabase"
 
 export async function GET(request: NextRequest) {
-  const authClient = await createSupabaseServer()
-  const { data: { user } } = await authClient.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const gate = await requireApprovedAdmin()
+  if (gate instanceof NextResponse) return gate
 
   const { searchParams } = request.nextUrl
   const page = Math.max(0, Math.min(parseInt(searchParams.get("page") || "0") || 0, 500))
@@ -125,9 +124,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const authClient = await createSupabaseServer()
-  const { data: { user } } = await authClient.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const gate = await requireApprovedAdmin()
+  if (gate instanceof NextResponse) return gate
 
   const { analysisId, is_pinned } = await request.json()
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -149,9 +147,8 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const authClient = await createSupabaseServer()
-  const { data: { user } } = await authClient.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const gate = await requireApprovedAdmin()
+  if (gate instanceof NextResponse) return gate
 
   const { ids } = await request.json() as { ids: string[] }
   if (!ids?.length) return NextResponse.json({ error: "ids required" }, { status: 400 })

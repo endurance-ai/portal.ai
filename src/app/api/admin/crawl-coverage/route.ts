@@ -1,11 +1,10 @@
 import {NextResponse} from "next/server"
-import {createSupabaseServer} from "@/lib/supabase-server"
+import {requireApprovedAdmin} from "@/lib/admin-auth"
 import {supabase} from "@/lib/supabase"
 
 export async function GET() {
-  const authClient = await createSupabaseServer()
-  const { data: { user } } = await authClient.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const gate = await requireApprovedAdmin()
+  if (gate instanceof NextResponse) return gate
 
   const { data: products, error } = await supabase
     .from("products")

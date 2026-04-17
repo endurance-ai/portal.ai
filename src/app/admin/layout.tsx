@@ -1,7 +1,7 @@
-import { createSupabaseServer } from "@/lib/supabase-server"
-import { ThemeProvider } from "@/components/admin/theme-provider"
-import { Sidebar } from "@/components/admin/sidebar"
-import { Header } from "@/components/admin/header"
+import {getAdminStatus} from "@/lib/admin-auth"
+import {ThemeProvider} from "@/components/admin/theme-provider"
+import {Sidebar} from "@/components/admin/sidebar"
+import {Header} from "@/components/admin/header"
 
 export const metadata = {
   title: "portal.ai Admin",
@@ -18,10 +18,9 @@ export const viewport = {
 }
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createSupabaseServer()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { user, status } = await getAdminStatus()
 
-  if (!user) {
+  if (!user || status !== "approved") {
     return (
       <ThemeProvider>
         <div className="dark min-h-dvh bg-background text-foreground">
