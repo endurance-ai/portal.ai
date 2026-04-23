@@ -4,7 +4,7 @@
 >
 > ⚠️ **부분 stale 경고**: 본 문서의 일부 다이어그램/설명(SerpApi, 3-screen 상태 머신, `useState` 단일 관리)은
 > 2026-04-13 이전 POC 시점 기준이며, 현재는 다음으로 대체됨:
-> - 상품 검색: SerpApi → **자체 Cafe24/Shopify 크롤링 DB(26K+ 상품)** + `product_ai_analysis` JOIN 검색 엔진 v4
+> - 상품 검색: SerpApi → **자체 Cafe24/Shopify 크롤링 DB(81K+ 상품, 32개 플랫폼, 697 브랜드)** + `product_ai_analysis` JOIN 검색 엔진 v4
 > - 메인 플로우: 3-screen (upload/analyzing/result) → **4단계 Q&A 에이전트** (input/attributes/refine/results, `useReducer`)
 > - 자세한 설계 배경: `docs/research/26-04-13-product-direction-qa-synthesis.md`
 > - MVP 구현 플랜: `docs/plans/26-04-13-qa-agent-mvp.md`
