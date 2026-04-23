@@ -24,7 +24,7 @@ src/lib/              → 유틸리티 (supabase.ts, r2.ts, fashion-genome.ts, s
 src/lib/enums/        → 공유 enum (product-enums, korean-vocab, color-adjacency, season-pattern, enum-display-ko)
 src/lib/search/       → 검색 helper (locked-filter — Q&A hard filter + tolerance→count)
 scripts/              → 크롤러 (crawl.ts), 임포트 (import-*.ts), 평가 (eval-search.ts, eval-prompt.ts, eval-prompt-v2.ts), 플랫폼 설정
-scripts/configs/      → 22개 편집샵/브랜드몰 플랫폼 설정 (Cafe24)
+scripts/configs/      → 32개 플랫폼 설정 (22 Cafe24 국내 + 10 Shopify 해외)
 scripts/lib/          → 크롤 엔진 (cafe24-engine.ts, shopify-engine.ts)
 scripts/lib/parsers/  → Strategy Pattern 파서 (detail/, review/ — 사이트별 확장)
 supabase/migrations/  → DB 스키마 (001~020)
@@ -43,7 +43,7 @@ docs/                 → 참조 문서, 디자인 시스템, 리서치, 스펙
 | 상품 검색 | 검색 엔진 v3 (Enum+색상인접+어휘+시즌) | product_ai_analysis JOIN, 플랫폼 다양성 |
 | 이미지 저장 | Cloudflare R2 | 분석 원본 이미지 저장, @aws-sdk/client-s3 |
 | 어드민 인증 | Supabase Auth (이메일/비번) + admin_profiles 승인 게이트 | 신규 가입 → pending 자동, 관리자 DB에서 approved 전환 |
-| 크롤러 | Playwright (Cafe24) | 22개 편집샵/브랜드몰, ~26,000 상품 |
+| 크롤러 | Playwright (Cafe24) + Shopify /products.json | 32개 플랫폼 (22 Cafe24 국내 + 10 Shopify 해외), ~81,000 상품 (45k 국내 + 35k 해외), 697 브랜드 |
 | DB/로깅 | Supabase (PostgreSQL) | 분석 결과 + 검색 쿼리/결과 전체 로깅 |
 | 배포 | Vercel | |
 
@@ -137,7 +137,7 @@ pnpm test:watch   # vitest watch 모드
 | 무드 분석 | 태그 + score + vibe + season + occasion |
 | 아이템 상세 | fit, fabric, color, detail, position 추출 |
 | 성별 판단 | detectedGender → 검색 쿼리에 men/women 반영 |
-| 상품 검색 | enum 매칭 (subcategory 0.25 + colorFamily 0.20 + colorAdjacent 0.10 + styleNode gradient 0.30/0.15 + fit 0.15 + fabric 0.15 + season 0.15 + pattern 0.15 + brandDna 0.20 + moodTags 0.05×N) → tight=10/medium=15/loose=20개, 브랜드당 max 2, 플랫폼당 max 3 |
+| 상품 검색 | enum 매칭 (subcategory 0.25 + colorFamily 0.20 + colorAdjacent 0.10 + styleNode gradient 0.30/0.15 + fit 0.15 + fabric 0.15 + season 0.15 + pattern 0.15 + brandDna 0.20 + moodTags 0.05×N) → tight=10/medium=15/loose=20개, 브랜드당 max 2, 플랫폼당 max 3 *(v5 임베딩 기반 전환 예정 — `docs/plans/26-04-23-embedding-rewrite-plan.md` 참조)* |
 | Q&A 플로우 | 6단계: input → confirm(AI 확인+수정) → hold(속성 lock 0~3개) → conditions(유사도 3단계+예산) → results → feedback(rating+tags+email) |
 | i18n | EN 기본, KO 토글 (헤더), enum 값은 enum-display-ko.ts로 한글 변환, useLocale() + t() 패턴 |
 | 가격 필터 | 프롬프트에서 parsePrice로 추출 → priceFilter가 있으면 DB+인메모리 hard filter (null price 제외, 범위 밖 무조건 제거) |
@@ -179,6 +179,8 @@ pnpm test:watch   # vitest watch 모드
 | `docs/plans/26-04-08-crawler-architecture-redesign.md` | 크롤러 Strategy Pattern 리디자인 설계 |
 | `docs/superpowers/specs/2026-04-09-user-feedback-and-result-ux-design.md` | 유저 피드백 & 결과 UX 개선 디자인 스펙 |
 | `docs/superpowers/plans/2026-04-09-user-feedback-result-ux.md` | 유저 피드백 & 결과 UX 구현 플랜 (14 tasks) |
+| `docs/plans/26-04-23-international-shopify-crawl.md` | 해외 Shopify 10개 브랜드 크롤 설계 & 구현 플랜 |
+| `docs/plans/26-04-23-embedding-rewrite-plan.md` | 검색 엔진 v5 임베딩 기반 전환 플랜 |
 
 ## 브레인스토밍 & 플래닝 보충 규칙
 
