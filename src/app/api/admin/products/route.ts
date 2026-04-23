@@ -2,7 +2,7 @@ import {NextRequest, NextResponse} from "next/server"
 import {requireApprovedAdmin} from "@/lib/admin-auth"
 import {supabase} from "@/lib/supabase"
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 60
 const CHUNK_SIZE = 150 // Supabase .in() safe batch size
 
 export async function GET(request: NextRequest) {
@@ -20,6 +20,8 @@ export async function GET(request: NextRequest) {
   const brand = sanitize(searchParams.get("brand") || "")
   const styleNode = searchParams.get("styleNode") || ""
   const colorFamily = searchParams.get("colorFamily") || ""
+  const fit = searchParams.get("fit") || ""
+  const fabric = searchParams.get("fabric") || ""
   const aiStatus = searchParams.get("aiStatus") || "all"
   const stockStatus = searchParams.get("stockStatus") || "all"
   const sort = searchParams.get("sort") || "newest"
@@ -34,7 +36,7 @@ export async function GET(request: NextRequest) {
   }
 
   // --- AI filter: get product_ids from PAI ---
-  const needsAiInclude = styleNode || colorFamily || subcategory || aiStatus === "analyzed"
+  const needsAiInclude = styleNode || colorFamily || subcategory || fit || fabric || aiStatus === "analyzed"
   const needsAiExclude = aiStatus === "unanalyzed"
 
   let aiProductIds: string[] | null = null
@@ -47,6 +49,8 @@ export async function GET(request: NextRequest) {
     if (styleNode) aiQuery = aiQuery.eq("style_node", styleNode)
     if (colorFamily) aiQuery = aiQuery.eq("color_family", colorFamily)
     if (subcategory) aiQuery = aiQuery.eq("subcategory", subcategory)
+    if (fit) aiQuery = aiQuery.eq("fit", fit)
+    if (fabric) aiQuery = aiQuery.eq("fabric", fabric)
 
     const { data: aiRows, error: aiErr } = await aiQuery
     if (aiErr) return NextResponse.json({ error: aiErr.message }, { status: 500 })
