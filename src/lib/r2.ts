@@ -38,3 +38,23 @@ export async function uploadImage(
 
   return `${R2_PUBLIC_URL}/${key}`
 }
+
+/**
+ * 명시된 키로 R2에 업로드. 호출자가 prefix/경로를 제어한다.
+ */
+export async function uploadBufferAtKey(
+  buffer: Buffer,
+  key: string,
+  contentType: string,
+): Promise<string> {
+  await r2.send(
+    new PutObjectCommand({
+      Bucket: R2_BUCKET_NAME,
+      Key: key,
+      Body: buffer,
+      ContentType: contentType,
+    })
+  )
+
+  return `${R2_PUBLIC_URL}/${key}`
+}

@@ -195,6 +195,9 @@ score = (rating × 2) + min(reviews/100, 3) + (thumbnail ? 2 : 0) + (10 - positi
 |--------|------|------|------|------|
 | POST | `/api/analyze` | 이미지 분석 + 로깅 | `FormData { image: File }` | `{ mood, palette, style, items[], _logId }` |
 | POST | `/api/search-products` | 상품 검색 + 로깅 | `{ gender, queries[], _logId }` | `{ results: [{ id, products[] }] }` |
+| POST | `/api/instagram/fetch` | Instagram 프로필 스크래핑 (공개) | `{ input: string }` | `{ scrapeId, handle, profilePic, posts[] }` |
+| GET | `/api/admin/products` | 어드민 상품 목록 (fit/fabric 필터, PAGE_SIZE 60) | query params | `{ products[], total }` |
+| GET | `/api/admin/products/filter-options` | 상품 필터 옵션 (RPC, 10min CDN cache) | — | `{ platform[], category[], subcategory[], style_node[], color_family[], fit[], fabric[] }` |
 
 ---
 
@@ -222,6 +225,7 @@ stateDiagram-v2
 | 외부 이미지 | `next.config.ts` remotePatterns | googleusercontent, gstatic, ggpht, serpapi 허용 |
 | DB 로깅 | Supabase service role key | `.env.local` 서버 사이드, RLS 바이패스 |
 | 어드민 접근 | admin_profiles 승인 게이트 | 미들웨어 + layout + API 3중 체크; 신규 가입 → pending, 관리자 DB 수동 approved 전환 |
+| SSRF 방어 | Instagram 이미지 다운로드 허용 호스트 제한 | cdninstagram.com / fbcdn.net만 허용; 15MB 사이즈 캡 |
 | JSON 파싱 | markdown fence 제거 + try-catch | AI 출력 불안정 대비 |
 
 ---
@@ -237,6 +241,7 @@ stateDiagram-v2
 | openai | 6.32.0 | GPT-4o-mini Vision SDK |
 | shadcn | 4.1.0 | UI 컴포넌트 (base-nova) |
 | lucide-react | 1.0.1 | 아이콘 |
+| undici | 6.x | Instagram 스크래퍼 HTTP 클라이언트 (ProxyAgent 지원) |
 | @supabase/supabase-js | latest | DB 로깅 클라이언트 |
 
 ---
