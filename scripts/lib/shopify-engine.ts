@@ -31,9 +31,40 @@ const CURRENCY_TO_COUNTRY: Record<string, string> = {
   KRW: "KR",
 }
 
-function convertToKrw(price: number, currency: string): number {
-  const rate = FX_TO_KRW[currency] ?? 1
+function convertToKrw(price: number, currency: string): number | null {
+  const rate = FX_TO_KRW[currency]
+  if (rate === undefined) {
+    console.warn(`[FX] 알 수 없는 통화 "${currency}" — 가격 변환 skip`)
+    return null
+  }
   return Math.round(price * rate)
+}
+
+// Shopify handle은 kebab-case 영숫자로만 구성 (spec) — path injection 방지
+const SAFE_HANDLE = /^[a-z0-9][a-z0-9-]*$/
+
+// 이미지 URL 화이트리스트 — Shopify CDN 또는 스토어 자체 도메인만 허용
+function isSafeImageUrl(src: string, baseHost: string): boolean {
+  if (!src.startsWith("https://")) return false
+  try {
+    const host = new URL(src).hostname
+    return (
+      host === baseHost ||
+      host === "cdn.shopify.com" ||
+      host.endsWith(".myshopify.com") ||
+      host.endsWith(".shopifycdn.com")
+    )
+  } catch {
+    return false
+  }
+}
+
+function pickOption(v: ShopifyProduct["variants"][0], pos?: number): string | null {
+  if (!pos) return null
+  if (pos === 1) return v.option1 ?? null
+  if (pos === 2) return v.option2 ?? null
+  if (pos === 3) return v.option3 ?? null
+  return null
 }
 
 interface ShopifyProduct {
@@ -71,9 +102,12 @@ export async function crawlShopify(config: SiteConfig): Promise<CrawlResult> {
   const maxPages = config.maxPages || 20
   const delay = config.crawlDelay || 1000
   const currency = config.sourceCurrency || "KRW"
-  const symbol = CURRENCY_SYMBOL[currency]
+  const symbol = CURRENCY_SYMBOL[currency] ?? currency
   const country = CURRENCY_TO_COUNTRY[currency]
   const localizationCookie = `localization=${country}`
+  const baseHost = (() => {
+    try { return new URL(config.baseUrl).hostname } catch { return "" }
+  })()
 
   // options.name에서 색상/사이즈 포지션 식별 (Shopify는 옵션명이 store마다 다름)
   const COLOR_NAMES = ["color", "colour", "colorway", "shade"]
@@ -103,25 +137,6 @@ export async function crawlShopify(config: SiteConfig): Promise<CrawlResult> {
 
       if (!data.products || data.products.length === 0) break
 
-      // 옵션 포지션 식별 (페이지별 1회)
-      const optionPositions: {color?: number; size?: number} = {}
-      const firstWithOptions = data.products.find((p) => p.options && p.options.length > 0)
-      if (firstWithOptions?.options) {
-        for (const opt of firstWithOptions.options) {
-          const n = opt.name.toLowerCase()
-          if (COLOR_NAMES.some((c) => n.includes(c))) optionPositions.color = opt.position
-          else if (SIZE_NAMES.some((s) => n.includes(s))) optionPositions.size = opt.position
-        }
-      }
-
-      const pickOption = (v: ShopifyProduct["variants"][0], pos?: number): string | null => {
-        if (!pos) return null
-        if (pos === 1) return v.option1 ?? null
-        if (pos === 2) return v.option2 ?? null
-        if (pos === 3) return v.option3 ?? null
-        return null
-      }
-
       for (const sp of data.products) {
         // 룩북/기프트카드/통합 상품 제외 (실상품 아님, sentinel 가격값 들어감)
         const titleLower = sp.title.toLowerCase()
@@ -136,11 +151,23 @@ export async function crawlShopify(config: SiteConfig): Promise<CrawlResult> {
           continue
         }
 
+        // handle 검증 — path injection 방지 (외부 Shopify JSON 신뢰 X)
+        if (!sp.handle || !SAFE_HANDLE.test(sp.handle)) {
+          continue
+        }
+
+        // 옵션 포지션 — 상품별로 options 스키마가 다를 수 있음
+        const optionPositions: {color?: number; size?: number} = {}
+        for (const opt of sp.options ?? []) {
+          const n = opt.name.toLowerCase()
+          if (COLOR_NAMES.some((c) => n.includes(c))) optionPositions.color = opt.position
+          else if (SIZE_NAMES.some((s) => n.includes(s))) optionPositions.size = opt.position
+        }
+
         const firstVariant = sp.variants[0]
         const srcPrice = firstVariant ? parseFloat(firstVariant.price) : null
         const priceKrw = srcPrice !== null ? convertToKrw(srcPrice, currency) : null
         const inStock = sp.variants.some((v) => v.available)
-        const imageUrl = sp.images[0]?.src || ""
 
         // gender 추론 (태그에서)
         const gender: string[] = [...(config.defaultGender || [])]
@@ -152,12 +179,13 @@ export async function crawlShopify(config: SiteConfig): Promise<CrawlResult> {
           if (!gender.includes("men")) gender.push("men")
         }
 
-        // description
+        // description — HTML 태그 제거 + 잔여 "<" 인코딩 (downstream XSS 방지)
         const bodyHtml = sp.body_html || ""
         const description = bodyHtml
           .replace(/<[^>]*>/g, " ")
           .replace(/&nbsp;/g, " ")
           .replace(/&#?\w+;/g, " ")
+          .replace(/</g, "&lt;")
           .replace(/\s+/g, " ")
           .trim()
           .slice(0, 2000) || undefined
@@ -180,11 +208,12 @@ export async function crawlShopify(config: SiteConfig): Promise<CrawlResult> {
           if (sizes.length > 0) sizeInfo = sizes.join(", ").slice(0, 200)
         }
 
-        // 다중 이미지
+        // 다중 이미지 — 외부 JSON 신뢰 X, host 화이트리스트 검증
         const images = sp.images
           .map((img) => img.src)
-          .filter(Boolean)
+          .filter((src): src is string => typeof src === "string" && isSafeImageUrl(src, baseHost))
           .slice(0, 10)
+        const imageUrl = images[0] || ""
 
         const tags = sp.tags.length > 0 ? sp.tags.slice(0, 50).map((t) => t.slice(0, 100)) : undefined
 
