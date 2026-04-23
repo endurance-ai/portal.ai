@@ -27,6 +27,10 @@ export interface Product {
   sizeInfo?: string
   tags?: string[]
   productCode?: string
+  /** 원본 통화 ISO 코드 (해외 사이트용, 기본 KRW). price 필드는 KRW 환산값 */
+  sourceCurrency?: "USD" | "EUR" | "GBP" | "KRW"
+  /** 원본 통화 기준 가격 (환산 전) */
+  sourcePrice?: number
   // ── 리뷰 데이터 (Phase 3) ──
   reviewCount?: number
   reviews?: Array<{
@@ -113,6 +117,8 @@ export interface SiteConfig {
   paginate?: boolean
   /** 최대 페이지 수 (기본: 10) */
   maxPages?: number
+  /** Shopify 전용: 원본 통화. 미지정 시 KRW로 간주 (해외 사이트 POC용) */
+  sourceCurrency?: "USD" | "EUR" | "GBP" | "KRW"
   /** 요청 간 딜레이 ms (기본: 2000) */
   crawlDelay?: number
   /** 비활성화 */
