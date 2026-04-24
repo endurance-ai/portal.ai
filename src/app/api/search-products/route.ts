@@ -33,6 +33,8 @@ type SearchRequest = {
   priceFilter?: { minPrice?: number; maxPrice?: number }
   /** Q&A 에이전트 — 0.0(tight)~1.0(loose). 결과 개수 조절(5~10). */
   styleTolerance?: number
+  /** /find — products.brand 하드 필터. 태그 브랜드로 1차 좁힐 때 사용. 최대 20개. */
+  brandFilter?: string[]
   _logId?: string
   _includeScoring?: boolean
 }
@@ -210,6 +212,16 @@ export async function POST(request: NextRequest) {
     const styleTolerance = Number.isFinite(rawTol) ? Math.min(1, Math.max(0, rawTol)) : null
     const targetCount = toleranceToTargetCount(styleTolerance, TARGET_RESULTS)
 
+    // brandFilter 검증 — 길이 100 이하 문자열, 최대 20개
+    const brandFilter: string[] | null = Array.isArray(body.brandFilter)
+      ? body.brandFilter
+          .filter((s): s is string => typeof s === "string")
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0 && s.length <= 100)
+          .slice(0, 20)
+      : null
+    const hasBrandFilter = brandFilter !== null && brandFilter.length > 0
+
     const searchStart = Date.now()
 
     if (!Array.isArray(queries) || queries.length === 0) {
@@ -228,7 +240,7 @@ export async function POST(request: NextRequest) {
     const secondaryNode = styleNode?.secondary
 
     logger.info(
-      `🔍 검색 v2 시작 — ${queries.length}개 아이템 | 성별: ${genderFilter || "전체"} | 노드: ${primaryNode || "없음"}→${secondaryNode || "없음"}${priceFilter ? ` | 가격: ${priceFilter.minPrice || 0}~${priceFilter.maxPrice || "∞"}원` : ""}${styleTolerance !== null ? ` | tolerance=${styleTolerance.toFixed(2)} → top ${targetCount}` : ""}`
+      `🔍 검색 v2 시작 — ${queries.length}개 아이템 | 성별: ${genderFilter || "전체"} | 노드: ${primaryNode || "없음"}→${secondaryNode || "없음"}${priceFilter ? ` | 가격: ${priceFilter.minPrice || 0}~${priceFilter.maxPrice || "∞"}원` : ""}${styleTolerance !== null ? ` | tolerance=${styleTolerance.toFixed(2)} → top ${targetCount}` : ""}${hasBrandFilter ? ` | 브랜드 필터: ${brandFilter!.slice(0, 5).join(", ")}${brandFilter!.length > 5 ? ` +${brandFilter!.length - 5}` : ""}` : ""}`
     )
 
     // ─── Brand DNA 조회 (브랜드 성향 부스팅용) ───
@@ -268,7 +280,7 @@ export async function POST(request: NextRequest) {
       if (item.searchQuery) itemKeywords.push(...item.searchQuery.toLowerCase().split(/\s+/).map(sanitizeKeyword).filter(Boolean))
       if (item.searchQueryKo) itemKeywords.push(...item.searchQueryKo.split(/\s+/).map(sanitizeKeyword).filter(Boolean))
 
-      const products = await searchByEnums(item, genderFilter, dbCategories, primaryNode, secondaryNode, moodTags, priceFilter, itemKeywords, brandDnaMap)
+      const products = await searchByEnums(item, genderFilter, dbCategories, primaryNode, secondaryNode, moodTags, priceFilter, itemKeywords, brandDnaMap, hasBrandFilter ? brandFilter : null)
 
       // 이전 아이템에서 이미 사용된 상품 제외 + 전체 dedup 기록
       const deduped = products.filter((p) => {
@@ -392,6 +404,7 @@ async function searchByEnums(
   priceFilter: { minPrice?: number; maxPrice?: number } | undefined,
   itemKeywords: string[],
   brandDnaMap: Map<string, { style_node: string; sensitivity_tags: string[] }>,
+  brandFilter: string[] | null,
 ): Promise<(FormattedProduct & { _rawPrice: number })[]> {
   // ─── 경로 1: AI analysis 기반 검색 ───
   // subcategory + 유사 subcategory를 DB 단계에서 필터 (limit 200 내 누락 방지)
@@ -438,6 +451,10 @@ async function searchByEnums(
     query = query.in("subcategory", targetSubcategories)
   }
 
+  if (brandFilter && brandFilter.length > 0) {
+    query = query.in("products.brand", brandFilter)
+  }
+
   const { data, error } = await query
 
   if (error) {
@@ -480,6 +497,10 @@ async function searchByEnums(
 
     if (dbCategories && dbCategories.length > 0) {
       nameQuery = nameQuery.in("category", dbCategories)
+    }
+
+    if (brandFilter && brandFilter.length > 0) {
+      nameQuery = nameQuery.in("products.brand", brandFilter)
     }
 
     const { data: nd, error: ne } = await nameQuery
@@ -532,6 +553,10 @@ async function searchByEnums(
 
     if (genderFilter) {
       directQuery = directQuery.contains("gender", [genderFilter])
+    }
+
+    if (brandFilter && brandFilter.length > 0) {
+      directQuery = directQuery.in("brand", brandFilter)
     }
 
     const { data: dp, error: de } = await directQuery
@@ -817,6 +842,9 @@ async function searchByEnums(
   })
 
   // 브랜드 + 플랫폼 다양성: 브랜드당 MAX_PER_BRAND, 플랫폼당 MAX_PER_PLATFORM
+  // brandFilter가 적용된 검색(/find의 strong match)은 브랜드 다양성 제한을 풀어
+  // 태그된 브랜드의 상품이 여러 개 나오도록 허용한다.
+  const perBrandCap = brandFilter && brandFilter.length > 0 ? Infinity : MAX_PER_BRAND
   const result: typeof scored = []
   const brandCount: Record<string, number> = {}
   const platformCount: Record<string, number> = {}
@@ -827,7 +855,7 @@ async function searchByEnums(
     const platform = (p.platform || "unknown").toLowerCase()
 
     const bCount = brandCount[brand] ?? 0
-    if (bCount >= MAX_PER_BRAND) continue
+    if (bCount >= perBrandCap) continue
 
     const pCount = platformCount[platform] ?? 0
     if (pCount >= MAX_PER_PLATFORM) continue

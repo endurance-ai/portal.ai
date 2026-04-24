@@ -30,6 +30,7 @@ ${buildEnumReference()}
 
 Respond in this exact JSON format (no markdown, no code fences):
 {
+  "isApparel": true,
   "styleNode": {
     "primary": "C",
     "primaryConfidence": 0.85,
@@ -92,6 +93,7 @@ Respond in this exact JSON format (no markdown, no code fences):
 }
 
 Rules:
+- isApparel: true if the image contains at least one identifiable clothing item, shoe, or fashion accessory (bag, hat, jewelry, eyewear) worn or product-shot. false for landscapes, food, pets, pure product shots of non-fashion goods, memes, text-only images, or anything with no wearable item visible. When false, still return the full schema with empty items: [] and placeholder values (styleNode primary: "C", empty mood, etc.) — consumers use isApparel as the gate.
 - styleNode: classify the OVERALL outfit into the taxonomy above
   - primary: the single best-matching node ID (e.g. "C", "B-2", "A-1")
   - secondary: the next closest node ID (must differ from primary)
