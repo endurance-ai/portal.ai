@@ -125,35 +125,75 @@ export function FindClient() {
     setCtx(null)
 
     // 1) 포스트 스크래핑
-    const fetchRes = await fetch("/api/instagram/fetch-post", {
-      method: "POST",
-      headers: {"content-type": "application/json"},
-      body: JSON.stringify({input: value.trim()}),
-    })
-    const fetchJson = await fetchRes.json()
-    if (!fetchRes.ok) {
-      setPhase("error")
-      setError({
-        code: fetchJson.code || "UNKNOWN",
-        message: friendlyError(fetchJson.code, fetchJson.error),
+    // 응답 shape가 유동적이라 FetchJson을 success payload 타입으로만 좁혀서 받음.
+    type FetchJson = {
+      scrapeId: string
+      shortcode: string
+      ownerHandle: string
+      caption: string | null
+      slides: FindResultData["slides"]
+      mentionedUsers: FindResultData["mentionedUsers"]
+    }
+    let fetchJson: FetchJson
+    try {
+      const fetchRes = await fetch("/api/instagram/fetch-post", {
+        method: "POST",
+        headers: {"content-type": "application/json"},
+        body: JSON.stringify({input: value.trim()}),
       })
+      const parsed = (await fetchRes.json()) as Partial<FetchJson> & {
+        code?: string
+        error?: string
+      }
+      if (!fetchRes.ok) {
+        setPhase("error")
+        setError({
+          code: parsed.code || "UNKNOWN",
+          message: friendlyError(parsed.code, parsed.error),
+        })
+        return
+      }
+      fetchJson = parsed as FetchJson
+    } catch {
+      // 네트워크 단절 / 비-JSON 게이트웨이 응답(504 HTML 등) — 스피너 무한 대기 방지.
+      setPhase("error")
+      setError({code: "NETWORK", message: friendlyError("NETWORK")})
       return
     }
 
     // 2) 병렬 Vision 분석
     setPhase("analyzing")
-    const analyzeRes = await fetch("/api/find/analyze-post", {
-      method: "POST",
-      headers: {"content-type": "application/json"},
-      body: JSON.stringify({scrapeId: fetchJson.scrapeId}),
-    })
-    const analyzeJson = await analyzeRes.json()
-    if (!analyzeRes.ok) {
-      setPhase("error")
-      setError({
-        code: analyzeJson.code || "ANALYZE_FAILED",
-        message: friendlyError(analyzeJson.code, analyzeJson.error),
+    type AnalyzeJson = {
+      aggregated?: {
+        mergedItems?: FindResultData["mergedItems"]
+        primaryStyle?: {detectedGender?: string}
+        primaryStyleNode?: {primary: string; secondary?: string}
+        primaryMood?: {tags?: Array<{label: string}>}
+      }
+    }
+    let analyzeJson: AnalyzeJson
+    try {
+      const analyzeRes = await fetch("/api/find/analyze-post", {
+        method: "POST",
+        headers: {"content-type": "application/json"},
+        body: JSON.stringify({scrapeId: fetchJson.scrapeId}),
       })
+      const parsed = (await analyzeRes.json()) as AnalyzeJson & {
+        code?: string
+        error?: string
+      }
+      if (!analyzeRes.ok) {
+        setPhase("error")
+        setError({
+          code: parsed.code || "ANALYZE_FAILED",
+          message: friendlyError(parsed.code, parsed.error),
+        })
+        return
+      }
+      analyzeJson = parsed
+    } catch {
+      setPhase("error")
+      setError({code: "NETWORK", message: friendlyError("NETWORK")})
       return
     }
 

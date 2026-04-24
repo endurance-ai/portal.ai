@@ -16,10 +16,6 @@ const client = new OpenAI({
   maxRetries: 2,
 })
 
-logger.info(
-  `[run-vision] OpenAI client — ${useLiteLLM ? "LiteLLM proxy" : "direct OpenAI API"} | api key set: ${!!client.apiKey}`
-)
-
 export interface VisionAnalysisItem {
   id: string
   category: string
@@ -86,7 +82,7 @@ export async function runVisionAnalysis(args: {
   const base64 = imageBuffer.toString("base64")
 
   logger.info(
-    `${tag} 호출 시작 — bytes=${imageBuffer.byteLength} mime=${mimeType}${userPrompt ? ` | userPrompt="${userPrompt.slice(0, 60)}${userPrompt.length > 60 ? "…" : ""}"` : ""}`
+    `${tag} 호출 시작 — bytes=${imageBuffer.byteLength} mime=${mimeType} | mode=${useLiteLLM ? "litellm" : "direct"}${userPrompt ? ` | userPrompt="${userPrompt.slice(0, 60)}${userPrompt.length > 60 ? "…" : ""}"` : ""}`
   )
 
   const userTextContent = userPrompt

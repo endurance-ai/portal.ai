@@ -10,12 +10,14 @@ src/app/              → App Router 페이지 & API Routes
 src/app/page.tsx      → 메인 — Q&A 에이전트 6단계 플로우 (input/confirm/hold/conditions/results/feedback)
 src/app/_qa/          → 메인의 6단계 컴포넌트 + reducer + 휴리스틱 (Next.js _ prefix로 라우팅 제외)
 src/app/dna/          → 공개 바이럴 라우트 — Style DNA (Instagram 프로필 스크래퍼 POC, cream/ink + lime #D9FF00)
+src/app/find/         → 공개 라우트 — Instagram 포스트 URL → 슬라이드 Vision 분석 → @handle 브랜드 매칭 → 상품 추천 (강한매칭 + 일반매칭 + 리파인먼트 UI)
 src/app/admin/        → 어드민 대시보드 (Genome, Analytics, Eval) + 승인 게이트 (pending 페이지)
 src/app/admin/dna/    → 어드민 Style DNA — 스크래핑 목록(200건) + 상세(프로필 헤더+이미지 그리드+raw_data)
 src/app/api/analyze/  → GPT-4o-mini Vision/텍스트 분석 (프롬프트 전용 + 이미지 + 프롬프트+이미지) + R2 업로드 + Supabase 로깅
 src/app/api/search-products/ → 검색 엔진 v4 (enum 매칭 + 색상 인접 + 한국어 어휘 + 플랫폼 다양성 + 시즌/패턴 + lockedAttributes hard filter + styleTolerance)
 src/app/api/feedback/ → 유저 피드백 수집 (rating + tags + comment + email → Supabase user_feedbacks)
-src/app/api/instagram/ → Instagram 스크래퍼 API (web_profile_info 무로그인 스크래핑 → R2 이미지 복사 → Supabase 저장)
+src/app/api/instagram/ → Instagram 스크래퍼 API (web_profile_info 무로그인 스크래핑 → R2 이미지 복사 → Supabase 저장; fetch-post: 포스트 단일 스크래핑 oEmbed→profile 체인)
+src/app/api/find/     → /find 전용 API (analyze-post: N슬라이드 병렬 Vision; search: brandFilter 브랜드 사전필터 + search-products 인프로세스 팬아웃)
 src/app/api/admin/    → 어드민 API (brands CRUD, analytics, eval, search-quality, products filter-options)
 src/components/       → UI 컴포넌트 (shadcn/ui 기반)
   admin/              → 어드민 전용 컴포넌트 (테이블, 필터, 리뷰, 차트)
@@ -24,14 +26,16 @@ src/components/       → UI 컴포넌트 (shadcn/ui 기반)
   upload/             → GenderSelector
   analysis/           → AnalyzingView (Portal Warp 로딩)
 src/lib/              → 유틸리티 (supabase.ts, r2.ts, fashion-genome.ts, style-nodes.ts, prompts/)
-src/lib/instagram/    → Instagram 스크래퍼 모듈 (client, parse-handle, parse-response, save-images, types; undici ProxyAgent 선택적)
+src/lib/instagram/    → Instagram 스크래퍼 모듈 (client, parse-handle, parse-response, save-images, types; undici ProxyAgent 선택적; post-client, parse-post-url, parse-post-response, save-post-images — 포스트 스크래핑)
+src/lib/analyze/      → Vision 헬퍼 (run-vision.ts — 단일 이미지 GPT-4o-mini Vision 호출 + isApparel 게이트)
+src/lib/find/         → /find 전용 유틸 (resolve-brands.ts — IG @handle → products.brand 퍼지 매칭, 모듈 캐시)
 src/lib/enums/        → 공유 enum (product-enums, korean-vocab, color-adjacency, season-pattern, enum-display-ko)
 src/lib/search/       → 검색 helper (locked-filter — Q&A hard filter + tolerance→count)
 scripts/              → 크롤러 (crawl.ts), 임포트 (import-*.ts), 평가 (eval-search.ts, eval-prompt.ts, eval-prompt-v2.ts), 플랫폼 설정
 scripts/configs/      → 32개 플랫폼 설정 (22 Cafe24 국내 + 10 Shopify 해외)
 scripts/lib/          → 크롤 엔진 (cafe24-engine.ts, shopify-engine.ts)
 scripts/lib/parsers/  → Strategy Pattern 파서 (detail/, review/ — 사이트별 확장)
-supabase/migrations/  → DB 스키마 (001~026)
+supabase/migrations/  → DB 스키마 (001~027)
 docs/                 → 참조 문서, 디자인 시스템, 리서치, 스펙
 ```
 
@@ -98,7 +102,7 @@ pnpm test:watch   # vitest watch 모드
 | `src/app/api/analyze/route.ts` | GPT-4o-mini Vision/텍스트 — 프롬프트 전용, 프롬프트+이미지, 이미지 전용 3분기 |
 | `src/components/search/search-bar.tsx` | 채팅 입력 바 — textarea + 이미지 첨부 + 성별 + 전송 |
 | `src/lib/prompts/prompt-search.ts` | 프롬프트 전용 시스템 프롬프트 (텍스트 모드, Vision 안 씀) |
-| `src/app/api/search-products/route.ts` | 검색 엔진 v4 — enum 매칭 + 색상 인접 + 스타일 gradient + 브랜드 DNA + 한국어 어휘 + 가격 hard filter |
+| `src/app/api/search-products/route.ts` | 검색 엔진 v4 — enum 매칭 + 색상 인접 + 스타일 gradient + 브랜드 DNA + 한국어 어휘 + 가격 hard filter + brandFilter (brand_id[] hard filter, /find에서 활성화 시 브랜드당 cap 완화) |
 | `src/lib/enums/product-enums.ts` | 공유 enum 정의 + validation + buildEnumReference() 프롬프트 빌더 |
 | `src/lib/enums/korean-vocab.ts` | 한국어 패션 용어 → enum 매핑 (115+항목, 검색엔진/프롬프트 공용) |
 | `src/lib/enums/color-adjacency.ts` | 색상 인접 맵 (16색, 검색 시 유사 색상 폴백) |
@@ -135,12 +139,24 @@ pnpm test:watch   # vitest watch 모드
 | `src/app/dna/_components/dna-input.tsx` | 핸들 입력 + 결과 표시 (프로필 헤더 + 12-post 그리드) |
 | `src/app/api/instagram/fetch/route.ts` | POST {input} → web_profile_info 스크래핑(무로그인) → R2 이미지 복사 → Supabase 저장; SSRF allowlist(cdninstagram.com/fbcdn.net), 15MB 캡 |
 | `src/lib/instagram/client.ts` | Instagram web_profile_info 스크래퍼 (undici ProxyAgent 선택적) |
-| `src/lib/instagram/types.ts` | InstagramScrapeResult, InstagramPost 타입 |
+| `src/lib/instagram/types.ts` | InstagramScrapeResult, InstagramPost 타입 + InstagramPostScrapeResult / InstagramSlide / InstagramTaggedUser; 에러 코드 INVALID_URL, REEL_NOT_SUPPORTED, TOO_OLD 추가 |
+| `src/lib/instagram/post-client.ts` | oEmbed → web_profile_info 체인으로 단일 포스트 스크래핑 (shortcode 기반 탐색) |
+| `src/lib/instagram/parse-post-url.ts` | 포스트 URL 파서 — shortcode 추출, /reel/ 입력 시 REEL_NOT_SUPPORTED reject |
+| `src/lib/analyze/run-vision.ts` | Vision 헬퍼 — 단일 이미지 Buffer → GPT-4o-mini Vision 호출; isApparel 필드로 비의류 게이트 |
+| `src/lib/find/resolve-brands.ts` | IG @handle → products.brand 퍼지 매칭 (모듈 캐시); /api/find/search의 brandFilter 빌더 |
+| `src/app/find/page.tsx` | /find 랜딩 — Instagram 포스트 URL 입력 진입점 |
+| `src/app/find/_components/find-client.tsx` | /find 클라이언트 오케스트레이터 — fetch-post → analyze-post → search 3단계 순차 실행 + 상태 관리 |
+| `src/app/find/_components/find-result.tsx` | 결과 렌더링 — 강한매칭(브랜드 필터) + 일반매칭 2-섹션 카드 그리드 |
+| `src/app/find/_components/refinement-bar.tsx` | 리파인먼트 바 — cheaper / same-mood / different-vibe / free prompt 4가지 재검색 옵션 |
+| `src/app/api/instagram/fetch-post/route.ts` | POST {input} → oEmbed→profile 체인 스크래핑 → R2 이미지 복사 → Supabase instagram_post_scrapes 저장 |
+| `src/app/api/find/analyze-post/route.ts` | POST {scrapeId} → slides 로드 → 최대 10장 병렬 Vision 팬아웃 → isApparel 게이트 → 슬라이드별 분석 결과 반환 |
+| `src/app/api/find/search/route.ts` | POST {analyses, taggedHandles} → resolve-brands로 brandFilter 빌드 → search-products 핸들러 인프로세스 호출 → strongMatches + general 분리 응답 |
 | `src/app/admin/dna/page.tsx` | 어드민 — 스크래핑 목록 (200건, handle/status/followers/posts/proxy/created_at + 썸네일) |
 | `src/app/admin/dna/[scrapeId]/page.tsx` | 어드민 — 스크래핑 상세 (프로필 헤더 + 이미지 그리드 + caption/likes/taken_at + raw_data JSONB) |
 | `src/components/admin/products-page.tsx` | 어드민 상품 목록 — 6-col dense grid, hover 오버레이, 그룹 필터 바 + active chips + PAGE_SIZE 60 |
 | `src/app/api/admin/products/filter-options/route.ts` | 상품 필터 옵션 API — get_product_filter_counts() RPC 호출, 10min CDN cache |
 | `supabase/migrations/001~026` | analyses, brand_nodes, products, eval_reviews, eval_golden_set, api_access_logs, product_ai_analysis, search_quality_logs, analyses.is_pinned, season/pattern, data cleansing, product_reviews, drop rating, analysis_sessions, user_feedbacks, admin_profiles 승인 게이트, instagram_scrapes + instagram_scrape_images (RLS deny-all), get_product_filter_counts() RPC |
+| `supabase/migrations/027_instagram_post_scrapes.sql` | instagram_post_scrapes (shortcode unique, media_type, tagged_users jsonb, raw_data) + instagram_post_scrape_images (order_index, r2_url, tagged_users jsonb, is_video); RLS deny-all — 수동 적용 필요 |
 
 ## 비즈니스 규칙
 
@@ -159,6 +175,10 @@ pnpm test:watch   # vitest watch 모드
 | 분석 로깅 | AI 원본 응답 + 검색 쿼리/결과 전체 Supabase 저장 |
 | 파일 제한 | 10MB 이하, JPEG/PNG/WebP/HEIC만 허용 |
 | Instagram 스크래핑 | /api/instagram/fetch (공개, 레이트 리밋 없음 — POC); SSRF 허용 호스트: cdninstagram.com / fbcdn.net; 이미지 15MB 캡; usedProxy 필드는 퍼블릭 응답에서 제거; migration 025 수동 적용 필요 |
+| Instagram 포스트 스크래핑 | /api/instagram/fetch-post (공개) — oEmbed(~300ms)로 owner_handle 추출 → web_profile_info(~500ms)로 최근 ~12개 포스트에서 shortcode 탐색; owner 최근 12개 밖이면 TOO_OLD 에러; /reel/ URL은 REEL_NOT_SUPPORTED로 즉시 reject; 비공개 계정은 프로필 스크래퍼와 동일하게 차단; migration 027 수동 적용 필요 |
+| /find 브랜드 필터 | caption @멘션 + slide별 tagged_users → resolve-brands 퍼지 매칭 → brandFilter(brand_id[]) → search-products에 brandFilter 파라미터 투입; 매칭된 브랜드 결과 = strongMatches, 일반 = general; brandFilter 활성 시 브랜드당 max cap 완화 |
+| /find Vision 비용 | 슬라이드 최대 10장 × $0.003 = 약 $0.03/포스트; isApparel=false 슬라이드는 건너뜀; 비디오 슬라이드(is_video=true) 자동 스킵 |
+| /find 검색 호출 | /api/find/search에서 search-products 핸들러를 인프로세스 직접 호출 (HTTP fetch 없음) — SSRF 방지 + 쿠키 포워딩 문제 회피 |
 
 ## 환경 변수
 
@@ -197,6 +217,7 @@ pnpm test:watch   # vitest watch 모드
 | `docs/superpowers/plans/2026-04-09-user-feedback-result-ux.md` | 유저 피드백 & 결과 UX 구현 플랜 (14 tasks) |
 | `docs/plans/26-04-23-international-shopify-crawl.md` | 해외 Shopify 10개 브랜드 크롤 설계 & 구현 플랜 |
 | `docs/plans/26-04-23-embedding-rewrite-plan.md` | 검색 엔진 v5 임베딩 기반 전환 플랜 |
+| `docs/plans/26-04-24-find-ig-post-scraping.md` | /find 포스트 스크래핑 전략 — 엔드포인트 실측 결과 9종 + oEmbed→profile 체인 확정 + 구현 스펙 |
 
 ## 브레인스토밍 & 플래닝 보충 규칙
 

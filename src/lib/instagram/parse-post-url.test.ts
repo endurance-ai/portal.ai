@@ -60,11 +60,27 @@ describe("parsePostUrl", () => {
 
   it("rejects obvious non-IG URL", () => {
     expect(() => parsePostUrl("https://twitter.com/foo/status/123")).toThrow(
-      /valid/i
+      /Instagram|valid/i
     )
+  })
+
+  it("rejects lookalike domain (evilinstagram.com)", () => {
+    expect(() =>
+      parsePostUrl("https://evilinstagram.com/p/DXeu2onFIZ8/")
+    ).toThrow(/Instagram/i)
+  })
+
+  it("rejects instagram.com as subpath of other host", () => {
+    expect(() =>
+      parsePostUrl("https://evil.com/instagram.com/p/DXeu2onFIZ8/")
+    ).toThrow(/Instagram/i)
   })
 
   it("rejects malformed bare input", () => {
     expect(() => parsePostUrl("!!!")).toThrow()
+  })
+
+  it("rejects oversized input", () => {
+    expect(() => parsePostUrl("x".repeat(3000))).toThrow(/long/i)
   })
 })

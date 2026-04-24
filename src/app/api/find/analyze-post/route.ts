@@ -12,6 +12,8 @@ export const dynamic = "force-dynamic"
 
 const MAX_SLIDES_ANALYZED = 10
 const SLIDE_FETCH_TIMEOUT_MS = 15_000
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 interface PostBody {
   scrapeId?: string
@@ -77,6 +79,13 @@ export async function POST(request: Request) {
   if (!scrapeId) {
     return NextResponse.json({error: "Missing `scrapeId`"}, {status: 400})
   }
+  if (!UUID_RE.test(scrapeId)) {
+    // UUID 검증으로 임의 문자열이 DB 왕복 + 로그까지 흘러들어가는 걸 조기 차단.
+    return NextResponse.json(
+      {error: "Invalid scrapeId format", code: "INVALID_SCRAPE_ID"},
+      {status: 400}
+    )
+  }
 
   logger.info(`[find/analyze-post] 시작 — scrapeId=${scrapeId}${userPrompt ? ` userPrompt="${userPrompt.slice(0, 60)}"` : ""}`)
 
@@ -128,6 +137,21 @@ export async function POST(request: Request) {
   const analyzable = slides
     .slice(0, MAX_SLIDES_ANALYZED)
     .filter((s) => !s.is_video && isTrustedImageUrl(s.r2_url))
+
+  // 전부 SSRF 가드로 제외된 경우 — R2_PUBLIC_URL 설정 오류를 NOT_APPAREL로 오분류하지 않기.
+  const nonVideoCount = slides.filter((s) => !s.is_video).length
+  if (analyzable.length === 0 && nonVideoCount > 0) {
+    logger.error(
+      `[find/analyze-post] ❌ 모든 슬라이드 SSRF 가드 탈락 — R2_PUBLIC_URL 설정 확인 필요`
+    )
+    return NextResponse.json(
+      {
+        error: "Image storage misconfigured — contact admin",
+        code: "R2_CONFIG_ERROR",
+      },
+      {status: 500}
+    )
+  }
 
   logger.info(`[find/analyze-post] 분석 대상 ${analyzable.length}장 → 병렬 Vision 팬아웃`)
 

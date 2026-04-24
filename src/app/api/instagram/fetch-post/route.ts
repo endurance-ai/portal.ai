@@ -45,10 +45,14 @@ export async function POST(request: Request) {
     return NextResponse.json({error: "Invalid JSON"}, {status: 400})
   }
 
-  const input = (body.input || "").toString()
-  if (!input) {
+  const rawInput = body.input
+  if (typeof rawInput !== "string" || rawInput.length === 0) {
     return NextResponse.json({error: "Missing `input`"}, {status: 400})
   }
+  if (rawInput.length > 2048) {
+    return NextResponse.json({error: "Input too long"}, {status: 413})
+  }
+  const input = rawInput
 
   let shortcode: string
   try {
@@ -157,8 +161,11 @@ export async function POST(request: Request) {
         {status: errorCodeToStatus(err.code)}
       )
     }
-    const message = (err as Error).message || "Unknown error"
+    // 예상 못한 내부 에러 — 메시지를 그대로 클라이언트에 노출하지 않음(정보 유출 방지).
     console.error("unexpected fetch-post error", err)
-    return NextResponse.json({error: message, code: "UNKNOWN"}, {status: 500})
+    return NextResponse.json(
+      {error: "Internal server error", code: "UNKNOWN"},
+      {status: 500}
+    )
   }
 }

@@ -1,14 +1,14 @@
-import {NextResponse} from "next/server"
+import {NextRequest, NextResponse} from "next/server"
 import {resolveIgHandlesToBrands} from "@/lib/find/resolve-brands"
+import {POST as searchProductsPost} from "@/app/api/search-products/route"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
 // 이 엔드포인트는 analyze-post 결과 + 태그 브랜드를 받아
-// /api/search-products 를 2회(strong + general) 호출하여 합쳐 반환한다.
+// search-products 핸들러를 2회(strong + general) in-process로 호출하여 합쳐 반환한다.
 //
-// 프론트에서 2번 호출해도 되지만 태그 handle 리졸브가 공통이고 실패 경로도 여기서
-// 한 번에 처리하는 게 UI 코드가 깔끔하다.
+// self-origin HTTP fetch 대신 핸들러 직접 import — cookie 포워딩/host-header SSRF 제거 + 라운드트립 제거.
 
 interface SearchBody {
   items?: Array<{
@@ -31,22 +31,22 @@ interface SearchBody {
 }
 
 async function callSearchProducts(
-  origin: string,
-  cookie: string | null,
   payload: Record<string, unknown>
-) {
-  const res = await fetch(`${origin}/api/search-products`, {
+): Promise<
+  | {ok: true; json: {results?: unknown}}
+  | {ok: false; status: number; body: string}
+> {
+  // NextRequest 생성 — URL은 내부 호출이라 의미 없음(placeholder), 쿠키/헤더 일절 없음.
+  const req = new NextRequest("http://internal/api/search-products", {
     method: "POST",
-    headers: {
-      "content-type": "application/json",
-      ...(cookie ? {cookie} : {}),
-    },
+    headers: {"content-type": "application/json"},
     body: JSON.stringify(payload),
   })
+  const res = await searchProductsPost(req)
   if (!res.ok) {
-    return {ok: false as const, status: res.status, body: await res.text()}
+    return {ok: false, status: res.status, body: await res.text()}
   }
-  return {ok: true as const, json: await res.json()}
+  return {ok: true, json: (await res.json()) as {results?: unknown}}
 }
 
 export async function POST(request: Request) {
@@ -73,11 +73,6 @@ export async function POST(request: Request) {
   const resolved = handles.length > 0 ? await resolveIgHandlesToBrands(handles) : []
   const brandFilter = resolved.map((r) => r.brandName)
 
-  // self-origin 호출 — 배포 환경 가변 처리
-  const url = new URL(request.url)
-  const origin = `${url.protocol}//${url.host}`
-  const cookie = request.headers.get("cookie")
-
   const commonPayload = {
     queries: items,
     gender: body.gender,
@@ -88,13 +83,13 @@ export async function POST(request: Request) {
 
   const [strong, general] = await Promise.all([
     brandFilter.length > 0
-      ? callSearchProducts(origin, cookie, {
+      ? callSearchProducts({
           ...commonPayload,
           brandFilter,
           styleTolerance: body.strongMatchTolerance ?? 0.5,
         })
       : Promise.resolve({ok: true as const, json: {results: []}}),
-    callSearchProducts(origin, cookie, {
+    callSearchProducts({
       ...commonPayload,
       styleTolerance: body.generalTolerance ?? 0.5,
     }),
@@ -107,12 +102,12 @@ export async function POST(request: Request) {
     )
   }
 
+  const generalJson = general.json as {results?: unknown}
+  const strongJson = strong.ok ? (strong.json as {results?: unknown}) : {results: []}
+
   return NextResponse.json({
     resolvedBrands: resolved,
-    strongMatches:
-      strong.ok && Array.isArray(strong.json.results)
-        ? strong.json.results
-        : [],
-    general: Array.isArray(general.json.results) ? general.json.results : [],
+    strongMatches: Array.isArray(strongJson.results) ? strongJson.results : [],
+    general: Array.isArray(generalJson.results) ? generalJson.results : [],
   })
 }

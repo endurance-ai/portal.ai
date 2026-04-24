@@ -1,6 +1,6 @@
 # MOODFIT — 아키텍처 & 기술 선정 이유
 
-> 최종 업데이트: 2026-04-23
+> 최종 업데이트: 2026-04-24
 >
 > ⚠️ **부분 stale 경고**: 본 문서의 일부 다이어그램/설명(SerpApi, 3-screen 상태 머신, `useState` 단일 관리)은
 > 2026-04-13 이전 POC 시점 기준이며, 현재는 다음으로 대체됨:
@@ -136,6 +136,36 @@ flowchart LR
     style G fill:#E8F5E9,stroke:#4CAF50
 ```
 
+---
+
+## /find 데이터 흐름 — Instagram 포스트 → 상품 매칭
+
+```mermaid
+flowchart LR
+    A["📎 포스트 URL 입력"] -->|parsePostUrl — shortcode 추출| B["API: /api/instagram/fetch-post"]
+    B -->|"oEmbed /api/v1/oembed/ (~300ms)"| C["owner_handle + caption"]
+    C -->|"web_profile_info (~500ms)"| D["최근 ~12개 포스트 배열"]
+    D -->|shortcode로 탐색| E["target post full data\n(slides + tagged_users)"]
+    E -->|R2 이미지 복사 + Supabase 저장| F["scrapeId"]
+    F -->|"API: /api/find/analyze-post"| G["슬라이드 최대 10장\n병렬 Vision 팬아웃"]
+    G -->|isApparel=false 스킵| H["SlideAnalysis[]"]
+    H -->|"API: /api/find/search"| I["resolve-brands\n@handle → brand_id[]"]
+    I -->|brandFilter 인프로세스 호출| J["search-products 핸들러"]
+    J --> K["strongMatches\n(브랜드 필터)"]
+    J --> L["general\n(일반 검색)"]
+    K --> M["🎨 결과 + 리파인먼트 UI"]
+    L --> M
+```
+
+**제약 사항:**
+- owner 최근 ~12개 포스트 밖 → `TOO_OLD` 에러
+- `/reel/` URL → `REEL_NOT_SUPPORTED` 즉시 reject (파서 단계)
+- 비공개 계정 → `PRIVATE` (web_profile_info 빈 응답)
+- `/api/find/search`는 HTTP fetch 없이 search-products 핸들러 인프로세스 직접 호출 (SSRF 방지)
+- SSRF 가드: Vision에 넘기는 이미지는 R2_PUBLIC_URL prefix 확인 후에만 허용
+
+---
+
 ### 순차 로딩 + Progress Bar
 
 1. **AI 분석** (0~55%) → progress bar 시뮬레이션으로 대기 UX 개선
@@ -196,6 +226,9 @@ score = (rating × 2) + min(reviews/100, 3) + (thumbnail ? 2 : 0) + (10 - positi
 | POST | `/api/analyze` | 이미지 분석 + 로깅 | `FormData { image: File }` | `{ mood, palette, style, items[], _logId }` |
 | POST | `/api/search-products` | 상품 검색 + 로깅 | `{ gender, queries[], _logId }` | `{ results: [{ id, products[] }] }` |
 | POST | `/api/instagram/fetch` | Instagram 프로필 스크래핑 (공개) | `{ input: string }` | `{ scrapeId, handle, profilePic, posts[] }` |
+| POST | `/api/instagram/fetch-post` | Instagram 단일 포스트 스크래핑 (공개) | `{ input: string }` | `{ scrapeId, shortcode, slides[], taggedUsers[] }` |
+| POST | `/api/find/analyze-post` | 포스트 슬라이드 병렬 Vision 분석 | `{ scrapeId, userPrompt? }` | `{ analyses: SlideAnalysis[] }` |
+| POST | `/api/find/search` | 브랜드 필터 검색 (인프로세스) | `{ analyses[], taggedHandles[] }` | `{ strongMatches: Product[], general: Product[] }` |
 | GET | `/api/admin/products` | 어드민 상품 목록 (fit/fabric 필터, PAGE_SIZE 60) | query params | `{ products[], total }` |
 | GET | `/api/admin/products/filter-options` | 상품 필터 옵션 (RPC, 10min CDN cache) | — | `{ platform[], category[], subcategory[], style_node[], color_family[], fit[], fabric[] }` |
 
@@ -225,7 +258,7 @@ stateDiagram-v2
 | 외부 이미지 | `next.config.ts` remotePatterns | googleusercontent, gstatic, ggpht, serpapi 허용 |
 | DB 로깅 | Supabase service role key | `.env.local` 서버 사이드, RLS 바이패스 |
 | 어드민 접근 | admin_profiles 승인 게이트 | 미들웨어 + layout + API 3중 체크; 신규 가입 → pending, 관리자 DB 수동 approved 전환 |
-| SSRF 방어 | Instagram 이미지 다운로드 허용 호스트 제한 | cdninstagram.com / fbcdn.net만 허용; 15MB 사이즈 캡 |
+| SSRF 방어 | Instagram 이미지 다운로드 허용 호스트 제한 | cdninstagram.com / fbcdn.net만 허용; 15MB 사이즈 캡; /find Vision 분석은 R2_PUBLIC_URL prefix 확인 후에만 이미지 접근 |
 | JSON 파싱 | markdown fence 제거 + try-catch | AI 출력 불안정 대비 |
 
 ---
