@@ -9,7 +9,7 @@
 
 ## 1. 한 줄 요약
 
-> "One photo. Every option." — 이미지/IG 포스트/텍스트를 입력으로 받아 룩을 분해하고, 32개 자사몰에서 크롤한 ~81k SKU에서 매칭 상품을 추천하는 단일 Next.js 앱.
+> "Paste any Instagram post. We'll tell you where to buy the fit." — IG 포스트 URL 한 장으로 슬라이드의 룩을 분해하고, 32개 자사몰에서 크롤한 ~81k SKU에서 매칭 상품을 추천하는 단일 Next.js 앱.
 
 별도 백엔드 서버 없음. Next.js App Router(API Routes) 한 덩어리에 분석·검색·크롤·어드민이 모두 들어있다. AI 인코딩 배치는 AWS EC2 Spot 단발 인스턴스로 외부화.
 
@@ -17,15 +17,13 @@
 
 ## 2. 활성 진입점
 
-| 경로 | 역할 | 메인 모달리티 | 상태 |
-|------|------|--------------|------|
-| `/` | Q&A 6단계 에이전트 (input → confirm → hold → conditions → results → feedback) | 이미지 또는 텍스트 프롬프트 | **현재 메인 — 아카이브 예정** |
-| `/find` | Instagram 포스트 URL → 슬라이드 Vision → 브랜드 매칭 → 상품 | IG 포스트 URL | **다음 메인 (승격 예정)** |
-| `/admin` | 운영 대시보드 (Genome, Analytics, Eval, Search Debugger, Products, User Voice) | — | 내부 — 유지 |
+| 경로 | 역할 | 입력 | 상태 |
+|------|------|------|------|
+| `/` | Instagram 포스트 URL → 슬라이드 Vision → 브랜드 매칭 → 상품 추천 | IG 포스트 URL | **메인** |
+| `/admin` | 운영 대시보드 (Genome, Analytics, Eval, Search Debugger, Products, User Voice) | — | 내부 |
 
-> **방향 전환 (2026-04-26 확정)**: `/find` 를 메인으로 승격하고, 기존 `/` (Q&A 6단계)는 **라우터에서 제거하되 코드는 보존**(아카이브성). `/admin` 은 그대로 유지. v5 큰 틀을 잡으며 같이 진행.
->
-> `/dna`, `/about`, `/archive` 라우트는 PR #30(2026-04-26)에서 코드/DB까지 제거. 본 문서에 등장하지 않는다.
+> **2026-04-26**: 구 `/` (Q&A 6단계 에이전트)는 `src/app/_archive-qa/` 로 이동되어 라우터에서 빠짐. 코드는 보존되나 새 작업의 reference로 삼지 않는다.
+> 또한 PR #30(2026-04-26)에서 `/dna`, `/about`, `/archive` 라우트 + 관련 DB 테이블도 제거됨.
 
 ---
 
@@ -34,54 +32,46 @@
 ```mermaid
 graph TB
     subgraph Browser["🖥️ Browser"]
-        U1["/ — Q&A 6-step"]
-        U2["/find — IG post"]
-        U3["/admin — dashboards"]
+        U1["/ — IG post"]
+        U2["/admin — dashboards"]
     end
 
     subgraph Vercel["⚡ Vercel — Next.js 16 App Router"]
         MW["middleware.ts<br/>/admin/* auth gate"]
-        API_AN["/api/analyze<br/>Vision/text"]
-        API_SEARCH["/api/search-products<br/>v4 search engine"]
-        API_FB["/api/feedback"]
         API_IG["/api/instagram/fetch-post"]
         API_FIND_AN["/api/find/analyze-post"]
         API_FIND_S["/api/find/search"]
+        API_SEARCH["/api/search-products<br/>v4 search engine"]
         API_ADMIN["/api/admin/*"]
     end
 
     subgraph External["🌐 External AI"]
         OAI["OpenAI<br/>GPT-4o-mini Vision/Text"]
-        LITELLM["LiteLLM proxy<br/>(opt-in via env)"]
+        LITELLM["LiteLLM proxy<br/>(EC2, currently OFF)"]
     end
 
     subgraph Data["💾 Persistence"]
         SB["Supabase Postgres<br/>+ pgvector + pgroonga<br/>(extensions installed)"]
-        R2["Cloudflare R2<br/>분석 원본 + IG 슬라이드"]
+        R2["Cloudflare R2<br/>analyses/ + IG slide prefixes"]
     end
 
     subgraph Batch["🛠️ Offline Batch"]
         CRAWL["scripts/crawl.ts<br/>(local Playwright + Shopify JSON)"]
-        EMBED["scripts/aws/<br/>EC2 g5 Spot — FashionSigLIP"]
+        EMBED["scripts/aws/<br/>EC2 g5 Spot — FashionSigLIP<br/>(test only)"]
     end
 
-    U1 --> API_AN
-    U1 --> API_SEARCH
-    U1 --> API_FB
-    U2 --> API_IG --> API_FIND_AN --> API_FIND_S
+    U1 --> API_IG
+    API_IG --> API_FIND_AN
+    API_FIND_AN --> API_FIND_S
     API_FIND_S -. in-process .-> API_SEARCH
-    U3 --> MW --> API_ADMIN
+    U2 --> MW --> API_ADMIN
 
-    API_AN --> OAI
-    API_AN -.optional.-> LITELLM --> OAI
     API_FIND_AN --> OAI
+    API_FIND_AN -.optional.-> LITELLM --> OAI
 
-    API_AN --> SB
-    API_AN --> R2
     API_IG --> R2
     API_IG --> SB
     API_SEARCH --> SB
-    API_FB --> SB
     API_ADMIN --> SB
 
     CRAWL --> SB
@@ -92,7 +82,7 @@ graph TB
     classDef data fill:#2e7d32,stroke:#1b5e20,color:#fff
     classDef batch fill:#f57f17,stroke:#e65100,color:#fff
 
-    class MW,API_AN,API_SEARCH,API_FB,API_IG,API_FIND_AN,API_FIND_S,API_ADMIN vercel
+    class MW,API_SEARCH,API_IG,API_FIND_AN,API_FIND_S,API_ADMIN vercel
     class OAI,LITELLM ext
     class SB,R2 data
     class CRAWL,EMBED batch
@@ -118,24 +108,7 @@ graph TB
 
 ## 5. 핵심 데이터 흐름
 
-### 5.1 메인 — Q&A 6단계 (`/`)
-
-```mermaid
-flowchart LR
-    IN["Step 1<br/>input<br/>(이미지/텍스트)"] --> AN["POST /api/analyze<br/>GPT-4o-mini<br/>Vision 또는 text"]
-    AN --> CF["Step 2<br/>confirm<br/>(속성 검증·수정)"]
-    CF --> HD["Step 3<br/>hold<br/>(0~3 attr lock)"]
-    HD --> CD["Step 4<br/>conditions<br/>(tight/medium/loose + price)"]
-    CD --> SR["POST /api/search-products<br/>v4: enum 가중합 + locked filter"]
-    SR --> RS["Step 5<br/>results<br/>(card grid)"]
-    RS --> FB["Step 6<br/>feedback<br/>POST /api/feedback"]
-```
-
-- 클라이언트 상태는 `src/app/_qa/agent-reducer.ts` 의 `useReducer` (전역 store 없음)
-- Hold = **hard filter** — `src/lib/search/locked-filter.ts:passesLockedFilter` 가 검색 엔진 상단에서 통과/탈락 처리
-- 유사도 단계 → 결과 개수 매핑(`toleranceToTargetCount`): tight=10 / medium=15 / loose=20
-
-### 5.2 /find — Instagram 포스트 → 상품
+### 5.1 메인 — Instagram 포스트 → 상품 (`/`)
 
 ```mermaid
 flowchart LR
@@ -148,17 +121,19 @@ flowchart LR
     ANP -->|max 10 slides 병렬| VISION["GPT-4o-mini Vision"]
     VISION -->|isApparel 게이트| SLIDES["SlideAnalysis[]"]
     SLIDES --> SRCH["/api/find/search"]
-    SRCH -->|resolve-brands<br/>@handle → brand_id[]| BFILT["brandFilter"]
+    SRCH -->|"resolve-brands: @handle → brand names"| BFILT["brandFilter"]
     BFILT -->|in-process 호출| SP["search-products handler"]
-    SP --> RESULTS["strongMatches (브랜드 일치)<br/>+ general (일반)"]
+    SP --> RESULTS["strongMatches + general<br/>(2 sections)"]
 ```
 
+- 클라이언트 상태는 `src/app/_components/find-client.tsx` 가 `useState` 기반 직접 관리 (전역 store 없음)
 - `/api/find/search` 는 HTTP fetch 없이 `search-products` 핸들러를 **인프로세스 직접 호출** — SSRF 회피 + 쿠키 포워딩 회피
 - 슬라이드 비디오(`is_video=true`) 자동 스킵, `isApparel=false` 도 스킵
 - Vision 비용 상한: 슬라이드 10장 × ~$0.003 = **포스트당 ~$0.03**
 - 에러 코드: `INVALID_URL`, `REEL_NOT_SUPPORTED`(파서 단계 즉시 reject), `TOO_OLD`(owner 최근 12 포스트 밖), `PRIVATE`(비공개 계정)
+- API 경로 prefix `/api/find/*` 는 historical naming — 메인 승격 후에도 그대로 유지
 
-### 5.3 /admin — 어드민
+### 5.2 /admin — 어드민
 
 3중 가드:
 1. `src/middleware.ts` — Supabase SSR 쿠키로 user 확인 → `admin_profiles.status = 'approved'` 가 아니면 `/admin/pending` 리다이렉트
@@ -166,6 +141,10 @@ flowchart LR
 3. `/api/admin/*` 라우트 핸들러 — 동일 헬퍼로 한번 더 검증
 
 대시보드: Genome / Analytics / Eval / Search Debugger / Products / User Voice / Pipeline Health / Crawl Coverage.
+
+### 5.3 (archive) Q&A 6단계 — 코드만 보존, 라우터 제외
+
+`src/app/_archive-qa/page.tsx` + `_qa/*` 에 보존. `/api/analyze`, `/api/feedback`, `/api/search-products`(Q&A 진입 경로 한정) 도 함께 미사용 상태로 유지. 신규 작업의 reference로 삼지 않는다.
 
 ---
 
@@ -213,16 +192,16 @@ flowchart LR
 `src/app/api/search-products/route.ts` (~870 LOC). 핵심 흐름:
 
 1. `products` ⨝ `product_ai_analysis` INNER JOIN — **AI 분석 없는 상품(해외 35k)은 노출 0**
-2. `passesLockedFilter` 통과 (Q&A hold hard filter)
+2. `passesLockedFilter` 통과 (현재는 archived flow 잔재 — 메인 플로우는 `brandFilter` 를 hard filter로 사용)
 3. **10차원 가중합** 스코어링:
    - subcategory 0.25 / colorFamily 0.20 / colorAdjacent 0.10
    - styleNode gradient 0.30 / 0.15
    - fit 0.15 / fabric 0.15 / season 0.15 / pattern 0.15
    - brandDna 0.20 / moodTags 0.05 × N
 4. 한국어 어휘 매핑(`korean-vocab.ts` 115+ 항목) + 색상 인접(`color-adjacency.ts` 16색) + 스타일 인접(`style-adjacency.ts` 15노드)
-5. 다양성 캡 — 브랜드당 max 2, 플랫폼당 max 3
+5. 다양성 캡 — 브랜드당 max 2, 플랫폼당 max 3 (단 `brandFilter` 활성 시 캡 완화)
 6. `priceFilter` 가 있으면 DB+인메모리 hard filter (null price 제외)
-7. `tight=10 / medium=15 / loose=20` 으로 최종 컷
+7. `styleTolerance` 에 따라 `toleranceToTargetCount(t)` 만큼 컷 (10~20)
 
 ### v5 전환 인프라 (적용 완료, 미가동)
 
@@ -241,16 +220,21 @@ flowchart LR
 
 ## 8. AI 분석 파이프라인
 
-### 8.1 단일 진입점: `/api/analyze`
+### 8.1 메인 플로우 — 슬라이드별 Vision 팬아웃
 
-3분기:
-- **프롬프트 전용** (텍스트만) → `src/lib/prompts/prompt-search.ts` 시스템 프롬프트로 GPT-4o-mini 텍스트 호출
-- **이미지 전용** → Vision 모드, `temperature: 0.3`, `max_tokens: 2500`, `detail: auto`
-- **프롬프트 + 이미지** → Vision 호출에 user 텍스트 첨부
+`/api/find/analyze-post` 가 scrapeId 받아서 슬라이드 최대 10장을 병렬로 `runVision()` 호출:
 
-응답은 `{ mood, palette, style, items[], _logId }`. R2 업로드 + Supabase `analyses` INSERT 모두 같은 핸들러에서 처리.
+`src/lib/analyze/run-vision.ts` — 단일 이미지 Buffer → GPT-4o-mini Vision 호출, 응답에 `isApparel: boolean` 게이트 필드 포함. `false` 면 해당 슬라이드 결과 폐기.
 
-### 8.2 OpenAI vs LiteLLM 라우팅
+설정: `temperature: 0.3`, `max_tokens: 2500`, `detail: auto`. 비디오 슬라이드(`is_video=true`)는 호출 자체 스킵.
+
+### 8.2 archived 진입점 — `/api/analyze`
+
+원래 메인 (`/`) 의 Vision/Text 분석 라우트. 3분기 (프롬프트 전용 / 이미지 전용 / 프롬프트+이미지). archived flow가 라우터에서 빠진 후로는 호출되지 않지만 라우트 자체는 보존 — v5 재설계 결과에 따라 재활용 여지 있음.
+
+응답은 `{ mood, palette, style, items[], _logId }`. R2 업로드 + Supabase `analyses` INSERT 같이 처리.
+
+### 8.3 OpenAI vs LiteLLM 라우팅
 
 ```ts
 const useLiteLLM =
@@ -260,11 +244,7 @@ const useLiteLLM =
 
 - 켜져있으면 `${LITELLM_BASE_URL}/v1` 로 OpenAI SDK base URL을 덮어씀
 - 죽으면 `LITELLM_DISABLED=true` 한 줄로 즉시 직접 호출 폴백
-- prod 활성 여부는 §15 확인 필요
-
-### 8.3 /find 전용 Vision 헬퍼
-
-`src/lib/analyze/run-vision.ts` — 단일 이미지 Buffer → Vision 호출, 응답에 `isApparel: boolean` 게이트 필드 포함. 이걸로 비의류 슬라이드 자동 스킵.
+- 현재 prod 미가동 — EC2 인스턴스는 존재하나 OFF 상태. v5 인프라 재설계와 함께 재가동 예정
 
 ---
 
@@ -360,8 +340,10 @@ pnpm test:watch   # vitest watch
 
 본 스냅샷에서 **"존재하지만 아직 가동 안 됨"** 으로 남겨둔 것들. 이번 v5 큰 틀을 잡으면서 같이 결정한다.
 
-1. **`/find` 메인 승격 + `/` 라우터 제거** — 코드는 보존(아카이브성), 라우터에서만 뺀다. 진입점 1개로 단순화.
-2. **LiteLLM 재가동** — EC2에 호스팅된 인스턴스를 v5 인프라 잡을 때 같이 켜는 형태로 재배치.
-3. **FashionSigLIP 81k 풀배치 실행** — 현재까지 테스트만. 풀배치 가는 시점 + 인프라(EC2 g5 Spot)는 v5 결정에 묶여있음.
-4. **`/api/search-products` v5 분기** — pgvector + pgroonga + RRF 통합 쿼리 작성. 피처 플래그(`SEARCH_ENGINE_VERSION`)로 v4와 병행.
-5. **`product_ai_analysis` 드랍** — v5 검증이 끝난 뒤 일괄 드랍. 일정은 v5 재설계 결과에 따라 결정.
+1. **LiteLLM 재가동** — EC2 호스팅 인스턴스 OFF 상태. v5 인프라 잡을 때 같이 켜는 형태로 재배치.
+2. **FashionSigLIP 81k 풀배치 실행** — 현재까지 테스트만. 풀배치 가는 시점 + 인프라(EC2 g5 Spot)는 v5 결정에 묶여있음.
+3. **`/api/search-products` v5 분기** — pgvector + pgroonga + RRF 통합 쿼리 작성. 피처 플래그(`SEARCH_ENGINE_VERSION`)로 v4와 병행.
+4. **`product_ai_analysis` 드랍** — v5 검증이 끝난 뒤 일괄 드랍. 일정은 v5 재설계 결과에 따라 결정.
+5. **archived 코드 정리 시점** — `_archive-qa/` + `/api/analyze` + `/api/feedback` + `korean-vocab.ts`/`color-adjacency.ts`/`style-adjacency.ts` 등이 v5 결정 후에도 살릴지 일괄 삭제할지.
+
+(2026-04-26 완료) ✅ `/find` 메인 승격 + 구 `/` archive 이동.

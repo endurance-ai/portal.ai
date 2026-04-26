@@ -251,10 +251,12 @@ export async function uploadBufferAtKey(buffer, key, contentType): Promise<strin
 
 ---
 
-## 검색 — Locked Filter (Q&A hard filter)
+## 검색 — Hard Filter 패턴
+
+`/api/search-products` 가 채택하는 **점수 X / 통과·탈락 O** 패턴. 메인 플로우의 `brandFilter`(brand 이름 배열)가 대표. archived flow의 `passesLockedFilter` 도 같은 형태로 잔존:
 
 ```ts
-// src/lib/search/locked-filter.ts
+// src/lib/search/locked-filter.ts (archived flow 잔재 — 검색엔진은 여전히 호출함)
 export function passesLockedFilter(row: ProductRow, locked?: Partial<LockedAttrs>): boolean {
   if (!locked) return true
   for (const [key, val] of Object.entries(locked)) {
@@ -266,11 +268,11 @@ export function passesLockedFilter(row: ProductRow, locked?: Partial<LockedAttrs
 }
 ```
 
-- 점수가 아니라 **통과/탈락**. hold된 속성 하나라도 불일치하면 무조건 제외
-- DB 컬럼 매핑은 `LOCKED_FIELD_TO_DB_COLUMN` 한 곳에서 관리 — 새 lockable attr 추가 시 여기에 반영
-- 테스트는 `src/lib/search/locked-filter.test.ts` 의 case 패턴을 그대로 따라간다 (단일 매칭/단일 불일치/복수 매칭/복수 불일치)
+- **통과/탈락 한 번**, 점수 가산 없음. 새 hard filter도 이 자리에 추가 (예: 가격 범위, in_stock)
+- DB 컬럼 매핑은 `LOCKED_FIELD_TO_DB_COLUMN` 한 곳에서 관리
+- 테스트는 `src/app/_archive-qa/_qa/agent-reducer.test.ts` 와 `src/lib/search/locked-filter.test.ts` 의 case 패턴을 그대로 따라간다 — 단일 매칭/단일 불일치/복수 매칭/복수 불일치
 
-유사도 → 결과 개수:
+유사도 → 결과 개수 (`styleTolerance` 0~1):
 ```ts
 toleranceToTargetCount(0.0) // tight  → 10
 toleranceToTargetCount(0.5) // medium → 15
@@ -279,36 +281,39 @@ toleranceToTargetCount(1.0) // loose  → 20
 
 ---
 
-## 클라이언트 상태 — `useReducer` 단일 store
+## 클라이언트 상태 — 페이지마다 자체 관리
 
-전역 store(Redux/Zustand) 없이 메인 페이지가 `useReducer`로 state machine을 굴린다.
+전역 store(Redux/Zustand) 없음. 페이지 컴포넌트가 직접 `useState` / `useReducer` 로 관리한다.
+
+### 현재 메인 (`/`) — `useState` 직접
+
+`src/app/_components/find-client.tsx` 가 `fetch-post → analyze-post → search` 3단계를 순차 실행하면서 단계별 결과/에러를 `useState` 슬롯들로 보관한다. step machine 없이 "현재 어떤 단계가 끝났는가" 를 데이터 존재 여부로 판단.
+
+### 다단계 state machine (archived flow 패턴 — 미래 reference)
+
+step이 5+ 개 되면 `useReducer` 패턴이 더 깔끔. archived `_archive-qa/_qa/agent-reducer.ts` 가 대표 예:
 
 ```ts
-// src/app/page.tsx
+// src/app/_archive-qa/page.tsx
 const [state, dispatch] = useReducer(agentReducer, INITIAL_AGENT_STATE)
 ```
 
 ```ts
-// src/app/_qa/agent-reducer.ts
+// src/app/_archive-qa/_qa/agent-reducer.ts (~15 액션 타입)
 export type AgentAction =
   | {type: "ANALYZE_START"; imageUrl: string; promptText: string}
   | {type: "ANALYZE_SUCCESS"; analysisId: string; items: AnalyzedItem[]; ...}
   | {type: "TOGGLE_LOCK"; attr: LockableAttr}
-  | {type: "SET_SIMILARITY"; level: SimilarityLevel}
   | {type: "SEARCH_SUCCESS"; products: AgentProduct[]}
-  | {type: "FEEDBACK_SUBMITTED"}
   | {type: "GO_TO_STEP"; step: AgentStep}
   | {type: "RESET"}
-  // ... 약 15개 액션 타입
-
-export function agentReducer(state, action): AgentState { switch (...) { ... } }
 ```
 
-규칙:
+규칙(앞으로 비슷한 다단계가 필요할 때 따른다):
 - step 전환은 **action 안에서 명시적**으로 — `step: "confirm"` 같이 reducer 내부에서 set
-- 비동기 작업(API 호출)은 reducer 밖에서 실행 → 결과만 `_SUCCESS` / `_ERROR` action으로 dispatch
-- `RESET` action은 `INITIAL_AGENT_STATE` 로 통째 교체 (부분 초기화 X)
-- reducer 자체는 순수해야 — 로깅/네트워크 호출 들어가면 테스트(`agent-reducer.test.ts`)가 깨짐
+- 비동기(API 호출)는 reducer 밖에서 실행 → 결과만 `_SUCCESS` / `_ERROR` action으로 dispatch
+- `RESET` 은 `INITIAL_AGENT_STATE` 로 통째 교체 (부분 초기화 X)
+- reducer는 순수 함수여야 — 로깅/네트워크 호출 들어가면 단위 테스트가 깨짐
 
 ---
 

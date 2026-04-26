@@ -1,6 +1,6 @@
 "use client"
 
-import {useState, type FormEvent} from "react"
+import {type FormEvent, useState} from "react"
 import {FindResult, type FindResultData} from "./find-result"
 import {RefinementBar, type RefinementPayload} from "./refinement-bar"
 
