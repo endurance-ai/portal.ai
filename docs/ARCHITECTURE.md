@@ -1,7 +1,7 @@
 # portal.ai — 아키텍처 (Overview)
 
 > 시스템 전체 그림 + 도메인별 doc 매핑. 깊은 내용은 각 `features/*` / `infra/*` 참조.
-> 최종 업데이트: 2026-04-26 (v5 임베딩 재설계 직전 스냅샷)
+> 최종 업데이트: 2026-04-26 (메인 플로우 v2 머지 — Apify 스크래퍼 + 단일 슬라이드/아이템 정밀 매칭)
 
 ## 한 줄 요약
 
@@ -15,8 +15,16 @@
 
 | 경로 | 역할 | 입력 |
 |---|---|---|
-| `/` | 메인 플로우 (IG → 상품) — 상세는 [features/main-flow.md](features/main-flow.md) | IG 포스트 URL |
+| `/` | 메인 플로우 — IG 포스트 → 슬라이드 picker → 아이템 picker → 상품 추천. 상세는 [features/main-flow.md](features/main-flow.md) | IG 포스트 URL (`?img_index=N` 옵션) |
 | `/admin` | 운영 대시보드 (Genome, Analytics, Eval, Search Debugger, Products, User Voice 등) | — |
+
+**메인 플로우 v2 핵심 (PR #31, 2026-04-26)**:
+- 임의 IG post URL fetch (Apify 스크래퍼 사용 — 기존 `web_profile_info` 의 TOO_OLD 한계 제거)
+- URL 의 `?img_index=N` 파싱 → 캐러셀 직접 점프
+- img_index 없으면 슬라이드 picker UI 노출 → 사용자가 1장 선택
+- 단일 슬라이드 Vision 분석 → 다중 아이템 검출 → 사용자가 1개 선택
+- 선택된 1개 + 그 포스트의 tagged_users로 brandFilter 빌드 → strongMatches + general 검색
+- `instagram_post_scrapes.shortcode` 로 캐시 (재요청 시 Apify 호출 스킵)
 
 > 구 `/` (Q&A 6단계 에이전트)는 `src/app/_archive-qa/` 로 이동, 라우터 제외. PR #30(2026-04-26)에서 `/dna`, `/about`, `/archive` 도 제거됨.
 
@@ -27,27 +35,28 @@
 ```mermaid
 graph TB
     subgraph Browser["🖥️ Browser"]
-        U1["/ — IG post"]
+        U1["/ — IG post URL"]
         U2["/admin — dashboards"]
     end
 
     subgraph Vercel["⚡ Vercel — Next.js 16 App Router"]
         MW["middleware.ts<br/>/admin/* auth gate"]
-        API_IG["/api/instagram/fetch-post"]
-        API_FIND_AN["/api/find/analyze-post"]
-        API_FIND_S["/api/find/search"]
+        API_IG["/api/instagram/fetch-post<br/>(cache lookup → Apify fallback)"]
+        API_FIND_AN["/api/find/analyze-post<br/>(single slide, slideIndex)"]
+        API_FIND_S["/api/find/search<br/>(single item)"]
         API_SEARCH["/api/search-products<br/>v4 search engine"]
         API_ADMIN["/api/admin/*"]
     end
 
-    subgraph External["🌐 External AI"]
-        OAI["OpenAI<br/>GPT-4o-mini Vision/Text"]
+    subgraph External["🌐 External Services"]
+        APIFY["Apify<br/>instagram-post-scraper<br/>(run-sync, ~5-10s)"]
+        OAI["OpenAI<br/>GPT-4o-mini Vision"]
         LITELLM["LiteLLM proxy<br/>(EC2, currently OFF)"]
     end
 
     subgraph Data["💾 Persistence"]
         SB["Supabase Postgres<br/>+ pgvector + pgroonga"]
-        R2["Cloudflare R2<br/>analyses/ + IG slide prefixes"]
+        R2["Cloudflare R2<br/>analyses/ + instagram-posts/"]
     end
 
     subgraph Batch["🛠️ Offline Batch"]
@@ -55,16 +64,21 @@ graph TB
         EMBED["scripts/aws/<br/>EC2 g5 Spot — FashionSigLIP<br/>(test only)"]
     end
 
-    U1 --> API_IG --> API_FIND_AN --> API_FIND_S
-    API_FIND_S -. in-process .-> API_SEARCH
-    U2 --> MW --> API_ADMIN
+    U1 --> API_IG
+    API_IG -. cache HIT .-> SB
+    API_IG -. cache MISS .-> APIFY
+    APIFY --> R2
+    API_IG --> SB
 
+    U1 --> API_FIND_AN
     API_FIND_AN --> OAI
     API_FIND_AN -.optional.-> LITELLM --> OAI
 
-    API_IG --> R2
-    API_IG --> SB
+    U1 --> API_FIND_S
+    API_FIND_S -. in-process .-> API_SEARCH
     API_SEARCH --> SB
+
+    U2 --> MW --> API_ADMIN
     API_ADMIN --> SB
 
     CRAWL --> SB
@@ -76,7 +90,7 @@ graph TB
     classDef batch fill:#f57f17,stroke:#e65100,color:#fff
 
     class MW,API_SEARCH,API_IG,API_FIND_AN,API_FIND_S,API_ADMIN vercel
-    class OAI,LITELLM ext
+    class APIFY,OAI,LITELLM ext
     class SB,R2 data
     class CRAWL,EMBED batch
 ```
@@ -90,10 +104,10 @@ graph TB
 | Vercel | Next.js 16 호스팅 | [infra/deployment.md](infra/deployment.md) |
 | Supabase Postgres | 영속 데이터 + Auth + RLS + pgvector + pgroonga | [infra/data-model.md](infra/data-model.md) |
 | Cloudflare R2 | 이미지 저장 (단일 버킷, prefix 분리) | [infra/deployment.md](infra/deployment.md#cloudflare-r2--이미지-저장) |
-| OpenAI | GPT-4o-mini Vision/Text | [features/main-flow.md](features/main-flow.md#step-2--슬라이드별-vision-분석) |
+| **Apify** (`instagram-post-scraper`) | Instagram 포스트 단발 스크래핑 — `run-sync-get-dataset-items`, ~5-10s, $0.0023/post | [features/main-flow.md](features/main-flow.md#step-1--instagram-포스트-스크래핑) |
+| OpenAI | GPT-4o-mini Vision (단일 슬라이드 분석) | [features/main-flow.md](features/main-flow.md#step-2--슬라이드별-vision-분석) |
 | LiteLLM proxy *(현재 OFF)* | OpenAI 라우팅·로깅·비용 통제 | [infra/deployment.md](infra/deployment.md#litellm-프록시--현재-off) |
 | AWS EC2 g5.xlarge Spot | FashionSigLIP 임베딩 배치 (단발) | [infra/deployment.md](infra/deployment.md#aws-ec2-spot--임베딩-배치) |
-| Instagram (oEmbed + web_profile_info) | 포스트 스크래핑 | [features/main-flow.md](features/main-flow.md#step-1--instagram-포스트-스크래핑) |
 
 > **AI 서버 없음.** Python AI 서비스(FastAPI 등) 0개. 모든 LLM 호출은 Vercel 함수에서 직접.
 
@@ -166,6 +180,7 @@ graph TB
 
 | 날짜 | 사건 |
 |---|---|
+| 2026-04-26 | **메인 플로우 v2 머지 (PR #31)** — Apify 스크래퍼 + 단일 슬라이드/아이템 정밀 매칭 + 캐시 + 4-step picker UI |
 | 2026-04-26 | `/find` 메인 승격 + 구 Q&A `_archive-qa/` 이동 + 문서 도메인별 분할 |
 | 2026-04-26 | `/dna`, `/about`, `/archive` 라우트 + 관련 DB 제거 (PR #30) |
 | 2026-04-24 | v5 인프라 마이그레이션 027 적용 (pgvector + pgroonga + bulk RPC) |

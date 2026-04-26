@@ -12,7 +12,7 @@
 | **OpenAI** | GPT-4o-mini Vision/Text | 호출당 ~$0.003 (Vision, slide 1장) |
 | **AWS EC2 g5.xlarge Spot** | FashionSigLIP 임베딩 배치 (단발) | $950 Activate 크레딧 활용 |
 | **LiteLLM proxy (EC2, 현재 OFF)** | OpenAI 호출 라우팅·로깅·비용 통제 | EC2 인스턴스 비용 (가동 시) |
-| **Instagram (oEmbed + web_profile_info)** | 포스트 스크래핑 | 무료, 비공식 |
+| **Apify** (`apify/instagram-post-scraper`) | Instagram 포스트 스크래핑 (run-sync, ~5-10s) | $0.0023/post (FREE plan $5 credit = ~2,173 post 무료) |
 
 > AI 서버 없음. Python AI 서비스(FastAPI 등) 0개. 모든 LLM 호출은 Vercel 함수에서 OpenAI(또는 LiteLLM 프록시)로 직접.
 
