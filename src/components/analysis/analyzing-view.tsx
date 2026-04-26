@@ -11,7 +11,7 @@ interface AnalyzingViewProps {
 }
 
 /**
- * A2 — 에디토리얼 로딩 화면. DESIGN.md §9 A2.
+ * A2 — 에디토리얼 로딩 화면. docs/design/system.md §9 A2.
  * 큰 숫자 percent + 얇은 progress line. 파티클/스캔라인 없음.
  */
 export function AnalyzingView({imageUrl, promptText, progress, progressLabel}: AnalyzingViewProps) {

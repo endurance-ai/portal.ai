@@ -8,7 +8,7 @@ interface SectionMarkerProps {
 }
 
 /**
- * Roman numeral section marker. DESIGN.md §4.4.
+ * Roman numeral section marker. docs/design/system.md §4.4.
  * border-top 1px #111 + padding-top 18px + margin-bottom 28px.
  */
 export function SectionMarker({numeral, title, aside, className}: SectionMarkerProps) {

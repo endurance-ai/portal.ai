@@ -1,155 +1,49 @@
 import "server-only"
-import {fetch as undiciFetch, ProxyAgent, type Dispatcher} from "undici"
-import {fetchWebProfileInfo} from "./client"
-import {findEdgeByShortcode, parsePostFromEdge} from "./parse-post-response"
+import {logger} from "@/lib/logger"
+import {fetchPostViaApify, type ApifyPostItem} from "./apify-client"
+import {parseApifyPost} from "./parse-apify-response"
 import {InstagramFetchError, type InstagramPostDetail} from "./types"
 
-// 무로그인 상태에서 단일 포스트 full data를 얻을 수 있는 경로가 없어
-// oEmbed(author 확인) → web_profile_info(owner 최근 12 중 매칭) 체인을 씀.
-// 연구 결과는 docs/plans/26-04-24-find-ig-post-scraping.md.
-
-const OEMBED_URL = "https://www.instagram.com/api/v1/oembed/"
-const USER_AGENT =
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36"
-
-function buildDispatcher(): {dispatcher: Dispatcher | undefined; usedProxy: boolean} {
-  const host = process.env.PROXY_HOST
-  const port = process.env.PROXY_PORT
-  const user = process.env.PROXY_USER
-  const pass = process.env.PROXY_PASS
-  if (!host || !port) return {dispatcher: undefined, usedProxy: false}
-  const auth =
-    user && pass
-      ? `${encodeURIComponent(user)}:${encodeURIComponent(pass)}@`
-      : ""
-  const uri = `http://${auth}${host}:${port}`
-  return {dispatcher: new ProxyAgent(uri), usedProxy: true}
-}
-
-interface OembedResponse {
-  author_name?: string
-  thumbnail_url?: string
-  title?: string
-  provider_name?: string
-}
-
-/**
- * oEmbed으로 포스트의 author_name(owner handle) + 캡션(title) 회수.
- * 상세 캐러셀 데이터는 여기서 얻을 수 없음 — owner 프로필 walk이 필요.
- */
-async function fetchOembed(
-  shortcode: string
-): Promise<{authorName: string; caption: string | null; usedProxy: boolean}> {
-  const {dispatcher, usedProxy} = buildDispatcher()
-  const postUrl = `https://www.instagram.com/p/${shortcode}/`
-  const url = `${OEMBED_URL}?url=${encodeURIComponent(postUrl)}`
-
-  let res
-  try {
-    res = await undiciFetch(url, {
-      method: "GET",
-      dispatcher,
-      headers: {
-        "user-agent": USER_AGENT,
-        accept: "application/json",
-        "accept-language": "en-US,en;q=0.9",
-      },
-    })
-  } catch (err) {
-    throw new InstagramFetchError(
-      "NETWORK",
-      `Network error reaching Instagram oEmbed: ${(err as Error).message}`
-    )
-  }
-
-  if (res.status === 404) {
-    throw new InstagramFetchError(
-      "NOT_FOUND",
-      "No Instagram post found with that URL.",
-      404
-    )
-  }
-  if (res.status === 429 || res.status === 403) {
-    throw new InstagramFetchError(
-      "BLOCKED",
-      `Instagram blocked the oEmbed request (${res.status}).`,
-      res.status
-    )
-  }
-  if (!res.ok) {
-    throw new InstagramFetchError(
-      "UNKNOWN",
-      `Instagram oEmbed returned ${res.status}`,
-      res.status
-    )
-  }
-
-  let json: OembedResponse
-  try {
-    json = (await res.json()) as OembedResponse
-  } catch {
-    throw new InstagramFetchError(
-      "BLOCKED",
-      "oEmbed returned non-JSON (likely blocked)."
-    )
-  }
-
-  const authorName = (json.author_name || "").toLowerCase().trim()
-  if (!authorName) {
-    throw new InstagramFetchError(
-      "NOT_FOUND",
-      "Could not identify the post's owner."
-    )
-  }
-
-  return {
-    authorName,
-    caption: json.title ?? null,
-    usedProxy,
-  }
-}
+// v2 (2026-04-26): Apify `apify/instagram-post-scraper` 단일 호출로 풀 데이터 fetch.
+// (구 v1: oEmbed → web_profile_info 체인 — owner 최근 12 한계로 폐기)
+//
+// 입력은 항상 IG post URL (Apify는 username 필드에 post URL도 받음 — misleading naming).
+// 응답은 단일 dataset item; 빈 배열이면 POST_NOT_FOUND 로 reject.
 
 export interface PostFetchResult {
   post: InstagramPostDetail
-  raw: unknown // 매칭된 edge.node (raw_data 저장용)
-  usedProxy: boolean
+  raw: ApifyPostItem // raw_data 저장용 (DB jsonb 컬럼)
 }
 
-/**
- * shortcode → InstagramPostDetail 풀 체인.
- *
- * 1) oEmbed으로 author_name 확보
- * 2) fetchWebProfileInfo(author) → 최근 12 포스트 중 shortcode 매칭
- * 3) 매칭된 노드를 InstagramPostDetail 로 파싱
- *
- * 매칭 실패 → TOO_OLD (owner 최근 12에 없음)
- */
-export async function fetchPostByShortcode(
-  shortcode: string
-): Promise<PostFetchResult> {
-  const oembed = await fetchOembed(shortcode)
-  const {json: profileJson, usedProxy: profileProxy} = await fetchWebProfileInfo(
-    oembed.authorName
-  )
+export async function fetchPostByShortcode(shortcode: string): Promise<PostFetchResult> {
+  const tag = `[post-client:${shortcode}]`
+  const postUrl = `https://www.instagram.com/p/${shortcode}/`
 
-  const edge = findEdgeByShortcode(profileJson, shortcode)
-  if (!edge) {
+  logger.info(`${tag} Apify fetch 시작`)
+  const t0 = Date.now()
+  const items = await fetchPostViaApify(postUrl)
+  logger.info(`${tag} Apify fetch 완료 — ${Date.now() - t0}ms | items=${items.length}`)
+
+  if (!items || items.length === 0) {
+    logger.warn(`${tag} ⚠️ POST_NOT_FOUND — Apify 빈 응답`)
     throw new InstagramFetchError(
-      "TOO_OLD",
-      "We can only fetch the owner's most recent posts right now. Try a newer post."
+      "POST_NOT_FOUND",
+      "Apify returned no results for this post (deleted, private, or region-blocked?)"
     )
   }
 
-  const post = parsePostFromEdge(edge, oembed.authorName)
-
-  // oEmbed 캡션으로 보강 (web_profile_info가 잘라 보내는 경우 대비)
-  if (!post.caption && oembed.caption) {
-    post.caption = oembed.caption
+  const item = items[0]
+  if (item.shortCode && item.shortCode !== shortcode) {
+    logger.warn(
+      `${tag} ⚠️ shortcode mismatch — expected=${shortcode} got=${item.shortCode}`
+    )
+    throw new InstagramFetchError(
+      "POST_NOT_FOUND",
+      `Apify returned mismatched shortcode (expected ${shortcode}, got ${item.shortCode})`
+    )
   }
 
-  return {
-    post,
-    raw: edge,
-    usedProxy: oembed.usedProxy || profileProxy,
-  }
+  const post = parseApifyPost(item)
+
+  return {post, raw: item}
 }

@@ -1,33 +1,28 @@
-# portal.ai — 아키텍처 (현재 상태)
+# portal.ai — 아키텍처 (Overview)
 
+> 시스템 전체 그림 + 도메인별 doc 매핑. 깊은 내용은 각 `features/*` / `infra/*` 참조.
 > 최종 업데이트: 2026-04-26 (v5 임베딩 재설계 직전 스냅샷)
->
-> 본 문서는 코드베이스 실측 기반의 **현재 상태(as-is)** 만 다룬다. 향후 변경 계획은 `docs/plans/` 참조.
-> "활성 진입점", "프로젝트 구조"의 단일 진실은 여전히 `CLAUDE.md` — 본 문서는 그 위에 깔리는 인프라/플로우 그림.
 
----
+## 한 줄 요약
 
-## 1. 한 줄 요약
-
-> "Paste any Instagram post. We'll tell you where to buy the fit." — IG 포스트 URL 한 장으로 슬라이드의 룩을 분해하고, 32개 자사몰에서 크롤한 ~81k SKU에서 매칭 상품을 추천하는 단일 Next.js 앱.
+> "Paste any Instagram post. We'll tell you where to buy the fit." — IG 포스트 URL 한 장 → 슬라이드 룩 분해 → 32개 자사몰 ~81k SKU에서 매칭 상품 추천. 단일 Next.js 앱.
 
 별도 백엔드 서버 없음. Next.js App Router(API Routes) 한 덩어리에 분석·검색·크롤·어드민이 모두 들어있다. AI 인코딩 배치는 AWS EC2 Spot 단발 인스턴스로 외부화.
 
 ---
 
-## 2. 활성 진입점
+## 활성 진입점
 
-| 경로 | 역할 | 입력 | 상태 |
-|------|------|------|------|
-| `/` | Instagram 포스트 URL → 슬라이드 Vision → 브랜드 매칭 → 상품 추천 | IG 포스트 URL | **메인** |
-| `/admin` | 운영 대시보드 (Genome, Analytics, Eval, Search Debugger, Products, User Voice) | — | 내부 |
+| 경로 | 역할 | 입력 |
+|---|---|---|
+| `/` | 메인 플로우 (IG → 상품) — 상세는 [features/main-flow.md](features/main-flow.md) | IG 포스트 URL |
+| `/admin` | 운영 대시보드 (Genome, Analytics, Eval, Search Debugger, Products, User Voice 등) | — |
 
-> **2026-04-26**: 구 `/` (Q&A 6단계 에이전트)는 `src/app/_archive-qa/` 로 이동되어 라우터에서 빠짐. 코드는 보존되나 새 작업의 reference로 삼지 않는다.
-> 또한 PR #30(2026-04-26)에서 `/dna`, `/about`, `/archive` 라우트 + 관련 DB 테이블도 제거됨.
+> 구 `/` (Q&A 6단계 에이전트)는 `src/app/_archive-qa/` 로 이동, 라우터 제외. PR #30(2026-04-26)에서 `/dna`, `/about`, `/archive` 도 제거됨.
 
 ---
 
-## 3. 시스템 토폴로지
+## 시스템 토폴로지
 
 ```mermaid
 graph TB
@@ -51,7 +46,7 @@ graph TB
     end
 
     subgraph Data["💾 Persistence"]
-        SB["Supabase Postgres<br/>+ pgvector + pgroonga<br/>(extensions installed)"]
+        SB["Supabase Postgres<br/>+ pgvector + pgroonga"]
         R2["Cloudflare R2<br/>analyses/ + IG slide prefixes"]
     end
 
@@ -60,9 +55,7 @@ graph TB
         EMBED["scripts/aws/<br/>EC2 g5 Spot — FashionSigLIP<br/>(test only)"]
     end
 
-    U1 --> API_IG
-    API_IG --> API_FIND_AN
-    API_FIND_AN --> API_FIND_S
+    U1 --> API_IG --> API_FIND_AN --> API_FIND_S
     API_FIND_S -. in-process .-> API_SEARCH
     U2 --> MW --> API_ADMIN
 
@@ -90,260 +83,90 @@ graph TB
 
 ---
 
-## 4. 외부 서비스 / 인프라
+## 외부 서비스 매트릭스
 
-| 서비스 | 용도 | 비고 |
+| 서비스 | 용도 | 상세 |
 |---|---|---|
-| **Vercel** | Next.js 16 호스팅 (App Router, Turbopack 빌드) | `vercel.json` 은 framework 지정뿐, 런타임 옵션은 기본값 |
-| **Supabase Postgres** | 모든 영속 데이터 + Auth(어드민 한정) + RLS | extensions: `vector`, `pgroonga` 활성화됨 |
-| **Cloudflare R2** | 이미지 저장 (분석 원본, IG 슬라이드) | `@aws-sdk/client-s3` 로 접근, public CDN URL 노출 |
-| **OpenAI** | GPT-4o-mini Vision/Text 분석 | 단일 프로바이더 |
-| **LiteLLM proxy** *(현재 OFF)* | OpenAI 호출 라우팅·로깅·비용 통제 | EC2 호스팅 인스턴스 존재하나 현 시점 미사용. v5 인프라 큰 틀 잡은 뒤 재가동 예정. 코드는 `LITELLM_BASE_URL` 설정 + `LITELLM_DISABLED!=='true'` 일 때만 활성 |
-| **AWS EC2 g5.xlarge Spot** | FashionSigLIP 임베딩 배치 인코딩 (단발 spin-up→tear-down) | `scripts/aws/launch_embed_batch.sh` 로 로컬에서 기동, user-data가 끝에 `shutdown -h now` |
-| **Instagram (oEmbed + web_profile_info)** | 포스트 스크래핑 | undici 직접 호출, 프록시 옵션 지원 |
+| Vercel | Next.js 16 호스팅 | [infra/deployment.md](infra/deployment.md) |
+| Supabase Postgres | 영속 데이터 + Auth + RLS + pgvector + pgroonga | [infra/data-model.md](infra/data-model.md) |
+| Cloudflare R2 | 이미지 저장 (단일 버킷, prefix 분리) | [infra/deployment.md](infra/deployment.md#cloudflare-r2--이미지-저장) |
+| OpenAI | GPT-4o-mini Vision/Text | [features/main-flow.md](features/main-flow.md#step-2--슬라이드별-vision-분석) |
+| LiteLLM proxy *(현재 OFF)* | OpenAI 라우팅·로깅·비용 통제 | [infra/deployment.md](infra/deployment.md#litellm-프록시--현재-off) |
+| AWS EC2 g5.xlarge Spot | FashionSigLIP 임베딩 배치 (단발) | [infra/deployment.md](infra/deployment.md#aws-ec2-spot--임베딩-배치) |
+| Instagram (oEmbed + web_profile_info) | 포스트 스크래핑 | [features/main-flow.md](features/main-flow.md#step-1--instagram-포스트-스크래핑) |
 
-> **AI 서버 없음.** Python AI 서비스(FastAPI 등)는 현 시점 0개. 모든 LLM 호출은 Vercel 함수 안에서 OpenAI(또는 LiteLLM 프록시) 로 직접 나간다.
+> **AI 서버 없음.** Python AI 서비스(FastAPI 등) 0개. 모든 LLM 호출은 Vercel 함수에서 직접.
 
 ---
 
-## 5. 핵심 데이터 흐름
+## 도메인별 doc
 
-### 5.1 메인 — Instagram 포스트 → 상품 (`/`)
+| 영역 | doc |
+|---|---|
+| 메인 플로우 (IG → Vision → 검색) | [features/main-flow.md](features/main-flow.md) |
+| 검색 엔진 (v4 + v5 인프라) | [features/search-engine.md](features/search-engine.md) |
+| 크롤러 (32 플랫폼) | [features/crawler.md](features/crawler.md) |
+| DB 스키마 / 마이그레이션 / RLS | [infra/data-model.md](infra/data-model.md) |
+| 환경변수 / AWS 프로필 | [infra/env.md](infra/env.md) |
+| 배포 / EC2 Spot / Git 워크플로 | [infra/deployment.md](infra/deployment.md) |
+| 코드 패턴 (API route, Supabase, LLM, 프론트) | [PATTERNS.md](PATTERNS.md) |
+| 디자인 시스템 | [design/system.md](design/system.md) |
 
-```mermaid
-flowchart LR
-    URL["IG 포스트 URL"] -->|parsePostUrl| FETCH["/api/instagram/fetch-post"]
-    FETCH -->|"oEmbed (~300ms)"| OWNER["owner_handle + caption"]
-    OWNER -->|"web_profile_info (~500ms)"| RECENT["recent ~12 posts"]
-    RECENT -->|shortcode 매칭| FULL["target post full data<br/>(slides + tagged_users)"]
-    FULL -->|R2 copy + DB insert| SCRAPE["scrapeId"]
-    SCRAPE --> ANP["/api/find/analyze-post"]
-    ANP -->|max 10 slides 병렬| VISION["GPT-4o-mini Vision"]
-    VISION -->|isApparel 게이트| SLIDES["SlideAnalysis[]"]
-    SLIDES --> SRCH["/api/find/search"]
-    SRCH -->|"resolve-brands: @handle → brand names"| BFILT["brandFilter"]
-    BFILT -->|in-process 호출| SP["search-products handler"]
-    SP --> RESULTS["strongMatches + general<br/>(2 sections)"]
-```
+아래 두 영역은 별도 doc 없이 본 문서에 직접.
 
-- 클라이언트 상태는 `src/app/_components/find-client.tsx` 가 `useState` 기반 직접 관리 (전역 store 없음)
-- `/api/find/search` 는 HTTP fetch 없이 `search-products` 핸들러를 **인프로세스 직접 호출** — SSRF 회피 + 쿠키 포워딩 회피
-- 슬라이드 비디오(`is_video=true`) 자동 스킵, `isApparel=false` 도 스킵
-- Vision 비용 상한: 슬라이드 10장 × ~$0.003 = **포스트당 ~$0.03**
-- 에러 코드: `INVALID_URL`, `REEL_NOT_SUPPORTED`(파서 단계 즉시 reject), `TOO_OLD`(owner 최근 12 포스트 밖), `PRIVATE`(비공개 계정)
-- API 경로 prefix `/api/find/*` 는 historical naming — 메인 승격 후에도 그대로 유지
+---
 
-### 5.2 /admin — 어드민
+## 어드민 (`/admin`)
 
 3중 가드:
+
 1. `src/middleware.ts` — Supabase SSR 쿠키로 user 확인 → `admin_profiles.status = 'approved'` 가 아니면 `/admin/pending` 리다이렉트
 2. `src/app/admin/layout.tsx` — RSC에서 `requireApprovedAdmin()` 재확인
 3. `/api/admin/*` 라우트 핸들러 — 동일 헬퍼로 한번 더 검증
 
 대시보드: Genome / Analytics / Eval / Search Debugger / Products / User Voice / Pipeline Health / Crawl Coverage.
 
-### 5.3 (archive) Q&A 6단계 — 코드만 보존, 라우터 제외
+승인 흐름:
+- `/admin/signup` → `admin_profiles` row 자동 생성 (`status=pending`)
+- 관리자가 DB에서 수동 `'approved'` 전환
+- 다음 로그인부터 통과
 
-`src/app/_archive-qa/page.tsx` + `_qa/*` 에 보존. `/api/analyze`, `/api/feedback`, `/api/search-products`(Q&A 진입 경로 한정) 도 함께 미사용 상태로 유지. 신규 작업의 reference로 삼지 않는다.
+⚠️ `admin_profiles` 는 RLS + own-row SELECT 정책 필수 — 없으면 middleware가 null 받아서 무한 리다이렉트. 회고는 메모리 `feedback_supabase_middleware_rls.md`.
 
----
-
-## 6. 데이터 저장소
-
-### 6.1 Supabase Postgres — 테이블 인벤토리 (마이그레이션 029까지)
-
-| 영역 | 테이블 | 역할 |
-|---|---|---|
-| **분석 로그** | `analyses` | 메인 플로우 분석 1건 = 1행. AI raw 응답 + 검색 결과 전체 + `is_pinned` |
-| **세션** | `analysis_sessions` | 세션 단위 묶음 (user_voice 분석용) |
-| **상품 카탈로그** | `products` | 크롤로 들어온 모든 SKU. `embedding vector(768)`, `embedding_model`, `embedded_at` 컬럼 추가됨 (mig 027) |
-| | `product_reviews` | 상품 리뷰 (mig 019) |
-| | `product_ai_analysis` | v4 검색이 INNER JOIN 하는 LLM 분석 산출물 (mig 012) — **v5 검증 후 드랍 예정** |
-| **브랜드** | `brand_nodes` | Fashion Genome v2: 15 style nodes + brand DNA |
-| | `brand_attributes` | 어드민에서 채우는 브랜드 속성 (mig 010) |
-| **검색 품질** | `search_quality_logs` | 검색 호출당 score breakdown 로깅 (어드민 디버거에서 시각화) |
-| **평가** | `eval_reviews`, `eval_golden_set` | 평가 골든셋 + 리뷰 핀 |
-| **유저 피드백** | `user_feedbacks` | Step 6 rating + tag + comment + email |
-| **어드민 인증** | `admin_profiles` | `status: pending/approved` 승인 게이트 (mig 022~024) |
-| **Instagram** | `instagram_post_scrapes`, `instagram_post_scrape_images` | /find 스크랩 결과 (mig 028); RLS deny-all (서비스 롤만) |
-| **API 로깅** | `api_access_logs` | 외부 API 호출 추적 |
-
-### 6.2 Postgres 확장
-
-- **pgvector** — `products.embedding` HNSW 인덱스 (`m=16, ef_construction=200, vector_ip_ops`). `set_hnsw_ef_search(int)` 함수로 런타임 튜닝
-- **pgroonga** — `brand + name + description + material + color` concat 표현식에 한국어 토크나이저 BM25 인덱스
-- **GIN** — `products.tags` 배열 검색
-- **RPC** — `bulk_update_product_embeddings(jsonb)`, `get_product_filter_counts()`
-
-### 6.3 Cloudflare R2
-
-- `@aws-sdk/client-s3` 로 S3 API 호환 접근
-- **저장 대상**: 단일 버킷, 폴더(prefix)로 분리
-  - `analyses/<timestamp>-<uuid>-<safeName>` — 메인 플로우 분석 원본 (`uploadImage()`)
-  - 그 외 prefix는 호출자가 `uploadBufferAtKey()` 로 직접 지정 (예: IG 슬라이드)
-- 공개 URL은 `R2_PUBLIC_URL` 한 호스트 — `next.config.ts` 의 `remotePatterns` 에 명시 등록
+핵심 파일:
+- `src/middleware.ts`, `src/lib/admin-auth.ts`, `src/lib/supabase-server.ts`
+- `src/app/admin/layout.tsx`, `src/app/admin/pending/page.tsx`, `src/app/admin/login/page.tsx`
 
 ---
 
-## 7. 검색 엔진 — v4 현재 + v5 전환 인프라(부분 적용)
+## Archived 코드 (`src/app/_archive-qa/`)
 
-### v4 (현재 운영)
+구 `/` Q&A 6단계 플로우 (input → confirm → hold → conditions → results → feedback). 코드만 보존, 라우팅 제외. 함께 미사용 상태로 묶인 것:
 
-`src/app/api/search-products/route.ts` (~870 LOC). 핵심 흐름:
+- `src/app/api/analyze/route.ts` — Vision/Text 단일 분석 라우트
+- `src/app/api/feedback/route.ts` — 6단계 피드백 수집
+- `src/lib/enums/korean-vocab.ts`, `color-adjacency.ts`, `style-adjacency.ts` — 검색엔진 v4가 여전히 호출함
+- `src/lib/search/locked-filter.ts` — 검색엔진이 호출하나 메인 플로우에서는 미사용
 
-1. `products` ⨝ `product_ai_analysis` INNER JOIN — **AI 분석 없는 상품(해외 35k)은 노출 0**
-2. `passesLockedFilter` 통과 (현재는 archived flow 잔재 — 메인 플로우는 `brandFilter` 를 hard filter로 사용)
-3. **10차원 가중합** 스코어링:
-   - subcategory 0.25 / colorFamily 0.20 / colorAdjacent 0.10
-   - styleNode gradient 0.30 / 0.15
-   - fit 0.15 / fabric 0.15 / season 0.15 / pattern 0.15
-   - brandDna 0.20 / moodTags 0.05 × N
-4. 한국어 어휘 매핑(`korean-vocab.ts` 115+ 항목) + 색상 인접(`color-adjacency.ts` 16색) + 스타일 인접(`style-adjacency.ts` 15노드)
-5. 다양성 캡 — 브랜드당 max 2, 플랫폼당 max 3 (단 `brandFilter` 활성 시 캡 완화)
-6. `priceFilter` 가 있으면 DB+인메모리 hard filter (null price 제외)
-7. `styleTolerance` 에 따라 `toleranceToTargetCount(t)` 만큼 컷 (10~20)
+**v5 재설계 결과에 따라 일괄 삭제 가능.** 신규 작업의 reference 금지.
 
-### v5 전환 인프라 (적용 완료, 미가동)
+---
 
-| 항목 | 상태 |
+## 다음 단계 (v5 재설계와 묶일 결정 항목)
+
+1. **검색 엔진 v5 분기 작성** — `/api/search-products` 에 dense + sparse + RRF 통합 쿼리 + 피처 플래그 `SEARCH_ENGINE_VERSION`
+2. **FashionSigLIP 81k 풀배치 실행** — 인프라/스크립트만 준비됨, 실행 미시도
+3. **LiteLLM 재가동** — EC2 인스턴스 OFF 상태, v5 인프라 잡을 때 같이 켜기
+4. **`product_ai_analysis` 드랍** — v5 검증 완료 후
+5. **archived 코드 처분** — `_archive-qa/` + 관련 enum/유틸 일괄 삭제 시점 결정
+
+---
+
+## 변경 이력
+
+| 날짜 | 사건 |
 |---|---|
-| 마이그레이션 027 (`vector`, `pgroonga`, HNSW, GIN, bulk RPC, coverage view) | ✅ 적용 |
-| `scripts/aws/embed_products.py` (FashionSigLIP 인코더) | ✅ 작성 |
-| `scripts/aws/launch_embed_batch.sh` (EC2 Spot 런처) | ✅ 작성 |
-| 81k 상품 임베딩 인코딩 1회 실행 | ⚠️ **테스트만 진행, 전체 미실행** (2026-04-26 기준) |
-| `/api/search-products` v5 분기 (dense + sparse + RRF) | ⬜ 미작성 |
-| 피처 플래그 `SEARCH_ENGINE_VERSION` 로 v4/v5 병행 | ⬜ 미작성 |
-
-> **이번 세션의 v5 재설계는 기존 plan(`26-04-23-embedding-rewrite-plan.md`, `26-04-24-aws-embedding-infra.md`)을 reference로만 두고, 결정 기준을 다시 잡는 것을 전제로 한다** — `CLAUDE.md` 작업 규칙에 따라 archive로 옮기지 않고 plans/에 유지.
-
----
-
-## 8. AI 분석 파이프라인
-
-### 8.1 메인 플로우 — 슬라이드별 Vision 팬아웃
-
-`/api/find/analyze-post` 가 scrapeId 받아서 슬라이드 최대 10장을 병렬로 `runVision()` 호출:
-
-`src/lib/analyze/run-vision.ts` — 단일 이미지 Buffer → GPT-4o-mini Vision 호출, 응답에 `isApparel: boolean` 게이트 필드 포함. `false` 면 해당 슬라이드 결과 폐기.
-
-설정: `temperature: 0.3`, `max_tokens: 2500`, `detail: auto`. 비디오 슬라이드(`is_video=true`)는 호출 자체 스킵.
-
-### 8.2 archived 진입점 — `/api/analyze`
-
-원래 메인 (`/`) 의 Vision/Text 분석 라우트. 3분기 (프롬프트 전용 / 이미지 전용 / 프롬프트+이미지). archived flow가 라우터에서 빠진 후로는 호출되지 않지만 라우트 자체는 보존 — v5 재설계 결과에 따라 재활용 여지 있음.
-
-응답은 `{ mood, palette, style, items[], _logId }`. R2 업로드 + Supabase `analyses` INSERT 같이 처리.
-
-### 8.3 OpenAI vs LiteLLM 라우팅
-
-```ts
-const useLiteLLM =
-  !!process.env.LITELLM_BASE_URL &&
-  process.env.LITELLM_DISABLED !== "true"
-```
-
-- 켜져있으면 `${LITELLM_BASE_URL}/v1` 로 OpenAI SDK base URL을 덮어씀
-- 죽으면 `LITELLM_DISABLED=true` 한 줄로 즉시 직접 호출 폴백
-- 현재 prod 미가동 — EC2 인스턴스는 존재하나 OFF 상태. v5 인프라 재설계와 함께 재가동 예정
-
----
-
-## 9. 크롤러
-
-| 항목 | 값 |
-|---|---|
-| 플랫폼 수 | 32개 (22 Cafe24 국내 + 10 Shopify 해외) |
-| 누적 SKU | ~81,000 (45k 국내 + 35k 해외) |
-| 누적 브랜드 | 697 |
-| 엔진 | `scripts/lib/cafe24-engine.ts` (Playwright) + `scripts/lib/shopify-engine.ts` (`/products.json` 페이지네이션) |
-| 파서 패턴 | Strategy Pattern — `parsers/detail/` (base + 사이트 오버라이드: adekuver, blankroom, visualaid…), `parsers/review/` (board / inline / composite) |
-| 실행 | `pnpm tsx scripts/crawl.ts --site=<key>` 등, **로컬에서만 실행** |
-| 임포트 | `scripts/import-products.ts` 가 크롤 산출물 JSON → Supabase upsert. 자사몰은 brand 자동 채움 |
-
-> 크롤러 가이드: `docs/guides/platform-parser-guide.md`
-
----
-
-## 10. 인증 / 권한
-
-- **메인(`/`, `/find`)** — 로그인 없음, 익명 사용
-- **어드민(`/admin/*`)** — Supabase Auth (이메일/비밀번호) + `admin_profiles.status = 'approved'` 승인 게이트
-- **신규 가입 흐름** — `/admin/signup` → `admin_profiles` row 자동 생성(status=pending) → 관리자가 DB에서 수동으로 'approved' 전환 → 다음 로그인부터 통과
-- **RLS** — `admin_profiles` 는 own-row SELECT 정책 필수 (없으면 middleware가 null만 받아서 무한 리다이렉트). 관련 회고는 메모리 `feedback_supabase_middleware_rls.md`
-
----
-
-## 11. 보안
-
-| 레이어 | 방어 |
-|---|---|
-| API 키 | 모두 서버사이드 env, 클라이언트 노출 0 |
-| 파일 업로드 | 10MB 제한, jpeg/png/webp/heic 허용 |
-| 외부 이미지 | `next.config.ts` `remotePatterns` 화이트리스트 |
-| Instagram 다운로드 | 호스트 화이트리스트(`cdninstagram.com`, `fbcdn.net`) + 15MB 캡 |
-| /find Vision | 이미지 URL이 `R2_PUBLIC_URL` prefix인 것만 허용 (SSRF 차단) |
-| /find 내부 호출 | HTTP fetch 대신 핸들러 인프로세스 호출로 SSRF 표면 자체 제거 |
-| DB | service role key는 서버사이드만, 어드민 페이지는 SSR 쿠키 클라이언트 |
-| 어드민 | middleware + layout + API 핸들러 3중 승인 체크 |
-| 로깅 | LLM 응답에 markdown fence 섞이는 거 대비 try-catch + sanitize |
-
----
-
-## 12. Observability
-
-- **로깅** — `pino` + `pino-pretty` (`src/lib/logger.ts`)
-- **분석 로그** — `analyses`, `search_quality_logs`, `api_access_logs` 테이블 — 어드민 디버거에서 score breakdown 시각화
-- **임베딩 진척** — `product_embedding_coverage` 뷰 (플랫폼별 `pct_embedded`)
-- **Vercel Analytics** — `@vercel/analytics` 설치, 페이지 뷰 수집
-- **AI tracing** — LangSmith 등 미연결. LiteLLM 활성 시 프록시 측에서 비용/호출 추적 가능
-
----
-
-## 13. 환경 변수
-
-`.env.local`에 들어가는 전체 키 (코드에서 실측):
-
-| 키 | 필수 | 용도 |
-|---|---|---|
-| `OPENAI_API_KEY` | ✅ | GPT-4o-mini Vision/Text |
-| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | ✅ | 서버 측 DB 접근 (RLS 바이패스) |
-| `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ | 어드민 Auth (브라우저) |
-| `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_BUCKET_NAME` / `R2_PUBLIC_URL` | ✅ | Cloudflare R2 |
-| `LITELLM_BASE_URL` / `LITELLM_API_KEY` / `LITELLM_MODEL` / `LITELLM_DISABLED` | ⚪ | LiteLLM 프록시 (opt-in) |
-| `PROXY_HOST` / `PROXY_PORT` / `PROXY_USER` / `PROXY_PASS` | ⚪ | Instagram 스크래퍼 프록시 (opt-in) |
-| `LOG_LEVEL` | ⚪ | pino 레벨 |
-| `EVAL_BASE_URL` | ⚪ | 평가 스크립트 타깃 URL |
-| `NODE_ENV` | (자동) | — |
-
-AWS 자격증명은 `~/.aws/credentials` 의 `portal-ai` 프로필을 사용 (`scripts/aws/launch_embed_batch.sh`).
-
----
-
-## 14. 개발 / 배포
-
-```bash
-pnpm dev          # localhost:3400
-pnpm build        # Turbopack 프로덕션 빌드
-pnpm lint         # ESLint
-pnpm test         # vitest 1회
-pnpm test:watch   # vitest watch
-```
-
-- **레포** — `endurance-ai/moodfit` (private)
-- **기본 브랜치** — `dev` (PR squash merge → main 승격)
-- **배포** — Vercel (dev push 시 preview, main 머지 시 prod)
-- **크롤/임베딩** — 로컬에서 수동 실행. 자동 스케줄링 없음.
-
----
-
-## 15. 다음 단계 (v5 재설계와 함께 잡힐 항목)
-
-본 스냅샷에서 **"존재하지만 아직 가동 안 됨"** 으로 남겨둔 것들. 이번 v5 큰 틀을 잡으면서 같이 결정한다.
-
-1. **LiteLLM 재가동** — EC2 호스팅 인스턴스 OFF 상태. v5 인프라 잡을 때 같이 켜는 형태로 재배치.
-2. **FashionSigLIP 81k 풀배치 실행** — 현재까지 테스트만. 풀배치 가는 시점 + 인프라(EC2 g5 Spot)는 v5 결정에 묶여있음.
-3. **`/api/search-products` v5 분기** — pgvector + pgroonga + RRF 통합 쿼리 작성. 피처 플래그(`SEARCH_ENGINE_VERSION`)로 v4와 병행.
-4. **`product_ai_analysis` 드랍** — v5 검증이 끝난 뒤 일괄 드랍. 일정은 v5 재설계 결과에 따라 결정.
-5. **archived 코드 정리 시점** — `_archive-qa/` + `/api/analyze` + `/api/feedback` + `korean-vocab.ts`/`color-adjacency.ts`/`style-adjacency.ts` 등이 v5 결정 후에도 살릴지 일괄 삭제할지.
-
-(2026-04-26 완료) ✅ `/find` 메인 승격 + 구 `/` archive 이동.
+| 2026-04-26 | `/find` 메인 승격 + 구 Q&A `_archive-qa/` 이동 + 문서 도메인별 분할 |
+| 2026-04-26 | `/dna`, `/about`, `/archive` 라우트 + 관련 DB 제거 (PR #30) |
+| 2026-04-24 | v5 인프라 마이그레이션 027 적용 (pgvector + pgroonga + bulk RPC) |
+| 2026-04-23 | 해외 Shopify 자사몰 10개 크롤 — 35,746 SKU 추가 |
