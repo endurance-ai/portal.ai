@@ -18,7 +18,6 @@ interface PostBody {
 function errorCodeToStatus(code: InstagramFetchError["code"]): number {
   switch (code) {
     case "INVALID_URL":
-    case "INVALID_HANDLE":
       return 400
     case "REEL_NOT_SUPPORTED":
       return 415
