@@ -16,6 +16,18 @@ AI 이미지 기반 패션 스타일 분석 & 크로스플랫폼 상품 추천. 
 - 새 plan/spec은 `docs/plans/` 또는 `docs/research/` 에 작성. 종료 시 archive로 이동.
 - 결정 지점이 모호하면 **혼자 가정하지 말고 먼저 질문할 것** (설계·기획·리팩터링 방향 등).
 
+## ❗ 필수 동기화 문서 3종 (절대 stale 금지)
+
+다음 3개 doc 은 코드 변경 시 **반드시 함께 업데이트**한다. 메인 플로우·검색·아키텍처가 stale 된 채 머지되면 신규 합류자/AI 가 잘못된 그림으로 작업 시작함.
+
+| Doc | 트리거 — 다음 변경 시 갱신 |
+|---|---|
+| `docs/ARCHITECTURE.md` | 외부 서비스 추가/제거, 토폴로지 변경, 활성 진입점 변경, 마이그레이션 머지 |
+| `docs/features/main-flow.md` | `/api/instagram/*`, `/api/find/*`, `_components/find-*` 변경, 에러 코드 추가/삭제, 캐시·picker UX 흐름 변경 |
+| `docs/features/search-engine.md` | `/api/search-products` 알고리즘/스코어링 변경, v5 임베딩 인프라 진척, 검색 관련 enum/사전 변경 |
+
+**`/feature-finalize` 스킬의 doc-update 단계에서 이 3개는 "변경 없음" 처리 금지.** 매 PR마다 코드 diff 와 cross-check 후 본문 갱신 여부 명시.
+
 ## 개발 명령어
 
 ```bash
