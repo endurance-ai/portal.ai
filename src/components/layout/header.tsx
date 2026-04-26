@@ -8,7 +8,6 @@ import {useLocale} from "@/lib/i18n"
 
 const NAV = [
   {href: "/", label: "Index"},
-  {href: "/find", label: "Find"},
 ]
 
 export function Header() {

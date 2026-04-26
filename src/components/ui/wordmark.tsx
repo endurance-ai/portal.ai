@@ -8,7 +8,7 @@ interface WordmarkProps {
 
 /**
  * PORTAL tracked caps wordmark.
- * DESIGN.md §4.1 참조. 데스크탑 16px, 모바일 14px.
+ * docs/design/system.md §4.1 참조. 데스크탑 16px, 모바일 14px.
  */
 export function Wordmark({href = "/", className, size = "md"}: WordmarkProps) {
   const inner = (

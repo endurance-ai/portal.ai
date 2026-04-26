@@ -1,7 +1,7 @@
-# DESIGN.md — portal.ai
+# PORTAL — Design System
 
-> AI 에이전트용 단일 디자인 시스템 문서. 새 페이지/컴포넌트 빌드 시 **반드시 이 문서를 먼저 읽고** 토큰과 규칙을 따른다.
-> 참조 원본 스펙: `docs/superpowers/specs/2026-04-13-editorial-redesign-design.md`
+> 단일 디자인 시스템 문서. 새 페이지/컴포넌트 빌드 시 **반드시 이 문서를 먼저 읽고** 토큰과 규칙을 따른다.
+> 참조 원본 스펙: `docs/archive/specs/2026-04-13-editorial-redesign-design.md`
 
 ---
 
@@ -150,6 +150,6 @@ Hover 변화는 `border-color` / `background` 전환 (150ms ease).
 ---
 
 ## References
-- 원본 스펙 (상세): `docs/superpowers/specs/2026-04-13-editorial-redesign-design.md`
-- Legacy (Digital Atelier): `docs/DESIGN.legacy.md`
-- Stitch DESIGN.md 포맷: https://stitch.withgoogle.com/docs/design-md/format/
+- 원본 스펙 (상세): `docs/archive/specs/2026-04-13-editorial-redesign-design.md`
+- Legacy (Digital Atelier): `docs/archive/DESIGN.legacy.md`
+- Stitch design system 포맷: https://stitch.withgoogle.com/docs/design-md/format/

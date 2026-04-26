@@ -5,34 +5,61 @@ describe("parsePostUrl", () => {
   it("accepts full https URL with trailing slash", () => {
     expect(parsePostUrl("https://www.instagram.com/p/DXeu2onFIZ8/")).toEqual({
       shortcode: "DXeu2onFIZ8",
+      imgIndex: null,
     })
   })
 
-  it("accepts URL with query string", () => {
+  it("extracts img_index from query string (1-indexed)", () => {
     expect(
-      parsePostUrl("https://www.instagram.com/p/DXeu2onFIZ8/?hl=ko&img_index=1")
-    ).toEqual({shortcode: "DXeu2onFIZ8"})
+      parsePostUrl("https://www.instagram.com/p/DXeu2onFIZ8/?img_index=3")
+    ).toEqual({shortcode: "DXeu2onFIZ8", imgIndex: 3})
+  })
+
+  it("ignores img_index alongside other query params", () => {
+    expect(
+      parsePostUrl("https://www.instagram.com/p/DXeu2onFIZ8/?hl=ko&img_index=7")
+    ).toEqual({shortcode: "DXeu2onFIZ8", imgIndex: 7})
+  })
+
+  it("treats malformed img_index as null", () => {
+    expect(
+      parsePostUrl("https://www.instagram.com/p/DXeu2onFIZ8/?img_index=abc")
+    ).toEqual({shortcode: "DXeu2onFIZ8", imgIndex: null})
+  })
+
+  it("treats out-of-range img_index as null", () => {
+    expect(
+      parsePostUrl("https://www.instagram.com/p/DXeu2onFIZ8/?img_index=0")
+    ).toEqual({shortcode: "DXeu2onFIZ8", imgIndex: null})
+    expect(
+      parsePostUrl("https://www.instagram.com/p/DXeu2onFIZ8/?img_index=999")
+    ).toEqual({shortcode: "DXeu2onFIZ8", imgIndex: null})
   })
 
   it("accepts URL without protocol", () => {
     expect(parsePostUrl("instagram.com/p/DXeu2onFIZ8")).toEqual({
       shortcode: "DXeu2onFIZ8",
+      imgIndex: null,
     })
   })
 
   it("accepts handle-prefixed form (share URL)", () => {
     expect(
       parsePostUrl("https://www.instagram.com/patagonia/p/DXeu2onFIZ8/")
-    ).toEqual({shortcode: "DXeu2onFIZ8"})
+    ).toEqual({shortcode: "DXeu2onFIZ8", imgIndex: null})
   })
 
   it("accepts bare shortcode", () => {
-    expect(parsePostUrl("DXeu2onFIZ8")).toEqual({shortcode: "DXeu2onFIZ8"})
+    expect(parsePostUrl("DXeu2onFIZ8")).toEqual({
+      shortcode: "DXeu2onFIZ8",
+      imgIndex: null,
+    })
   })
 
   it("accepts shortcode with dashes/underscores", () => {
     expect(parsePostUrl("https://www.instagram.com/p/DXX0n-0Gb1t/")).toEqual({
       shortcode: "DXX0n-0Gb1t",
+      imgIndex: null,
     })
   })
 

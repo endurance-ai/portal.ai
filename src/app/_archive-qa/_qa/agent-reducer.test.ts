@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {agentReducer} from "./agent-reducer"
-import {type AnalyzedItem, INITIAL_AGENT_STATE, MAX_LOCKED_ATTRS} from "./types"
+import {type AnalyzedItem, INITIAL_AGENT_STATE} from "./types"
 
 const sampleItem: AnalyzedItem = {
   id: "item-1",
