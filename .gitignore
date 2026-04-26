@@ -51,3 +51,9 @@ data/
 
 # 배치 분석 결과
 scripts/output/
+
+# Python (Modal scripts)
+__pycache__/
+*.pyc
+.venv/
+

@@ -156,7 +156,7 @@ pnpm test:watch   # vitest watch 모드
 | `src/components/admin/products-page.tsx` | 어드민 상품 목록 — 6-col dense grid, hover 오버레이, 그룹 필터 바 + active chips + PAGE_SIZE 60 |
 | `src/app/api/admin/products/filter-options/route.ts` | 상품 필터 옵션 API — get_product_filter_counts() RPC 호출, 10min CDN cache |
 | `supabase/migrations/001~026` | analyses, brand_nodes, products, eval_reviews, eval_golden_set, api_access_logs, product_ai_analysis, search_quality_logs, analyses.is_pinned, season/pattern, data cleansing, product_reviews, drop rating, analysis_sessions, user_feedbacks, admin_profiles 승인 게이트, instagram_scrapes + instagram_scrape_images (RLS deny-all), get_product_filter_counts() RPC |
-| `supabase/migrations/027_instagram_post_scrapes.sql` | instagram_post_scrapes (shortcode unique, media_type, tagged_users jsonb, raw_data) + instagram_post_scrape_images (order_index, r2_url, tagged_users jsonb, is_video); RLS deny-all — 수동 적용 필요 |
+| `supabase/migrations/028_instagram_post_scrapes.sql` | instagram_post_scrapes (shortcode unique, media_type, tagged_users jsonb, raw_data) + instagram_post_scrape_images (order_index, r2_url, tagged_users jsonb, is_video); RLS deny-all — 수동 적용 필요 |
 
 ## 비즈니스 규칙
 
