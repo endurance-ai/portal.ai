@@ -3,7 +3,7 @@
 import {type FormEvent, useState} from "react"
 import {FindResult, type FindResultData} from "./find-result"
 import {RefinementBar, type RefinementPayload} from "./refinement-bar"
-import {SlidePicker, type SlideOption} from "./slide-picker"
+import {type SlideOption, SlidePicker} from "./slide-picker"
 import {ItemPicker} from "./item-picker"
 import type {VisionAnalysisItem, VisionAnalysisResult} from "@/lib/analyze/run-vision"
 
@@ -224,6 +224,7 @@ export function FindClient() {
 
     const payload = {
       item: itemPayload,
+      imageUrl: a.slideR2Url,
       taggedHandles,
       gender: a.result.style?.detectedGender,
       styleNode,

@@ -211,35 +211,58 @@ const useLiteLLM =
 
 ---
 
-## Step 5 — 검색 트리거 (브랜드 필터 + 일반 매칭)
+## Step 5 — 검색 트리거 (AI 서버 v5 우선 → v4 폴백)
 
-`POST /api/find/search` (입력: `{item, taggedHandles, gender, styleNode, moodTags, priceFilter, ...}`).
+`POST /api/find/search` (입력: `{item, imageUrl, taggedHandles, gender, styleNode, moodTags, priceFilter, ...}`).
+
+`v3` 흐름:
+1. `taggedHandles` → `resolveIgHandlesToBrands()` 로 brand 이름 배열 산출 (기존)
+2. `AI_SERVER_URL` 설정 + `imageUrl` 있으면 → AI 서버 `POST /recommend` 우선 호출
+3. AI 서버 5xx / timeout / 미설정 시 → 기존 v4 (`/api/search-products`) in-process 폴백
+4. 응답에 `engine: "v5"` 또는 `"v4"` 포함 (디버깅용)
+
+### AI 서버 호출
+
+```ts
+const res = await fetch(`${AI_SERVER_URL}/recommend`, {
+  method: "POST",
+  headers: {
+    "content-type": "application/json",
+    "X-Internal-Token": process.env.INTERNAL_API_TOKEN,  // (예정 — 코드 추가 필요)
+  },
+  body: JSON.stringify({
+    item, imageUrl, brandFilter, gender, styleNode, moodTags, priceFilter,
+    tolerance: strongMatchTolerance ?? 0.5,
+  }),
+  signal: AbortSignal.timeout(AI_SERVER_TIMEOUT_MS),  // 기본 8000ms
+})
+```
+
+상세 사양: [endurance-ai/ai-server `docs/features/pipeline.md`](https://github.com/endurance-ai/ai-server/blob/dev/docs/features/pipeline.md)
+
+### v4 폴백 (기존 in-process 호출)
 
 ```ts
 import {POST as searchProductsPost} from "@/app/api/search-products/route"
 
-const req = new NextRequest("http://internal/api/search-products", {
-  method: "POST",
-  headers: {"content-type": "application/json"},
-  body: JSON.stringify(payload),
-})
+const req = new NextRequest("http://internal/api/search-products", { ... })
 const res = await searchProductsPost(req)
 ```
 
 **왜 in-process 호출**: HTTP fetch 안 씀 → SSRF 표면 제거 + 쿠키/host-header 포워딩 회피 + 라운드트립 제거.
 
-### 두 갈래 (병렬 실행)
+### 두 갈래 (병렬 실행, AI/v4 공통)
 
 | 갈래 | brandFilter | tolerance | 응답 키 |
 |---|---|---|---|
 | 강한 매칭 | post-level taggedUsers + caption @mentions → resolve-brands → brand 이름 배열 | `strongMatchTolerance` (기본 0.5) | `strongMatches` |
 | 일반 매칭 | 없음 | `generalTolerance` (기본 0.5) | `general` |
 
-`brandFilter` 활성 시 search-products 내부에서 브랜드당 max 캡이 완화됨.
+`brandFilter` 활성 시 (v5/v4 모두) 브랜드당 max 캡이 완화됨.
 
 ### 단일 아이템 모드
 
-`queries[]` 배열 길이 1 — 사용자가 picker 에서 선택한 1개 아이템만 검색. v1 의 다중 아이템 mergedItems 머지 로직 제거.
+`queries[]` 배열 길이 1 — 사용자가 picker 에서 선택한 1개 아이템만 검색.
 
 ### resolve-brands
 
@@ -248,11 +271,21 @@ const res = await searchProductsPost(req)
 ### 보안
 
 - 내부 search-products 에러 body 클라이언트 노출 X — `{error: "Search failed", code: "SEARCH_FAILED"}` 만 반환
+- AI 서버 호출 실패 시도 동일 — 폴백 자동 진행, 브라우저는 어느 엔진을 썼는지만 `engine` 필드로 인지
+
+### 환경변수
+
+| 키 | 의미 | 기본 |
+|---|---|---|
+| `AI_SERVER_URL` | AI 서버 base URL (예: `http://<EIP>:8000`) | 미설정 시 v4 직행 |
+| `AI_SERVER_TIMEOUT_MS` | AI 서버 호출 타임아웃 | 8000 |
+| `INTERNAL_API_TOKEN` | AI 서버 인증 헤더 (`X-Internal-Token`) | (백로그 — 헤더 송출 코드 미반영) |
 
 핵심 파일:
-- `src/app/api/find/search/route.ts` — 단일 아이템 + strong/general 두 갈래 + in-process 호출
+- `src/app/api/find/search/route.ts` — AI 서버 우선 + v4 폴백 라우팅
 - `src/lib/find/resolve-brands.ts` — @handle → brand name resolver
-- `src/app/api/search-products/route.ts` — 실제 검색 엔진 (상세는 `docs/features/search-engine.md`)
+- `src/app/api/search-products/route.ts` — v4 검색 엔진 (폴백 전용, 상세는 `search-engine.md`)
+- `supabase/migrations/030_search_products_v5.sql` — v5 RPC (AI 서버가 호출)
 
 ---
 

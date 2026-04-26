@@ -43,15 +43,16 @@ graph TB
         MW["middleware.ts<br/>/admin/* auth gate"]
         API_IG["/api/instagram/fetch-post<br/>(cache lookup → Apify fallback)"]
         API_FIND_AN["/api/find/analyze-post<br/>(single slide, slideIndex)"]
-        API_FIND_S["/api/find/search<br/>(single item)"]
-        API_SEARCH["/api/search-products<br/>v4 search engine"]
+        API_FIND_S["/api/find/search<br/>(AI server first → v4 fallback)"]
+        API_SEARCH["/api/search-products<br/>v4 search engine (fallback)"]
         API_ADMIN["/api/admin/*"]
     end
 
     subgraph External["🌐 External Services"]
         APIFY["Apify<br/>instagram-post-scraper<br/>(run-sync, ~5-10s)"]
         OAI["OpenAI<br/>GPT-4o-mini Vision"]
-        LITELLM["LiteLLM proxy<br/>(EC2, currently OFF)"]
+        AISERVER["AI Server (EC2)<br/>endurance-ai/ai-server<br/>FastAPI + Modal embed"]
+        LITELLM["LiteLLM proxy<br/>(EC2, AI 서버 옆 컨테이너)"]
     end
 
     subgraph Data["💾 Persistence"]
@@ -75,7 +76,9 @@ graph TB
     API_FIND_AN -.optional.-> LITELLM --> OAI
 
     U1 --> API_FIND_S
-    API_FIND_S -. in-process .-> API_SEARCH
+    API_FIND_S -->|HTTP /recommend| AISERVER
+    API_FIND_S -. fallback .-> API_SEARCH
+    AISERVER --> SB
     API_SEARCH --> SB
 
     U2 --> MW --> API_ADMIN
@@ -90,7 +93,7 @@ graph TB
     classDef batch fill:#f57f17,stroke:#e65100,color:#fff
 
     class MW,API_SEARCH,API_IG,API_FIND_AN,API_FIND_S,API_ADMIN vercel
-    class APIFY,OAI,LITELLM ext
+    class APIFY,OAI,LITELLM,AISERVER ext
     class SB,R2 data
     class CRAWL,EMBED batch
 ```
@@ -106,10 +109,12 @@ graph TB
 | Cloudflare R2 | 이미지 저장 (단일 버킷, prefix 분리) | [infra/deployment.md](infra/deployment.md#cloudflare-r2--이미지-저장) |
 | **Apify** (`instagram-post-scraper`) | Instagram 포스트 단발 스크래핑 — `run-sync-get-dataset-items`, ~5-10s, $0.0023/post | [features/main-flow.md](features/main-flow.md#step-1--instagram-포스트-스크래핑) |
 | OpenAI | GPT-4o-mini Vision (단일 슬라이드 분석) | [features/main-flow.md](features/main-flow.md#step-2--슬라이드별-vision-분석) |
-| LiteLLM proxy *(현재 OFF)* | OpenAI 라우팅·로깅·비용 통제 | [infra/deployment.md](infra/deployment.md#litellm-프록시--현재-off) |
-| AWS EC2 g5.xlarge Spot | FashionSigLIP 임베딩 배치 (단발) | [infra/deployment.md](infra/deployment.md#aws-ec2-spot--임베딩-배치) |
+| **AI Server** ([endurance-ai/ai-server](https://github.com/endurance-ai/ai-server)) | v5 검색 오케스트레이션 (Modal embed + Supabase RPC + 다양성 캡). `/api/find/search` 가 호출 | [features/search-engine.md](features/search-engine.md) |
+| **Modal serverless** | FashionSigLIP `/embed` (이미지 임베딩, T4 GPU, scale-to-zero) — AI 서버가 호출 | (ai-server repo) |
+| LiteLLM proxy | LLM 라우팅 + Langfuse callback (AI 서버 EC2 컨테이너) | [infra/deployment.md](infra/deployment.md) |
+| Langfuse self-host | 관측성 (LLM/embed/파이프라인 trace) — AI 서버 EC2 컨테이너 | (ai-server repo) |
 
-> **AI 서버 없음.** Python AI 서비스(FastAPI 등) 0개. 모든 LLM 호출은 Vercel 함수에서 직접.
+> **AI 서버는 별도 repo.** Python FastAPI. `AI_SERVER_URL` 미설정 또는 5xx/timeout 시 자동 v4 폴백.
 
 ---
 

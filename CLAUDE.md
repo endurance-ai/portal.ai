@@ -2,8 +2,6 @@
 
 AI 이미지 기반 패션 스타일 분석 & 크로스플랫폼 상품 추천. "Paste any Instagram post. We'll tell you where to buy the fit."
 
-> 디렉터리는 `fashion-ai`로 남아있지만 서비스명·문서·UI 카피는 모두 **portal.ai**로 통일.
-
 ## 활성 진입점
 
 - `/` — Instagram 포스트 URL → 슬라이드 Vision → 브랜드 매칭 → 상품 추천 (메인)
