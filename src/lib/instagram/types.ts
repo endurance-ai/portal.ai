@@ -1,38 +1,4 @@
-export interface InstagramProfile {
-  handle: string
-  fullName: string | null
-  biography: string | null
-  profilePicUrl: string | null
-  followerCount: number | null
-  followingCount: number | null
-  postCount: number | null
-  isPrivate: boolean
-  isVerified: boolean
-  externalUrl: string | null
-  category: string | null
-}
-
-export interface InstagramPost {
-  shortcode: string
-  imageUrl: string
-  caption: string | null
-  likeCount: number | null
-  commentCount: number | null
-  takenAt: string | null
-  isVideo: boolean
-  width: number | null
-  height: number | null
-}
-
-export interface InstagramScrapeResult {
-  profile: InstagramProfile
-  posts: InstagramPost[]
-  raw: unknown
-  usedProxy: boolean
-}
-
 export type InstagramFetchErrorCode =
-  | "INVALID_HANDLE"
   | "INVALID_URL"
   | "REEL_NOT_SUPPORTED"
   | "NOT_FOUND"
@@ -44,7 +10,6 @@ export type InstagramFetchErrorCode =
 
 // ── Post(단일 게시물) 스크랩 타입 — /find 플로우 ──
 // 파이프라인: oEmbed로 owner 확인 → web_profile_info로 owner 최근 12 포스트 중 shortcode 매칭
-// 자세한 리서치는 docs/plans/26-04-24-find-ig-post-scraping.md 참조.
 
 export interface InstagramTaggedUser {
   username: string
