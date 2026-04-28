@@ -154,7 +154,7 @@ export async function POST(request: Request) {
   }
 
   logger.info(
-    `[fetch-post] 시작 — shortcode=${shortcode} imgIndex=${imgIndex ?? "(none)"}`
+    `[STEP 1.1][fetch-post] 진입 — input="${input.slice(0, 80)}" parsed: shortcode=${shortcode} imgIndex=${imgIndex ?? "(none)"}`
   )
 
   // 1) 캐시 lookup — 같은 shortcode 의 최근 성공 row 가 있으면 즉시 반환
@@ -162,12 +162,15 @@ export async function POST(request: Request) {
   const cached = await lookupCachedScrape(shortcode, imgIndex)
   if (cached) {
     logger.info(
-      `[fetch-post] ✅ cache HIT — shortcode=${shortcode} | ${Date.now() - cacheT0}ms | slides=${cached.slides.length} | scrapeId=${cached.scrapeId}`
+      `[STEP 1.2][fetch-post] ✅ cache HIT — ${Date.now() - cacheT0}ms | slides=${cached.slides.length} | scrapeId=${cached.scrapeId} | owner=@${cached.ownerHandle} | mediaType=${cached.mediaType}`
+    )
+    logger.info(
+      `[STEP 1.9][fetch-post] 응답 (cache) — slides=${cached.slides.length}장 (R2 URL 포함) → 클라이언트에 반환, 다음 단계 [STEP 2] analyze-post`
     )
     return NextResponse.json(cached)
   }
   logger.info(
-    `[fetch-post] cache MISS — shortcode=${shortcode} | lookup ${Date.now() - cacheT0}ms → Apify 호출`
+    `[STEP 1.2][fetch-post] cache MISS — lookup ${Date.now() - cacheT0}ms → [STEP 1.3] Apify 호출 진행`
   )
 
   // 2) cache miss — Apify 호출
@@ -177,7 +180,7 @@ export async function POST(request: Request) {
     const apifyT0 = Date.now()
     const {post, raw} = await fetchPostByShortcode(shortcode)
     logger.info(
-      `[fetch-post] Apify+parse 완료 — ${Date.now() - apifyT0}ms | mediaType=${post.mediaType} | slides=${post.slides.length}`
+      `[STEP 1.3][fetch-post] Apify+parse 완료 — ${Date.now() - apifyT0}ms | mediaType=${post.mediaType} | slides=${post.slides.length}장 받음 | owner=@${post.ownerHandle} | caption(70)=${(post.caption ?? "").slice(0, 70).replace(/\n/g, " ")}`
     )
 
     const r2T0 = Date.now()
@@ -188,7 +191,7 @@ export async function POST(request: Request) {
       MAX_SLIDES
     )
     logger.info(
-      `[fetch-post] R2 copy 완료 — ${Date.now() - r2T0}ms | saved=${savedSlides.length}/${post.slides.length}`
+      `[STEP 1.4][fetch-post] R2 copy — ${Date.now() - r2T0}ms | saved=${savedSlides.length}/${post.slides.length} (MAX_SLIDES 캡=${MAX_SLIDES}) | scrapeId=${scrapeId}`
     )
 
     const dbT0 = Date.now()
@@ -229,15 +232,15 @@ export async function POST(request: Request) {
         logger.error({err: slideErr}, `[fetch-post] ❌ instagram_post_scrape_images insert 실패`)
       } else {
         logger.info(
-          `[fetch-post] DB insert 완료 — ${Date.now() - dbT0}ms | scrapeId=${scrapeId} | rows=${rows.length}`
+          `[STEP 1.5][fetch-post] DB insert — ${Date.now() - dbT0}ms | scrape row + ${rows.length}개 image rows`
         )
       }
     } else {
-      logger.warn(`[fetch-post] ⚠️ savedSlides=0 — DB scrape row만 insert (status=partial)`)
+      logger.warn(`[STEP 1.5][fetch-post] ⚠️ savedSlides=0 — scrape row 만 insert (status=partial)`)
     }
 
     logger.info(
-      `[fetch-post] ✅ 전체 완료 — shortcode=${shortcode} | 총 ${Date.now() - reqStart}ms`
+      `[STEP 1.9][fetch-post] ✅ 응답 — totalSlides=${post.slides.length} copiedSlides=${savedSlides.length} | 총 ${Date.now() - reqStart}ms → 다음 단계 [STEP 2] analyze-post`
     )
 
     return NextResponse.json({
