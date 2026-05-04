@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "seed:eval": "dotenv -e .env.local -- tsx scripts/seed-eval-golden-queries.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1023.0",

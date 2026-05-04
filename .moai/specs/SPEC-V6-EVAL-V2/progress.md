@@ -15,4 +15,16 @@
   - T-002: eval-labeling-form.tsx unblock (+20/-30, graceful degrade 제거 + judgmentRows 매핑) + 신규 .test.tsx (~205 LOC, 4 tests)
   - @MX:NOTE × 1 신규 (run route judgmentRows 누적)
   - Full suite: 175 passed / 6 skipped / 0 failed (170 → 175). characterization 11/11 회귀 0.
-- Awaiting Block B (T-003 seed script).
+- Block A committed.
+- Block B COMPLETE (T-003):
+  - scripts/seed-eval-golden-queries.ts (164 LOC) — analyses → eval_golden_queries UPSERT
+  - 신규 .test.ts (224 LOC, 12 tests) — 4 deriveRow + 6 seedGoldenQueries scenarios + 2 printCounts
+  - Idempotency: per-row UPSERT with `ignoreDuplicates: true` + `.select("id").maybeSingle()` (race-safe, NULL == duplicate)
+  - onConflict: "instagram_url,query_signature" (migration 033 line 33-34 일치)
+  - package.json +1 script: `seed:eval` (dotenv-cli + tsx, 둘 다 이미 devDep)
+  - vitest.config.ts +1 (scripts/**/*.test 포함)
+  - @MX:NOTE × 2 (file header + deriveRow)
+  - Env compat: NEXT_PUBLIC_SUPABASE_URL 우선, SUPABASE_URL 폴백 (기존 scripts/ 패턴 호환)
+- Full suite: 187 passed / 6 skipped / 0 failed (175 → +12 신규)
+- 회귀 0 (Block A test 모두 green)
+- **4/4 task COMPLETE — SPEC-V6-EVAL-V2 implementation 종료. 다음: /moai sync (docs + PR)**
