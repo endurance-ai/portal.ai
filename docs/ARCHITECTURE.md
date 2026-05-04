@@ -139,7 +139,7 @@ graph TB
 
 3중 가드:
 
-1. `src/middleware.ts` — Supabase SSR 쿠키로 user 확인 → `admin_profiles.status = 'approved'` 가 아니면 `/admin/pending` 리다이렉트
+1. `src/proxy.ts` — Supabase SSR 쿠키로 user 확인 → `admin_profiles.status = 'approved'` 가 아니면 `/admin/pending` 리다이렉트 (Next.js 16.2+ proxy file convention, 구 middleware)
 2. `src/app/admin/layout.tsx` — RSC에서 `requireApprovedAdmin()` 재확인
 3. `/api/admin/*` 라우트 핸들러 — 동일 헬퍼로 한번 더 검증
 
@@ -150,10 +150,10 @@ graph TB
 - 관리자가 DB에서 수동 `'approved'` 전환
 - 다음 로그인부터 통과
 
-⚠️ `admin_profiles` 는 RLS + own-row SELECT 정책 필수 — 없으면 middleware가 null 받아서 무한 리다이렉트. 회고는 메모리 `feedback_supabase_middleware_rls.md`.
+⚠️ `admin_profiles` 는 RLS + own-row SELECT 정책 필수 — 없으면 proxy가 null 받아서 무한 리다이렉트. 회고는 메모리 `feedback_supabase_middleware_rls.md`.
 
 핵심 파일:
-- `src/middleware.ts`, `src/lib/admin-auth.ts`, `src/lib/supabase-server.ts`
+- `src/proxy.ts`, `src/lib/admin-auth.ts`, `src/lib/supabase-server.ts`
 - `src/app/admin/layout.tsx`, `src/app/admin/pending/page.tsx`, `src/app/admin/login/page.tsx`
 
 ---
