@@ -1,0 +1,30 @@
+## SPEC-V6-EVAL-V2 Progress
+
+- Started: 2026-05-04
+- Methodology: DDD (per quality.yaml)
+- Harness: minimal (4 task, well-scoped, plan-audit 2 iter PASS in plan phase)
+- Mode: --solo
+- Branch: feature/spec-v6-eval-v2
+- Strategy: 2 blocks
+  - Block A: V2-T-000 (precondition tsx) + V2-T-001 (backend judgmentRows) + V2-T-002 (frontend grade unblock) — 라벨링 unblock end-to-end
+  - Block B: V2-T-003 (seed script) — 30 골든셋 데이터 시딩
+- Phase 0.5/0.9/0.95/1.6/1.7/1.8 SKIPPED — minimal harness, scope frozen at plan phase
+- Block A COMPLETE (T-000 + T-001 + T-002):
+  - T-000: tsx 4.21.0 → devDependencies (1 LOC + lockfile)
+  - T-001: run/route.ts judgmentRows 응답 (+13/-7 LOC) + 신규 테스트 1 (6/6 pass). 502 시 judgmentRows 키 omit (REQ-001 D3 contract).
+  - T-002: eval-labeling-form.tsx unblock (+20/-30, graceful degrade 제거 + judgmentRows 매핑) + 신규 .test.tsx (~205 LOC, 4 tests)
+  - @MX:NOTE × 1 신규 (run route judgmentRows 누적)
+  - Full suite: 175 passed / 6 skipped / 0 failed (170 → 175). characterization 11/11 회귀 0.
+- Block A committed.
+- Block B COMPLETE (T-003):
+  - scripts/seed-eval-golden-queries.ts (164 LOC) — analyses → eval_golden_queries UPSERT
+  - 신규 .test.ts (224 LOC, 12 tests) — 4 deriveRow + 6 seedGoldenQueries scenarios + 2 printCounts
+  - Idempotency: per-row UPSERT with `ignoreDuplicates: true` + `.select("id").maybeSingle()` (race-safe, NULL == duplicate)
+  - onConflict: "instagram_url,query_signature" (migration 033 line 33-34 일치)
+  - package.json +1 script: `seed:eval` (dotenv-cli + tsx, 둘 다 이미 devDep)
+  - vitest.config.ts +1 (scripts/**/*.test 포함)
+  - @MX:NOTE × 2 (file header + deriveRow)
+  - Env compat: NEXT_PUBLIC_SUPABASE_URL 우선, SUPABASE_URL 폴백 (기존 scripts/ 패턴 호환)
+- Full suite: 187 passed / 6 skipped / 0 failed (175 → +12 신규)
+- 회귀 0 (Block A test 모두 green)
+- **4/4 task COMPLETE — SPEC-V6-EVAL-V2 implementation 종료. 다음: /moai sync (docs + PR)**

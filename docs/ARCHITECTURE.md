@@ -174,7 +174,9 @@ Eval 모듈 (v6-EVAL): 30 쿼리 골든셋 + NDCG@10/Precision@5 + v4 baseline �
 상세: `docs/features/search-engine.md` 의 "Evaluation Infrastructure" 섹션
 스키마: `docs/infra/data-model.md` 의 eval_* 항목
 
-SPEC: SPEC-V6-EVAL
+**V2 (2026-05-04, SPEC-V6-EVAL-V2)**: API 응답 contract 확장 (judgmentRows) + 라벨링 UI unblock + scripts/seed-eval-golden-queries.ts (analyses → 30 골든셋 자동 시딩, idempotent). 신규 테이블 0. 상세: `docs/features/search-engine.md` 의 "Evaluation Infrastructure V2".
+
+SPEC: SPEC-V6-EVAL, SPEC-V6-EVAL-V2
 
 ---
 

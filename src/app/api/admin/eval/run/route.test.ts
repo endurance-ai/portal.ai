@@ -98,7 +98,7 @@ describe("POST /api/admin/eval/run", () => {
     expect(res.status).toBe(404)
   })
 
-  it("search-products 5xx → 502", async () => {
+  it("search-products 5xx → 502 + judgmentRows 필드 omit", async () => {
     state.goldenRow = {
       data: { id: "gq-1", query_signature: "x", intent_note: "x" },
       error: null,
@@ -108,6 +108,35 @@ describe("POST /api/admin/eval/run", () => {
     expect(res.status).toBe(502)
     const json = await res.json()
     expect(json.code).toBe("SEARCH_PRODUCTS_FAILED")
+    // SPEC-V6-EVAL-V2 REQ-001 D3: 502 응답에서 judgmentRows 키 자체가 omit
+    expect("judgmentRows" in json).toBe(false)
+  })
+
+  it("happy path: judgmentRows 응답 포함 (productId/productKey 매핑)", async () => {
+    state.goldenRow = {
+      data: { id: "gq-1", instagram_url: null, query_signature: "blue blazer", intent_note: "blue blazer" },
+      error: null,
+    }
+    const products = [
+      { brand: "B1", title: "T1", link: "https://shop/p/A", imageUrl: "", price: "$10", platform: "p" },
+      { brand: "B2", title: "T2", link: "https://shop/p/B", imageUrl: "", price: "$20", platform: "p" },
+    ]
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ results: [{ id: "eval-q", products }] }),
+    })
+    const res = await POST(req({ goldenQueryId: "gq-1", algorithmVersion: "v4" }))
+    expect(res.status).toBe(200)
+    const json = await res.json()
+    expect(Array.isArray(json.judgmentRows)).toBe(true)
+    expect(json.judgmentRows).toHaveLength(2)
+    expect(json.judgmentRows[0]).toMatchObject({
+      id: "j-mock",
+      productId: "prod-uuid",
+      productKey: "https://shop/p/A",
+    })
+    expect(json.judgmentRows[1].productKey).toBe("https://shop/p/B")
+    expect(json.judgmentRowsCreated).toBe(2)
   })
 
   it("algorithmVersion='v6' → 400 with SPEC-V6-CORE message", async () => {

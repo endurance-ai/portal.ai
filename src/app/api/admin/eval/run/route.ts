@@ -101,7 +101,9 @@ export async function POST(request: NextRequest) {
   const top10 = flat.slice(0, 10)
 
   // 3) 각 product 에 대해 grade=0 placeholder upsert (라벨링 큐 생성)
-  let judgmentRowsCreated = 0
+  // @MX:NOTE: [AUTO] V2 추가: judgmentRows 응답 확장. SPEC-V6-EVAL-V2 REQ-001 ref.
+  // 프론트엔드(eval-labeling-form)가 productKey(=link)로 judgmentId를 매핑하여 PATCH 호출 가능하도록 응답에 포함.
+  const judgmentRows: Array<{ id: string; productId: string; productKey: string }> = []
   for (const p of top10) {
     try {
       // products 테이블의 UUID 가 link 로 직접 매핑되지 않을 수 있어, products lookup 시도.
@@ -111,18 +113,26 @@ export async function POST(request: NextRequest) {
         .eq("link", productKey(p))
         .maybeSingle()
       if (!prodRow) continue
-      await upsertJudgment({
+      const judgment = await upsertJudgment({
         goldenQueryId: body.goldenQueryId,
         productId: prodRow.id as string,
         relevanceGrade: 0,
         labelerId: user.email ?? user.id,
         algorithmVersion,
       })
-      judgmentRowsCreated += 1
+      judgmentRows.push({
+        id: judgment.id,
+        productId: judgment.productId,
+        productKey: productKey(p),
+      })
     } catch {
       // 개별 upsert 실패는 무시 — 이미 존재하면 unique 위반, products 미발견은 skip.
     }
   }
 
-  return NextResponse.json({ rankedProducts: top10, judgmentRowsCreated })
+  return NextResponse.json({
+    rankedProducts: top10,
+    judgmentRowsCreated: judgmentRows.length,
+    judgmentRows,
+  })
 }
