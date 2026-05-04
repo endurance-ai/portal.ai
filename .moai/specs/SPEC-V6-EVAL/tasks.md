@@ -19,8 +19,8 @@ Phase 1.5 generated: 2026-05-04 (manager-strategy output, user-approved at Decis
 
 | Task ID | Description | Requirement | Dependencies | Planned Files | Status |
 |---|---|---|---|---|---|
-| T-001 | DB migration 033: 3 신규 테이블 (eval_golden_queries, eval_judgments, eval_runs) + RLS (admin_profiles JOIN pattern from migration 023) + dual identity unique constraint + frozen baseline trigger | REQ-001, REQ-003, REQ-004, REQ-005 | - | supabase/migrations/033_eval_v6_tables.sql | pending |
-| T-002 | RLS integration test: anon-key + non-approved authenticated 2 시나리오 (SELECT/INSERT deny via PGRST error or empty result) | REQ-005 | T-001 | tests/integration/eval-rls.test.ts | pending |
+| T-001 | DB migration 033: 3 신규 테이블 (eval_golden_queries, eval_judgments, eval_runs) + RLS (admin_profiles JOIN pattern from migration 023) + dual identity unique constraint + frozen baseline trigger | REQ-001, REQ-003, REQ-004, REQ-005 | - | supabase/migrations/033_eval_v6_tables.sql | **completed** (2026-05-04, 153 LOC) |
+| T-002 | RLS integration test: anon-key + non-approved authenticated 2 시나리오 (SELECT/INSERT deny via PGRST error or empty result) | REQ-005 | T-001 | tests/integration/eval-rls.test.ts | **completed** (2026-05-04, 109 LOC, vitest exit 0) |
 | T-003 | Characterization test: 기존 "평가 대기열" 탭 동작 박제 (PRESERVE — DDD baseline) | preserve baseline | - | src/app/admin/eval/__characterization__/queue.test.tsx | pending |
 | T-004 | Characterization test: 기존 "골든셋" 탭 동작 박제 (PRESERVE) | preserve baseline | - | src/app/admin/eval/__characterization__/golden.test.tsx | pending |
 | T-005 | TDD: computeNdcg pure function (RED-GREEN-REFACTOR) + 단위 테스트 (NDCG@10 정확도 fixture 기반) | REQ-003 | - | src/lib/eval/ndcg.ts + ndcg.test.ts | pending |
