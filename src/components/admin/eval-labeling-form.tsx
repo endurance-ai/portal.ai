@@ -24,10 +24,11 @@ interface RunProduct {
   platform: string
 }
 
-interface JudgmentRow {
+// SPEC-V6-EVAL-V2 REQ-001/002a: run 응답에 포함된 judgmentRows entry shape
+interface JudgmentRowEntry {
   id: string
-  product_id: string
-  relevance_grade: number | null
+  productId: string
+  productKey: string
 }
 
 interface ProductWithJudgment {
@@ -75,22 +76,21 @@ export function EvalLabelingForm({ goldenQueryId, algorithmVersion }: Props) {
         return
       }
       const ranked: RunProduct[] = json.rankedProducts || []
-      // Fetch existing judgments to get IDs and grades
-      // Since the run endpoint upserts but does not return judgment IDs,
-      // we issue a follow-up direct query via product link as fallback identifier.
-      // For now, build placeholders; a future improvement: have run endpoint return judgment rows.
+      // SPEC-V6-EVAL-V2 REQ-002a: run 응답의 judgmentRows 를 productKey(=link) 로 indexed Map 으로 변환 후 주입
+      const judgmentRows: JudgmentRowEntry[] = json.judgmentRows || []
+      const byProductKey = new Map<string, JudgmentRowEntry>()
+      for (const r of judgmentRows) byProductKey.set(r.productKey, r)
       setProducts(
-        ranked.map((p) => ({
-          product: p,
-          judgmentId: null,
-          productId: null,
-          grade: null,
-        })),
+        ranked.map((p) => {
+          const j = byProductKey.get(p.link)
+          return {
+            product: p,
+            judgmentId: j?.id ?? null,
+            productId: j?.productId ?? null,
+            grade: null,
+          }
+        }),
       )
-      // Try to load judgment rows by polling judgments endpoint? — none exists.
-      // Pragmatic: the user still triggers PATCH-by-id. Without IDs, we cannot label.
-      // Augmentation: fetch judgments via a derived endpoint.
-      await loadJudgments(ranked)
       toast.success(`${ranked.length}개 상품 로드 완료`)
     } catch (e) {
       setError((e as Error).message)
@@ -98,33 +98,6 @@ export function EvalLabelingForm({ goldenQueryId, algorithmVersion }: Props) {
     } finally {
       setRunning(false)
       setLoading(false)
-    }
-  }
-
-  async function loadJudgments(ranked: RunProduct[]) {
-    // We expose a small read endpoint inline? Instead, query golden-queries judgments via runs route?
-    // Simpler: hit /api/admin/eval/judgments?goldenQueryId=...&algorithmVersion=... if exists.
-    // Since no such GET exists, we fall back: call run endpoint did upsert grade=0 placeholders;
-    // attempt to read via a per-query lookup. For Phase 2A scope we degrade gracefully.
-    try {
-      const res = await fetch(
-        `/api/admin/eval/judgments?goldenQueryId=${encodeURIComponent(goldenQueryId)}&algorithmVersion=${algorithmVersion}`,
-      )
-      if (!res.ok) return
-      const json = await res.json()
-      const rows: JudgmentRow[] = json.items || []
-      // Match by product_id — but we only have product.link in ranked. Need a join.
-      // Server should return product_link per row; fall back: match by index.
-      setProducts(
-        ranked.map((p, i) => ({
-          product: p,
-          judgmentId: rows[i]?.id ?? null,
-          productId: rows[i]?.product_id ?? null,
-          grade: rows[i]?.relevance_grade ?? null,
-        })),
-      )
-    } catch {
-      // No-op — UI already shows products without judgment IDs
     }
   }
 
@@ -137,7 +110,7 @@ export function EvalLabelingForm({ goldenQueryId, algorithmVersion }: Props) {
   async function setGrade(idx: number, grade: number) {
     const row = products[idx]
     if (!row.judgmentId) {
-      toast.error("judgment ID 없음 — 검색을 다시 실행해주세요")
+      // SPEC-V6-EVAL-V2 REQ-002a: judgmentRows 빈 배열인 경우 안내 표시 (버튼 자체는 disabled 이지만 방어 차원)
       return
     }
     // Optimistic update
@@ -234,6 +207,13 @@ export function EvalLabelingForm({ goldenQueryId, algorithmVersion }: Props) {
         </div>
       </div>
 
+      {/* SPEC-V6-EVAL-V2 REQ-002a: judgmentRows 빈 배열 (모든 upsert 실패 등) 시 라벨링 불가 안내 */}
+      {products.length > 0 && products.every((p) => !p.judgmentId) && (
+        <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-4 text-center">
+          <p className="text-sm text-yellow-500">라벨링 가능한 상품이 없습니다</p>
+        </div>
+      )}
+
       {computeResult && (
         <div className="rounded-lg border border-turquoise/30 bg-turquoise/5 p-4 grid grid-cols-2 gap-3">
           <div>
@@ -283,6 +263,7 @@ export function EvalLabelingForm({ goldenQueryId, algorithmVersion }: Props) {
                     key={g}
                     onClick={() => setGrade(idx, g)}
                     disabled={!row.judgmentId}
+                    data-active={active}
                     className={cn(
                       "flex-1 rounded-md border px-2 py-1.5 text-[11px] font-medium transition-colors",
                       active
