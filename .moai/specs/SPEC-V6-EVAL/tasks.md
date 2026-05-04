@@ -34,7 +34,7 @@ Phase 1.5 generated: 2026-05-04 (manager-strategy output, user-approved at Decis
 | T-013 | API route: freeze-baseline POST (v4 only, 409 on duplicate frozen v4 row) + 라우트 테스트 | REQ-004 | T-001, T-012 | src/app/api/admin/eval/freeze-baseline/route.ts + route.test.ts | **completed** (2026-05-04, 24 LOC, 3 tests) |
 | T-014 | UI 컴포넌트 3개: eval-golden-queries.tsx (CRUD) + eval-labeling-form.tsx (top-10 + 0~3 grade) + eval-runs-dashboard.tsx (algorithm_version 별 metric 표시 + frozen 표기). +1 scope add: src/app/api/admin/eval/runs/route.ts (GET-only, dashboard 용) | REQ-001, REQ-002, REQ-003, REQ-004 | T-009, T-010, T-011, T-012, T-013 | src/components/admin/eval-*.tsx (3 files) + runs/route.ts | **completed** (2026-05-04, 354+311+251+29 LOC, 8 tests) |
 | T-015 | page.tsx 수정: 기존 두 탭 PRESERVE + 신규 3 탭 통합. characterization tests (T-003, T-004) 재실행으로 회귀 0 검증 | REQ-001, REQ-002, REQ-003, REQ-004 | T-003, T-004, T-014 | src/app/admin/eval/page.tsx | **completed** (2026-05-04, 326 LOC, +87 from 239, characterization 11/11 pass) |
-| T-016 | Phase F docs 3종 동기화 (별도 /moai sync 단계에서 수행): docs/features/search-engine.md "Evaluation Infrastructure" 섹션, docs/ARCHITECTURE.md eval_* 토폴로지, docs/infra/data-model.md 3 신규 테이블 스키마 | sync phase | T-001~T-015 | 3 doc files | pending |
+| T-016 | Phase F docs 3종 동기화 (별도 /moai sync 단계에서 수행): docs/features/search-engine.md "Evaluation Infrastructure" 섹션, docs/ARCHITECTURE.md eval_* 토폴로지, docs/infra/data-model.md 3 신규 테이블 스키마 | sync phase | T-001~T-015 | 3 doc files | **completed** (2026-05-04, +167 LOC across 3 docs, PR #32) |
 
 ## Order Safety (DDD principle)
 

@@ -50,3 +50,7 @@
 - Full suite: 170 passed / 6 skipped / 0 failed (18 files)
 - **알려진 제약 (V6-EVAL-V2 후속)**: eval-labeling-form 이 PATCH 시 judgment ID 필요한데 `GET /api/admin/eval/judgments?goldenQueryId=...&algorithmVersion=...` 엔드포인트 미존재. 폼 graceful degrade (grade 버튼 disable). end-to-end 라벨링 미작동. /api/admin/eval/run 이 judgment row 도 응답에 포함하도록 확장하면 해결. T-010 수정 금지 제약으로 이번 SPEC 에서 보류.
 - 15/16 task 완료. T-016 (docs 3종 sync) 만 남음 — DP1 #5 frozen decision 에 따라 /moai sync 단계에서 수행.
+- T-016 COMPLETE: search-engine.md +55 LOC (Evaluation Infrastructure 섹션) + ARCHITECTURE.md +21 LOC (Search Engine v6 Evaluation Infra 섹션 + 어드민 모듈 inline 갱신) + data-model.md +91 LOC (3 신규 테이블 schema). 단일 진실 원천 cross-link: search-engine.md (알고리즘) ↔ data-model.md (스키마) ↔ ARCHITECTURE.md (토폴로지).
+- Push to remote: experiment/moai-adk → origin (10 commits, 80b777f..f99c63b)
+- **PR #32 created**: https://github.com/endurance-ai/portal.ai/pull/32 (base: dev, head: experiment/moai-adk)
+- **16/16 task COMPLETE — SPEC-V6-EVAL DONE**
