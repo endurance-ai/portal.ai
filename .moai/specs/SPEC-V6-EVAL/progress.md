@@ -40,4 +40,13 @@
 - 5 routes 421 LOC + 24 tests. Full suite 162/168 passed (6 RLS skip).
 - 신규 routes 모두 `requireApprovedAdmin()` 가드 + `vi.mock("server-only")` 테스트 패턴.
 - Cross-route refactor 후보 flagged (admin-auth mock helper, pg-error-codes lib, FormattedProduct.productId 노출) — 별도 SPEC.
-- 다음: T-014 (3 UI 컴포넌트) + T-015 (page.tsx 통합) — UI 블록.
+- T-009~T-013 committed (5 routes 일괄).
+- T-014 COMPLETE: 3 컴포넌트 (eval-golden-queries 354, eval-labeling-form 311, eval-runs-dashboard 251) + 6 tests + scope add: src/app/api/admin/eval/runs/route.ts (29 LOC GET-only, dashboard fetch 용) + 2 tests.
+- T-015 COMPLETE: src/app/admin/eval/page.tsx 326 LOC (+87 from 239). 기존 2 탭 보존 + 신규 3 탭 (골든셋 쿼리, 라벨링, 실행 결과) 통합. **Characterization tests 11/11 pass — PRESERVE 계약 무손상 검증** ✅
+- Korean tab labels: 평가 대기열 / 골든셋 / 골든셋 쿼리 / 라벨링 / 실행 결과
+- Native `<select>` 사용 (shadcn Select 의 @base-ui/react jsdom fragility 회피)
+- shadcn 사용: Button, Badge, Dialog, Table, Input, Textarea (신규 의존성 0)
+- lucide icons: Plus, Pencil, Trash2, Loader2, PlayCircle, Calculator, Lock, RefreshCw, TrendingUp, Target, Calendar
+- Full suite: 170 passed / 6 skipped / 0 failed (18 files)
+- **알려진 제약 (V6-EVAL-V2 후속)**: eval-labeling-form 이 PATCH 시 judgment ID 필요한데 `GET /api/admin/eval/judgments?goldenQueryId=...&algorithmVersion=...` 엔드포인트 미존재. 폼 graceful degrade (grade 버튼 disable). end-to-end 라벨링 미작동. /api/admin/eval/run 이 judgment row 도 응답에 포함하도록 확장하면 해결. T-010 수정 금지 제약으로 이번 SPEC 에서 보류.
+- 15/16 task 완료. T-016 (docs 3종 sync) 만 남음 — DP1 #5 frozen decision 에 따라 /moai sync 단계에서 수행.
