@@ -1,0 +1,56 @@
+## SPEC-V6-EVAL Progress
+
+- Started: 2026-05-04
+- Methodology: DDD (per quality.yaml development_mode after /moai project Phase 3.7 auto-config)
+- Harness level: standard (multi-domain DB+API+UI, no security-critical scope)
+- Scale mode: Full Pipeline (~28 files, 3 domains)
+- memory_guard: disabled
+- Resume context: fresh start, no prior phases completed
+- Phase 1 (ANALYZE) complete: 16 atomic tasks decomposed, 14 acceptance scenarios mapped, DDD order finalized (Foundation→Preservation→Pure→Lib→API→UI→Docs).
+- Decision Point 1 PASS: user approved plan + 5 Open Questions recommended values (empty seed / mock fetch / gh issue 0 / always-update labeled_at / separate /moai sync).
+- Phase 1.5 complete: tasks.md written (16 tasks with frozen Open Questions section).
+- Stopped at user checkpoint per explicit request "Stop after Phase 1 ANALYZE for user checkpoint before PRESERVE". User approved continuation 2026-05-04.
+- Phase 1.6 SKIPPED: 14 acceptance criteria already enumerated in acceptance.md; granular TaskCreate per criterion = noise over signal in 1-developer flow. Tracking via tasks.md status column instead.
+- Phase 1.7 SKIPPED: 28 stub file scaffolding adds entropy without value; files created at task time per DDD ANALYZE-PRESERVE-IMPROVE rhythm.
+- Phase 1.8 SKIPPED: MX scan of existing eval module returned 0 tags (grep -rln "@MX:" found none in src/app/admin/eval, src/app/api/admin/eval, src/components/admin/eval-*.tsx). No legacy MX context to inject.
+- Phase 2A.PRESERVE entering: T-001 (migration 033) + T-002 (RLS integration test) — Foundation block.
+- T-001 COMPLETE: supabase/migrations/033_eval_v6_tables.sql (153 LOC) — 3 tables, dual identity unique (NULLS NOT DISTINCT, PG15+), frozen baseline trigger (SECURITY DEFINER + search_path lock), RLS FOR ALL on all 3 tables (admin-gating EXISTS predicate, NOT own-row pattern), 4 indexes, 3 MX comments. NOT applied to DB yet (file creation only).
+- T-002 COMPLETE: tests/integration/eval-rls.test.ts (109 LOC) — 6 tests (SELECT/INSERT deny per table). describe.skipIf guard for SUPABASE_TEST_URL/ANON_KEY env. Lazy getAnon() factory pattern (avoid eager client construction in skipIf'd describe). pnpm test exit 0, 6 tests skipped (env vars not set in dev — expected, runs in CI when secrets injected).
+- Foundation block complete + committed (atomic T-001/T-002 commit per user policy).
+- T-003 COMPLETE: src/app/admin/eval/__characterization__/queue.test.tsx (222 LOC, 6 tests). 5건 CHARACTERIZATION 코멘트 (className 기반 active 표시 / 필터 button sibling span / icon-only pagination / aria-label 부재 등 — 현재 동작 박제 only, 수정 금지).
+- T-004 COMPLETE: src/app/admin/eval/__characterization__/golden.test.tsx (219 LOC, 5 tests). 골든셋 탭 in-tab "추가" 버튼 부재 + delete trash icon-only 박제.
+- Full suite green: 89 passed / 6 skipped / 0 failed. RTL/jsdom 이미 devDependencies 에 있음, 신규 패키지 0.
+- 프로덕션 코드 0줄 수정. PRESERVE 블록 완료.
+- T-003/T-004 committed (atomic block).
+- T-005 COMPLETE: src/lib/eval/ndcg.ts (39 LOC) + ndcg.test.ts (80 LOC, 16 tests). 표준 NDCG 공식 (2^rel - 1) / log2(i + 2). private dcgAtK 헬퍼. @MX:NOTE.
+- T-006 COMPLETE: src/lib/eval/precision.ts (41 LOC) + precision.test.ts (68 LOC, 15 tests). 분모=k (partial ranking 페널티). default k=5, threshold=2. @MX:NOTE.
+- TDD RED→GREEN→REFACTOR 명시 관찰 (모듈 not-found RED 확인 후 최소 impl). REFACTOR 변경 없음 (이미 minimal).
+- Full suite: 120 passed / 6 skipped / 0 failed (1.52s). 신규 패키지 0.
+- T-005/T-006 committed (atomic block).
+- T-007 COMPLETE: src/lib/eval/judgment-store.ts (137 LOC) + judgment-store.test.ts (241 LOC, 11 tests). `import "server-only"` 가드. 기존 `@/lib/supabase` (service-role 싱글톤) 재사용 — supabase-server.ts 는 anon SSR 용. snake_case ↔ camelCase mapRow 헬퍼. routeAlgorithmVersion('v6') throws + @MX:TODO. upsertJudgment 입력 검증 (DB 호출 전 grade 0-3 체크).
+- T-008 COMPLETE: src/lib/eval/run-snapshot.ts (171 LOC) + run-snapshot.test.ts (306 LOC, 13 tests). aggregate row 컨트랙트 @MX:NOTE. computeRun 빈 입력 throw, freezeBaseline 은 기존 v4 aggregate row 의 frozen flag 토글 (DB 트리거가 추가 INSERT 차단).
+- 신규 mock 패턴: `vi.mock("server-only", () => ({}))` — Next.js 외부에서 server-only 패키지 throw 회피. T-009+ 도 같은 패턴.
+- Full suite: 138 passed / 6 skipped / 0 failed. 신규 패키지 0.
+- T-007/T-008 committed (atomic block).
+- T-009 COMPLETE: golden-queries route (132 LOC, 8 tests). GET/POST/PATCH/DELETE. dual identity 409, missing identity 400, not-found 404.
+- T-010 COMPLETE: run route (128 LOC, 5 tests). 내부 fetch /api/search-products + judgment upsert (placeholder grade=0). @MX:WARN. **Deviation**: FormattedProduct 가 productId 노출 안 함 → DB lookup by `link` 로 productId 매핑. 미존재 product 는 silent skip + judgmentRowsCreated 카운트. **Deviation**: golden_query 의 Vision-derived styleNode 없음 → intent_note 를 freeform searchQuery 로만 전달 (MVP). V6-EVAL-V2 에서 Vision payload 흡수 필요.
+- T-011 COMPLETE: judgments/[id] PATCH (59 LOC, 4 tests). relevance_grade 0~3 update + labeled_at NOW() always.
+- T-012 COMPLETE: compute route (78 LOC, 4 tests). missing-judgments → 422. computeRun 호출.
+- T-013 COMPLETE: freeze-baseline (24 LOC, 3 tests). DB trigger 에러 transparent propagation (409 already-frozen).
+- 5 routes 421 LOC + 24 tests. Full suite 162/168 passed (6 RLS skip).
+- 신규 routes 모두 `requireApprovedAdmin()` 가드 + `vi.mock("server-only")` 테스트 패턴.
+- Cross-route refactor 후보 flagged (admin-auth mock helper, pg-error-codes lib, FormattedProduct.productId 노출) — 별도 SPEC.
+- T-009~T-013 committed (5 routes 일괄).
+- T-014 COMPLETE: 3 컴포넌트 (eval-golden-queries 354, eval-labeling-form 311, eval-runs-dashboard 251) + 6 tests + scope add: src/app/api/admin/eval/runs/route.ts (29 LOC GET-only, dashboard fetch 용) + 2 tests.
+- T-015 COMPLETE: src/app/admin/eval/page.tsx 326 LOC (+87 from 239). 기존 2 탭 보존 + 신규 3 탭 (골든셋 쿼리, 라벨링, 실행 결과) 통합. **Characterization tests 11/11 pass — PRESERVE 계약 무손상 검증** ✅
+- Korean tab labels: 평가 대기열 / 골든셋 / 골든셋 쿼리 / 라벨링 / 실행 결과
+- Native `<select>` 사용 (shadcn Select 의 @base-ui/react jsdom fragility 회피)
+- shadcn 사용: Button, Badge, Dialog, Table, Input, Textarea (신규 의존성 0)
+- lucide icons: Plus, Pencil, Trash2, Loader2, PlayCircle, Calculator, Lock, RefreshCw, TrendingUp, Target, Calendar
+- Full suite: 170 passed / 6 skipped / 0 failed (18 files)
+- **알려진 제약 (V6-EVAL-V2 후속)**: eval-labeling-form 이 PATCH 시 judgment ID 필요한데 `GET /api/admin/eval/judgments?goldenQueryId=...&algorithmVersion=...` 엔드포인트 미존재. 폼 graceful degrade (grade 버튼 disable). end-to-end 라벨링 미작동. /api/admin/eval/run 이 judgment row 도 응답에 포함하도록 확장하면 해결. T-010 수정 금지 제약으로 이번 SPEC 에서 보류.
+- 15/16 task 완료. T-016 (docs 3종 sync) 만 남음 — DP1 #5 frozen decision 에 따라 /moai sync 단계에서 수행.
+- T-016 COMPLETE: search-engine.md +55 LOC (Evaluation Infrastructure 섹션) + ARCHITECTURE.md +21 LOC (Search Engine v6 Evaluation Infra 섹션 + 어드민 모듈 inline 갱신) + data-model.md +91 LOC (3 신규 테이블 schema). 단일 진실 원천 cross-link: search-engine.md (알고리즘) ↔ data-model.md (스키마) ↔ ARCHITECTURE.md (토폴로지).
+- Push to remote: experiment/moai-adk → origin (10 commits, 80b777f..f99c63b)
+- **PR #32 created**: https://github.com/endurance-ai/portal.ai/pull/32 (base: dev, head: experiment/moai-adk)
+- **16/16 task COMPLETE — SPEC-V6-EVAL DONE**

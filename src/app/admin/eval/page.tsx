@@ -4,14 +4,19 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { EvalMetrics } from "@/components/admin/eval-metrics"
 import { EvalQueue } from "@/components/admin/eval-queue"
 import { EvalGoldenSet } from "@/components/admin/eval-golden-set"
+import { EvalGoldenQueries } from "@/components/admin/eval-golden-queries"
+import { EvalLabelingForm } from "@/components/admin/eval-labeling-form"
+import { EvalRunsDashboard } from "@/components/admin/eval-runs-dashboard"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Loader2, ChevronLeft, ChevronRight, ChevronDown, CheckCircle, XCircle, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 type Filter = "all" | "pending" | "reviewed"
-type Tab = "queue" | "golden"
+// SPEC-V6-EVAL T-015 — 신규 3 탭 추가 (PRESERVE: 기존 queue/golden 유지)
+type Tab = "queue" | "golden" | "golden-queries" | "labeling" | "runs"
 type VerdictKey = "pass" | "fail" | "partial"
+type AlgVersion = "v4" | "v6"
 
 const FILTER_TABS: { key: Filter; label: string }[] = [
   { key: "all",      label: "전체" },
@@ -20,8 +25,11 @@ const FILTER_TABS: { key: Filter; label: string }[] = [
 ]
 
 const MAIN_TABS: { key: Tab; label: string }[] = [
-  { key: "queue",  label: "평가 대기열" },
-  { key: "golden", label: "골든셋" },
+  { key: "queue",          label: "평가 대기열" },
+  { key: "golden",         label: "골든셋" },
+  { key: "golden-queries", label: "골든셋 쿼리" },
+  { key: "labeling",       label: "라벨링" },
+  { key: "runs",           label: "실행 결과" },
 ]
 
 const VERDICT_OPTIONS: { key: VerdictKey; label: string; icon: typeof CheckCircle; cls: string }[] = [
@@ -46,6 +54,10 @@ export default function EvalPage() {
   const [selectedVerdicts, setSelectedVerdicts] = useState<Set<VerdictKey>>(new Set(["pass", "fail", "partial"]))
   const [verdictDropdownOpen, setVerdictDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  // SPEC-V6-EVAL T-015 — labeling tab: golden_query selector state
+  const [labelingGoldenQueries, setLabelingGoldenQueries] = useState<Array<{ id: string; intent_note: string; algorithm_version: string }>>([])
+  const [labelingSelectedId, setLabelingSelectedId] = useState<string>("")
+  const [labelingAlgorithm, setLabelingAlgorithm] = useState<AlgVersion>("v4")
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -81,6 +93,23 @@ export default function EvalPage() {
   }, [page, filter, verdictsKey])
 
   useEffect(() => { fetchData() }, [fetchData])
+
+  // SPEC-V6-EVAL T-015 — lazy-load golden queries when labeling tab opens
+  useEffect(() => {
+    if (tab !== "labeling") return
+    if (labelingGoldenQueries.length > 0) return
+    fetch(`/api/admin/eval/golden-queries?algorithm_version=${labelingAlgorithm}&page=1&pageSize=100`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.items) {
+          setLabelingGoldenQueries(data.items)
+          if (!labelingSelectedId && data.items[0]) {
+            setLabelingSelectedId(data.items[0].id)
+          }
+        }
+      })
+      .catch(() => {/* graceful */})
+  }, [tab, labelingAlgorithm, labelingGoldenQueries.length, labelingSelectedId])
 
   function handleFilter(f: Filter) {
     setFilter(f)
@@ -232,6 +261,64 @@ export default function EvalPage() {
 
           {/* Golden Set tab */}
           {tab === "golden" && <EvalGoldenSet />}
+
+          {/* SPEC-V6-EVAL T-015 — 신규 3 탭 */}
+          {tab === "golden-queries" && <EvalGoldenQueries />}
+
+          {tab === "labeling" && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-card p-4">
+                <div className="flex-1 min-w-[240px] space-y-1">
+                  <label className="text-xs font-medium">골든셋 쿼리</label>
+                  <select
+                    className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm"
+                    value={labelingSelectedId}
+                    onChange={(e) => setLabelingSelectedId(e.target.value)}
+                  >
+                    <option value="">선택하세요...</option>
+                    {labelingGoldenQueries.map((gq) => (
+                      <option key={gq.id} value={gq.id}>
+                        [{gq.algorithm_version}] {gq.intent_note.slice(0, 60)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium">Algorithm</label>
+                  <select
+                    className="h-9 rounded-md border border-border bg-background px-3 text-sm"
+                    value={labelingAlgorithm}
+                    onChange={(e) => {
+                      setLabelingAlgorithm(e.target.value as AlgVersion)
+                      setLabelingGoldenQueries([])
+                      setLabelingSelectedId("")
+                    }}
+                  >
+                    <option value="v4">v4</option>
+                    <option value="v6">v6 (blocked)</option>
+                  </select>
+                </div>
+              </div>
+
+              {labelingSelectedId ? (
+                <EvalLabelingForm
+                  key={`${labelingSelectedId}-${labelingAlgorithm}`}
+                  goldenQueryId={labelingSelectedId}
+                  algorithmVersion={labelingAlgorithm}
+                />
+              ) : (
+                <div className="rounded-lg border border-dashed border-border p-12 text-center">
+                  <p className="text-sm text-muted-foreground">
+                    {labelingGoldenQueries.length === 0
+                      ? "골든셋 쿼리가 없습니다. '골든셋 쿼리' 탭에서 먼저 추가하세요."
+                      : "위에서 쿼리를 선택하면 라벨링이 시작됩니다."}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {tab === "runs" && <EvalRunsDashboard />}
         </>
       )}
     </div>

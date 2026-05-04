@@ -1,7 +1,7 @@
 import {createServerClient} from "@supabase/ssr"
 import {type NextRequest, NextResponse} from "next/server"
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   const PUBLIC_ADMIN_PATHS = ["/admin/login", "/admin/signup", "/admin/pending"]
