@@ -31,4 +31,13 @@
 - T-008 COMPLETE: src/lib/eval/run-snapshot.ts (171 LOC) + run-snapshot.test.ts (306 LOC, 13 tests). aggregate row 컨트랙트 @MX:NOTE. computeRun 빈 입력 throw, freezeBaseline 은 기존 v4 aggregate row 의 frozen flag 토글 (DB 트리거가 추가 INSERT 차단).
 - 신규 mock 패턴: `vi.mock("server-only", () => ({}))` — Next.js 외부에서 server-only 패키지 throw 회피. T-009+ 도 같은 패턴.
 - Full suite: 138 passed / 6 skipped / 0 failed. 신규 패키지 0.
-- Lib orchestrators 블록 완료. 다음: T-009~T-013 (5 API routes 일괄).
+- T-007/T-008 committed (atomic block).
+- T-009 COMPLETE: golden-queries route (132 LOC, 8 tests). GET/POST/PATCH/DELETE. dual identity 409, missing identity 400, not-found 404.
+- T-010 COMPLETE: run route (128 LOC, 5 tests). 내부 fetch /api/search-products + judgment upsert (placeholder grade=0). @MX:WARN. **Deviation**: FormattedProduct 가 productId 노출 안 함 → DB lookup by `link` 로 productId 매핑. 미존재 product 는 silent skip + judgmentRowsCreated 카운트. **Deviation**: golden_query 의 Vision-derived styleNode 없음 → intent_note 를 freeform searchQuery 로만 전달 (MVP). V6-EVAL-V2 에서 Vision payload 흡수 필요.
+- T-011 COMPLETE: judgments/[id] PATCH (59 LOC, 4 tests). relevance_grade 0~3 update + labeled_at NOW() always.
+- T-012 COMPLETE: compute route (78 LOC, 4 tests). missing-judgments → 422. computeRun 호출.
+- T-013 COMPLETE: freeze-baseline (24 LOC, 3 tests). DB trigger 에러 transparent propagation (409 already-frozen).
+- 5 routes 421 LOC + 24 tests. Full suite 162/168 passed (6 RLS skip).
+- 신규 routes 모두 `requireApprovedAdmin()` 가드 + `vi.mock("server-only")` 테스트 패턴.
+- Cross-route refactor 후보 flagged (admin-auth mock helper, pg-error-codes lib, FormattedProduct.productId 노출) — 별도 SPEC.
+- 다음: T-014 (3 UI 컴포넌트) + T-015 (page.tsx 통합) — UI 블록.
