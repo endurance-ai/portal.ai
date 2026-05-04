@@ -15,6 +15,9 @@
 | | `brand_attributes` | 010 | 어드민에서 채우는 브랜드 속성 |
 | **검색 품질** | `search_quality_logs` | 014 | 검색 호출당 score breakdown (어드민 디버거 시각화) |
 | **평가** | `eval_reviews`, `eval_golden_set` | 013 + 015 | 평가 골든셋 + 리뷰 핀 |
+| | `eval_golden_queries` | 033 | v6 평가용 골든셋 쿼리 카탈로그 (dual identity) |
+| | `eval_judgments` | 033 | 사람 라벨링 (golden_query × product × algorithm_version) |
+| | `eval_runs` | 033 | NDCG@10/Precision@5 메트릭 스냅샷 (frozen baseline 지원) |
 | **유저 피드백** | `user_feedbacks` | 021 | rating + tag + comment + email |
 | **어드민 인증** | `admin_profiles` | 022 + 023 + 024 | `status: pending/approved/rejected` 승인 게이트 |
 | **Instagram** | `instagram_post_scrapes` | 028 | 메인 플로우 스크랩 결과 (shortcode unique, raw_data jsonb) |
@@ -139,6 +142,7 @@ FROM products GROUP BY platform ORDER BY total DESC;
 | **027** | **v5 인프라 — pgvector + pgroonga + HNSW + bulk RPC + coverage view** |
 | 028 | instagram_post_scrapes (메인 플로우용) |
 | 029 | 구 /dna 용 instagram_scrapes 드랍 |
+| **033** | **v6 평가 인프라 — eval_golden_queries + eval_judgments + eval_runs + RLS + frozen baseline trigger** |
 
 ---
 
@@ -151,3 +155,90 @@ FROM products GROUP BY platform ORDER BY total DESC;
 | `src/lib/supabase-browser.ts` | anon (브라우저) | 어드민 페이지의 클라이언트 컴포넌트 |
 
 자세한 패턴: `docs/PATTERNS.md` 의 "Supabase 클라이언트 — 3종" 섹션.
+
+---
+
+## eval_golden_queries (2026-05-04, migration 033)
+
+검색 v6 평가용 골든셋 쿼리 카탈로그.
+
+| 컬럼 | 타입 | 제약 |
+|---|---|---|
+| id | uuid | PRIMARY KEY DEFAULT gen_random_uuid() |
+| instagram_url | text | NULL |
+| query_signature | text | NULL |
+| intent_note | text | NOT NULL |
+| created_by | text | NOT NULL |
+| created_at | timestamptz | NOT NULL DEFAULT now() |
+| updated_at | timestamptz | NOT NULL DEFAULT now() |
+| algorithm_version | text | NOT NULL DEFAULT 'v4' CHECK IN ('v4', 'v6') |
+
+제약:
+- `CONSTRAINT eval_golden_queries_identity_present CHECK (instagram_url IS NOT NULL OR query_signature IS NOT NULL)` — 최소 한 가지 식별자
+- `CREATE UNIQUE INDEX eval_golden_queries_identity_unique ON eval_golden_queries (instagram_url, query_signature) NULLS NOT DISTINCT` — dual identity dedup (PostgreSQL 15+)
+- RLS FOR ALL TO authenticated USING/WITH CHECK (EXISTS SELECT 1 FROM admin_profiles WHERE user_id = auth.uid() AND status = 'approved')
+
+인덱스:
+- `idx_eval_golden_queries_algo` ON (algorithm_version)
+
+---
+
+## eval_judgments (2026-05-04, migration 033)
+
+사람 라벨링 — (golden_query × product × algorithm_version) 단위 relevance grade 0~3.
+
+| 컬럼 | 타입 | 제약 |
+|---|---|---|
+| id | uuid | PRIMARY KEY DEFAULT gen_random_uuid() |
+| golden_query_id | uuid | NOT NULL REFERENCES eval_golden_queries(id) ON DELETE CASCADE |
+| product_id | uuid | NOT NULL REFERENCES products(id) ON DELETE CASCADE |
+| relevance_grade | smallint | NOT NULL CHECK (relevance_grade BETWEEN 0 AND 3) |
+| labeler_id | text | NOT NULL |
+| labeled_at | timestamptz | NOT NULL DEFAULT now() |
+| algorithm_version | text | NOT NULL CHECK IN ('v4', 'v6') |
+| notes | text | NULL |
+
+제약:
+- `UNIQUE (golden_query_id, product_id, algorithm_version)` — 동일 조합 중복 방지
+- RLS FOR ALL TO authenticated USING/WITH CHECK (admin_profiles.status='approved')
+
+인덱스:
+- `idx_eval_judgments_query_algo` ON (golden_query_id, algorithm_version)
+- `idx_eval_judgments_product` ON (product_id)
+
+relevance_grade 스케일: 0=irrelevant / 1=poor / 2=good / 3=excellent. 기존 eval_reviews.verdict (pass/fail/partial) 와 완전히 분리.
+
+---
+
+## eval_runs (2026-05-04, migration 033)
+
+NDCG@10 / Precision@5 메트릭 스냅샷. golden_query_id NULL = 전체 쿼리 aggregate.
+
+| 컬럼 | 타입 | 제약 |
+|---|---|---|
+| id | uuid | PRIMARY KEY DEFAULT gen_random_uuid() |
+| golden_query_id | uuid | NULL REFERENCES eval_golden_queries(id) ON DELETE CASCADE |
+| algorithm_version | text | NOT NULL CHECK IN ('v4', 'v6') |
+| ndcg_at_10 | numeric(5,4) | NOT NULL CHECK (ndcg_at_10 BETWEEN 0 AND 1) |
+| precision_at_5 | numeric(5,4) | NOT NULL CHECK (precision_at_5 BETWEEN 0 AND 1) |
+| query_count | integer | NOT NULL CHECK (query_count >= 0) |
+| judgment_count | integer | NOT NULL CHECK (judgment_count >= 0) |
+| frozen | boolean | NOT NULL DEFAULT false |
+| computed_at | timestamptz | NOT NULL DEFAULT now() |
+| notes | text | NULL |
+
+제약:
+- RLS FOR ALL TO authenticated USING/WITH CHECK (admin_profiles.status='approved')
+
+인덱스:
+- `idx_eval_runs_algo_computed` ON (algorithm_version, computed_at DESC)
+
+트리거 — `prevent_frozen_v4_baseline_overwrite()`:
+- BEFORE INSERT ON eval_runs
+- 조건: algorithm_version='v4' AND golden_query_id IS NULL AND 기존 frozen=true row 존재
+- 동작: RAISE EXCEPTION 'baseline already frozen for v4 aggregate' USING ERRCODE = 'check_violation'
+- SECURITY DEFINER + SET search_path = public, pg_temp (schema injection guard, migration 024 패턴)
+
+메트릭 알고리즘 상세: `docs/features/search-engine.md` 의 "Evaluation Infrastructure" 섹션
+
+SPEC: SPEC-V6-EVAL

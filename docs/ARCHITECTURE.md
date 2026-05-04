@@ -145,6 +145,8 @@ graph TB
 
 대시보드: Genome / Analytics / Eval / Search Debugger / Products / User Voice / Pipeline Health / Crawl Coverage.
 
+Eval 모듈 (v6-EVAL): 30 쿼리 골든셋 + NDCG@10/Precision@5 + v4 baseline 박제. 상세: `docs/features/search-engine.md` 의 "Evaluation Infrastructure" 섹션.
+
 승인 흐름:
 - `/admin/signup` → `admin_profiles` row 자동 생성 (`status=pending`)
 - 관리자가 DB에서 수동 `'approved'` 전환
@@ -155,6 +157,24 @@ graph TB
 핵심 파일:
 - `src/proxy.ts`, `src/lib/admin-auth.ts`, `src/lib/supabase-server.ts`
 - `src/app/admin/layout.tsx`, `src/app/admin/pending/page.tsx`, `src/app/admin/login/page.tsx`
+
+---
+
+## Search Engine v6 Evaluation Infra (2026-05-04)
+
+검색 v6 품질 정량 측정 토대. SPEC-V6-EVAL.
+
+토폴로지:
+- DB: 3 신규 테이블 (eval_golden_queries / eval_judgments / eval_runs) — RLS admin-only
+- Lib: `src/lib/eval/` — pure functions (NDCG/Precision) + Supabase orchestrators
+- API: 6 라우트 `/api/admin/eval/{golden-queries, run, judgments/[id], compute, freeze-baseline, runs}`
+- UI: `/admin/eval` 5 탭 확장 (기존 2 + 신규 3)
+- Tests: 81 신규 (pure 31, lib 24, route 26) + 11 characterization (PRESERVE 가드)
+
+상세: `docs/features/search-engine.md` 의 "Evaluation Infrastructure" 섹션
+스키마: `docs/infra/data-model.md` 의 eval_* 항목
+
+SPEC: SPEC-V6-EVAL
 
 ---
 
@@ -185,6 +205,7 @@ graph TB
 
 | 날짜 | 사건 |
 |---|---|
+| 2026-05-04 | **검색 v6 평가 인프라 (SPEC-V6-EVAL)** — eval_golden_queries / eval_judgments / eval_runs 3 테이블 + NDCG@10/Precision@5 lib + 6 API 라우트 + admin/eval 5탭 UI |
 | 2026-04-26 | **메인 플로우 v2 머지 (PR #31)** — Apify 스크래퍼 + 단일 슬라이드/아이템 정밀 매칭 + 캐시 + 4-step picker UI |
 | 2026-04-26 | `/find` 메인 승격 + 구 Q&A `_archive-qa/` 이동 + 문서 도메인별 분할 |
 | 2026-04-26 | `/dna`, `/about`, `/archive` 라우트 + 관련 DB 제거 (PR #30) |
