@@ -16,4 +16,9 @@
 - Phase 2A.PRESERVE entering: T-001 (migration 033) + T-002 (RLS integration test) — Foundation block.
 - T-001 COMPLETE: supabase/migrations/033_eval_v6_tables.sql (153 LOC) — 3 tables, dual identity unique (NULLS NOT DISTINCT, PG15+), frozen baseline trigger (SECURITY DEFINER + search_path lock), RLS FOR ALL on all 3 tables (admin-gating EXISTS predicate, NOT own-row pattern), 4 indexes, 3 MX comments. NOT applied to DB yet (file creation only).
 - T-002 COMPLETE: tests/integration/eval-rls.test.ts (109 LOC) — 6 tests (SELECT/INSERT deny per table). describe.skipIf guard for SUPABASE_TEST_URL/ANON_KEY env. Lazy getAnon() factory pattern (avoid eager client construction in skipIf'd describe). pnpm test exit 0, 6 tests skipped (env vars not set in dev — expected, runs in CI when secrets injected).
-- Foundation block complete. Awaiting checkpoint before T-003/T-004 (characterization tests).
+- Foundation block complete + committed (atomic T-001/T-002 commit per user policy).
+- T-003 COMPLETE: src/app/admin/eval/__characterization__/queue.test.tsx (222 LOC, 6 tests). 5건 CHARACTERIZATION 코멘트 (className 기반 active 표시 / 필터 button sibling span / icon-only pagination / aria-label 부재 등 — 현재 동작 박제 only, 수정 금지).
+- T-004 COMPLETE: src/app/admin/eval/__characterization__/golden.test.tsx (219 LOC, 5 tests). 골든셋 탭 in-tab "추가" 버튼 부재 + delete trash icon-only 박제.
+- Full suite green: 89 passed / 6 skipped / 0 failed. RTL/jsdom 이미 devDependencies 에 있음, 신규 패키지 0.
+- 프로덕션 코드 0줄 수정. PRESERVE 블록 완료.
+- Awaiting checkpoint before next block (T-005/T-006 TDD pure functions).
