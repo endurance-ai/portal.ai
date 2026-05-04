@@ -1,0 +1,7 @@
+{
+  "detected": true,
+  "matched_keywords": ["supabase", "postgres", "postgresql", "pgvector", "pgroonga"],
+  "source_files": [".moai/project/tech.md", "package.json"],
+  "scanned_at": "2026-05-04T07:31:22Z",
+  "tech_md_hash": "6af4e467a676042f2ddb8ca6a9cb7da2e5e607184c16eb6d8145115d165e517b"
+}

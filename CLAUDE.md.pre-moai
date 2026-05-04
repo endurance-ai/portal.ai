@@ -107,5 +107,4 @@ pnpm test:watch   # vitest watch
 
 - 조직: endurance-ai · 레포: [endurance-ai/portal.ai](https://github.com/endurance-ai/portal.ai) (public)
 - 기본 브랜치: `dev` · 흐름: dev → feature → PR → squash merge
-- `git add -A` 금지, force push 금지
-- **Commit attribution**: MoAI-ADK 표준 적용 (`.claude/settings.json` 의 `attribution.commit/pr` = `🗿 MoAI <email@mo.ai.kr>`). 기존 `Co-Authored-By: Claude` 룰은 폐기 (2026-05-04, MoAI 전면 도입). legacy 백업: `CLAUDE.md.pre-moai`
+- `git add -A` 금지, force push 금지, `Co-Authored-By: Claude <noreply@anthropic.com>` 포함
