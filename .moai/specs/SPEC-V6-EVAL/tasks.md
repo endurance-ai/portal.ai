@@ -23,8 +23,8 @@ Phase 1.5 generated: 2026-05-04 (manager-strategy output, user-approved at Decis
 | T-002 | RLS integration test: anon-key + non-approved authenticated 2 시나리오 (SELECT/INSERT deny via PGRST error or empty result) | REQ-005 | T-001 | tests/integration/eval-rls.test.ts | **completed** (2026-05-04, 109 LOC, vitest exit 0) |
 | T-003 | Characterization test: 기존 "평가 대기열" 탭 동작 박제 (PRESERVE — DDD baseline) | preserve baseline | - | src/app/admin/eval/__characterization__/queue.test.tsx | **completed** (2026-05-04, 222 LOC, 6 tests) |
 | T-004 | Characterization test: 기존 "골든셋" 탭 동작 박제 (PRESERVE) | preserve baseline | - | src/app/admin/eval/__characterization__/golden.test.tsx | **completed** (2026-05-04, 219 LOC, 5 tests) |
-| T-005 | TDD: computeNdcg pure function (RED-GREEN-REFACTOR) + 단위 테스트 (NDCG@10 정확도 fixture 기반) | REQ-003 | - | src/lib/eval/ndcg.ts + ndcg.test.ts | pending |
-| T-006 | TDD: computePrecisionAtK pure function + 단위 테스트 | REQ-003 | - | src/lib/eval/precision.ts + precision.test.ts | pending |
+| T-005 | TDD: computeNdcg pure function (RED-GREEN-REFACTOR) + 단위 테스트 (NDCG@10 정확도 fixture 기반) | REQ-003 | - | src/lib/eval/ndcg.ts + ndcg.test.ts | **completed** (2026-05-04, 39+80 LOC, 16 tests) |
+| T-006 | TDD: computePrecisionAtK pure function + 단위 테스트 | REQ-003 | - | src/lib/eval/precision.ts + precision.test.ts | **completed** (2026-05-04, 41+68 LOC, 15 tests) |
 | T-007 | DDD: judgment-store.ts (upsert/load helpers + routeAlgorithmVersion v6 throw) + 단위 테스트 | REQ-002, REQ-003 | T-001, T-005 | src/lib/eval/judgment-store.ts + judgment-store.test.ts | pending |
 | T-008 | DDD: run-snapshot.ts orchestrator (judgment-store + ndcg/precision + eval_runs insert) | REQ-003 | T-005, T-006, T-007 | src/lib/eval/run-snapshot.ts | pending |
 | T-009 | API route: golden-queries GET/POST/PATCH/DELETE + dual identity 409 + 라우트 테스트 | REQ-001 | T-001 | src/app/api/admin/eval/golden-queries/route.ts + route.test.ts | pending |

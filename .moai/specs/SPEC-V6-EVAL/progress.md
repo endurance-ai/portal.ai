@@ -21,4 +21,9 @@
 - T-004 COMPLETE: src/app/admin/eval/__characterization__/golden.test.tsx (219 LOC, 5 tests). 골든셋 탭 in-tab "추가" 버튼 부재 + delete trash icon-only 박제.
 - Full suite green: 89 passed / 6 skipped / 0 failed. RTL/jsdom 이미 devDependencies 에 있음, 신규 패키지 0.
 - 프로덕션 코드 0줄 수정. PRESERVE 블록 완료.
-- Awaiting checkpoint before next block (T-005/T-006 TDD pure functions).
+- T-003/T-004 committed (atomic block).
+- T-005 COMPLETE: src/lib/eval/ndcg.ts (39 LOC) + ndcg.test.ts (80 LOC, 16 tests). 표준 NDCG 공식 (2^rel - 1) / log2(i + 2). private dcgAtK 헬퍼. @MX:NOTE.
+- T-006 COMPLETE: src/lib/eval/precision.ts (41 LOC) + precision.test.ts (68 LOC, 15 tests). 분모=k (partial ranking 페널티). default k=5, threshold=2. @MX:NOTE.
+- TDD RED→GREEN→REFACTOR 명시 관찰 (모듈 not-found RED 확인 후 최소 impl). REFACTOR 변경 없음 (이미 minimal).
+- Full suite: 120 passed / 6 skipped / 0 failed (1.52s). 신규 패키지 0.
+- Pure functions 블록 완료. Awaiting checkpoint before T-007/T-008 (lib orchestrators: judgment-store + run-snapshot).
