@@ -26,4 +26,9 @@
 - T-006 COMPLETE: src/lib/eval/precision.ts (41 LOC) + precision.test.ts (68 LOC, 15 tests). 분모=k (partial ranking 페널티). default k=5, threshold=2. @MX:NOTE.
 - TDD RED→GREEN→REFACTOR 명시 관찰 (모듈 not-found RED 확인 후 최소 impl). REFACTOR 변경 없음 (이미 minimal).
 - Full suite: 120 passed / 6 skipped / 0 failed (1.52s). 신규 패키지 0.
-- Pure functions 블록 완료. Awaiting checkpoint before T-007/T-008 (lib orchestrators: judgment-store + run-snapshot).
+- T-005/T-006 committed (atomic block).
+- T-007 COMPLETE: src/lib/eval/judgment-store.ts (137 LOC) + judgment-store.test.ts (241 LOC, 11 tests). `import "server-only"` 가드. 기존 `@/lib/supabase` (service-role 싱글톤) 재사용 — supabase-server.ts 는 anon SSR 용. snake_case ↔ camelCase mapRow 헬퍼. routeAlgorithmVersion('v6') throws + @MX:TODO. upsertJudgment 입력 검증 (DB 호출 전 grade 0-3 체크).
+- T-008 COMPLETE: src/lib/eval/run-snapshot.ts (171 LOC) + run-snapshot.test.ts (306 LOC, 13 tests). aggregate row 컨트랙트 @MX:NOTE. computeRun 빈 입력 throw, freezeBaseline 은 기존 v4 aggregate row 의 frozen flag 토글 (DB 트리거가 추가 INSERT 차단).
+- 신규 mock 패턴: `vi.mock("server-only", () => ({}))` — Next.js 외부에서 server-only 패키지 throw 회피. T-009+ 도 같은 패턴.
+- Full suite: 138 passed / 6 skipped / 0 failed. 신규 패키지 0.
+- Lib orchestrators 블록 완료. 다음: T-009~T-013 (5 API routes 일괄).
