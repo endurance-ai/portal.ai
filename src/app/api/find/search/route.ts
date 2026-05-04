@@ -172,11 +172,28 @@ export async function POST(request: Request) {
       logger.info(
         `[STEP 3.9][find/search] ✅ 응답 (engine=v5) — strongMatches=${(strongAI?.results ?? []).length} general=${generalAI.results.length} | 총 ${Date.now() - reqStart}ms`
       )
+      // Frontend (find-result.tsx SearchProduct) expects: brand/title/price(string)/platform/imageUrl/link
+      // AI server (AICandidate) returns: brand/name/price(number|null)/platform(null)/imageUrl(null)/productUrl(null)
+      // Map shape + wrap in single group per side.
+      const toSearchProduct = (c: AICandidate) => ({
+        brand: c.brand,
+        title: c.name,
+        price: c.price != null ? `₩${c.price.toLocaleString("ko-KR")}` : "",
+        platform: c.platform ?? "",
+        imageUrl: c.imageUrl ?? "",
+        link: c.productUrl ?? "",
+      })
       return NextResponse.json({
         item: body.item,
         resolvedBrands: resolved,
-        strongMatches: strongAI?.results ?? [],
-        general: generalAI.results,
+        strongMatches:
+          strongAI && strongAI.results.length > 0
+            ? [{id: "strong", products: strongAI.results.map(toSearchProduct)}]
+            : [],
+        general:
+          generalAI.results.length > 0
+            ? [{id: "general", products: generalAI.results.map(toSearchProduct)}]
+            : [],
         engine: "v5",
       })
     }
