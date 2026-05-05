@@ -391,7 +391,7 @@ pnpm test:watch   # watch
 
 - 파일 위치: 테스트 대상 옆에 `*.test.ts(x)` (예: `src/lib/search/locked-filter.test.ts`)
 - 단위 테스트 우선. reducer 테스트(`agent-reducer.test.ts`)처럼 **순수 함수 → action → 기대 state** 패턴
-- `playwright` 는 devDep으로 있긴 하나 현재 `scripts/crawl.ts` 의 크롤 엔진용. e2e 라우트 테스트는 아직 없음
+- e2e 라우트 테스트는 아직 없음 (필요해지면 Playwright 등 도입). 크롤러는 외부 리포(`endurance-ai/crawler`)로 분리됨
 - `@testing-library/react` + `jsdom` 이 설치되어 있어 컴포넌트 단위 렌더 테스트 가능. 필요할 때 추가
 
 ---

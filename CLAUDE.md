@@ -45,7 +45,7 @@ pnpm test:watch   # vitest watch
 | 이미지 분석 | OpenAI GPT-4o-mini Vision (LiteLLM 프록시 토글, 현재 OFF) |
 | 검색 | v4 (enum 가중합) — v5 임베딩 인프라 적용 완료, 풀배치 미실행 |
 | 저장 | Supabase Postgres + pgvector + pgroonga, Cloudflare R2 |
-| 크롤러 | Playwright (Cafe24 22) + Shopify JSON (10) — 81k SKU / 697 브랜드 |
+| 크롤러 | **외부 리포 [`endurance-ai/crawler`](https://github.com/endurance-ai/crawler)** — Playwright (Cafe24 22) + Shopify JSON (10), 81k SKU / 697 브랜드 |
 | 배포 | Vercel + AWS EC2 g5 Spot (배치) |
 
 ## 코딩 컨벤션
@@ -67,7 +67,7 @@ pnpm test:watch   # vitest watch
 | 시스템 전체 그림 / 토폴로지 | `docs/ARCHITECTURE.md` |
 | 메인 플로우 (IG 스크래퍼 → Vision → 검색) | `docs/features/main-flow.md` |
 | 검색 엔진 (v4 / v5 인프라 / plans) | `docs/features/search-engine.md` |
-| 크롤러 (32 플랫폼, Cafe24/Shopify, 파서) | `docs/features/crawler.md` |
+| 크롤러 (외부 리포 — `endurance-ai/crawler`) | `docs/features/crawler.md` (데이터 흐름만, 본체 코드는 외부 리포) |
 | DB 스키마 / 마이그레이션 / RLS | `docs/infra/data-model.md` |
 | 환경변수 / AWS 프로필 | `docs/infra/env.md` |
 | 배포 / EC2 Spot / Git 워크플로 | `docs/infra/deployment.md` |
@@ -75,7 +75,7 @@ pnpm test:watch   # vitest watch
 | 디자인 시스템 (Editorial, cream/ink, Pretendard) | `docs/design/system.md` |
 | 활성 plan (실행 대기) | `docs/plans/` |
 | 경쟁사·차별화 리서치 | `docs/research/` |
-| 새 크롤 사이트 추가 가이드 | `docs/guides/platform-parser-guide.md` |
+| 새 크롤 사이트 추가 가이드 | [`endurance-ai/crawler` README](https://github.com/endurance-ai/crawler) (DB 스키마 변경 시만 portal.ai 작업 필요 — `docs/guides/platform-parser-guide.md`) |
 
 > 어드민/archived flow 는 분리 안 함 → `docs/ARCHITECTURE.md` 안에 한 섹션씩.
 
