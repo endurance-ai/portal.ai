@@ -1,13 +1,13 @@
 # portal.ai — 아키텍처 (Overview)
 
 > 시스템 전체 그림 + 도메인별 doc 매핑. 깊은 내용은 각 `features/*` / `infra/*` 참조.
-> 최종 업데이트: 2026-04-26 (메인 플로우 v2 머지 — Apify 스크래퍼 + 단일 슬라이드/아이템 정밀 매칭)
+> 최종 업데이트: 2026-05-05 (크롤러 외부 리포 분리 — `endurance-ai/crawler`)
 
 ## 한 줄 요약
 
 > "Paste any Instagram post. We'll tell you where to buy the fit." — IG 포스트 URL 한 장 → 슬라이드 룩 분해 → 32개 자사몰 ~81k SKU에서 매칭 상품 추천. 단일 Next.js 앱.
 
-별도 백엔드 서버 없음. Next.js App Router(API Routes) 한 덩어리에 분석·검색·크롤·어드민이 모두 들어있다. AI 인코딩 배치는 AWS EC2 Spot 단발 인스턴스로 외부화.
+별도 백엔드 서버 없음. Next.js App Router(API Routes) 한 덩어리에 분석·검색·어드민이 모두 들어있다. **크롤링은 [`endurance-ai/crawler`](https://github.com/endurance-ai/crawler) 외부 리포** (EC2 batch). AI 인코딩 배치는 AWS EC2 Spot 단발 인스턴스로 외부화.
 
 ---
 
@@ -61,7 +61,7 @@ graph TB
     end
 
     subgraph Batch["🛠️ Offline Batch"]
-        CRAWL["scripts/crawl.ts<br/>(local Playwright + Shopify JSON)"]
+        CRAWL["endurance-ai/crawler<br/>(별도 리포 — EC2 batch<br/>Cafe24 Playwright + Shopify JSON)"]
         EMBED["scripts/aws/<br/>EC2 g5 Spot — FashionSigLIP<br/>(test only)"]
     end
 
@@ -124,7 +124,7 @@ graph TB
 |---|---|
 | 메인 플로우 (IG → Vision → 검색) | [features/main-flow.md](features/main-flow.md) |
 | 검색 엔진 (v4 + v5 인프라) | [features/search-engine.md](features/search-engine.md) |
-| 크롤러 (32 플랫폼) | [features/crawler.md](features/crawler.md) |
+| 크롤러 (외부 리포) | [endurance-ai/crawler](https://github.com/endurance-ai/crawler) — 데이터 흐름은 [features/crawler.md](features/crawler.md) |
 | DB 스키마 / 마이그레이션 / RLS | [infra/data-model.md](infra/data-model.md) |
 | 환경변수 / AWS 프로필 | [infra/env.md](infra/env.md) |
 | 배포 / EC2 Spot / Git 워크플로 | [infra/deployment.md](infra/deployment.md) |
@@ -207,6 +207,7 @@ SPEC: SPEC-V6-EVAL, SPEC-V6-EVAL-V2
 
 | 날짜 | 사건 |
 |---|---|
+| 2026-05-05 | **크롤러 외부 리포 분리** — `scripts/crawl.ts` + 32 플랫폼 파서 → [`endurance-ai/crawler`](https://github.com/endurance-ai/crawler). DB 가 양 리포의 계약. portal.ai package.json 에서 `playwright` 제거 |
 | 2026-05-04 | **검색 v6 평가 인프라 (SPEC-V6-EVAL)** — eval_golden_queries / eval_judgments / eval_runs 3 테이블 + NDCG@10/Precision@5 lib + 6 API 라우트 + admin/eval 5탭 UI |
 | 2026-04-26 | **메인 플로우 v2 머지 (PR #31)** — Apify 스크래퍼 + 단일 슬라이드/아이템 정밀 매칭 + 캐시 + 4-step picker UI |
 | 2026-04-26 | `/find` 메인 승격 + 구 Q&A `_archive-qa/` 이동 + 문서 도메인별 분할 |

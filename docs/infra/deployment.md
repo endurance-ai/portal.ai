@@ -141,4 +141,4 @@ pnpm test         # vitest 1회
 pnpm test:watch   # vitest watch
 ```
 
-크롤/임포트/임베딩 배치는 모두 로컬에서 수동 실행. 자동 스케줄링 없음.
+**크롤/임포트는 [`endurance-ai/crawler`](https://github.com/endurance-ai/crawler) 외부 리포** (EC2 batch, 운영 가이드는 해당 리포 참고). 임베딩 배치 (`scripts/aws/launch_embed_batch.sh`) 는 로컬에서 수동 실행 — 자동 스케줄링 없음.
