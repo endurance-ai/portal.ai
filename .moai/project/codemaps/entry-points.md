@@ -57,10 +57,9 @@ updated: 2026-05-04
 
 | 파일 | 실행 방법 | 목적 |
 |---|---|---|
-| `scripts/crawl.ts` | `pnpm tsx scripts/crawl.ts` | 32 플랫폼 크롤러 (Playwright + Shopify JSON) — ~81k SKU 수집 |
-| `scripts/import-products.ts` | `pnpm tsx scripts/import-products.ts` | 크롤 결과 → Supabase DB 적재 |
-| `scripts/analyze-products.ts` | `pnpm tsx scripts/analyze-products.ts` | 상품 이미지 AI 분석 배치 |
+| 크롤 / 임포트 / 상품 분석 | — | **외부 리포 [`endurance-ai/crawler`](https://github.com/endurance-ai/crawler) 로 분리됨** (2026-05-05) |
 | `scripts/eval-*.ts` | `pnpm tsx scripts/eval-<name>.ts` | 검색 평가 스크립트 (골든셋 생성, NDCG 계산 등) |
+| `scripts/seed-eval-golden-queries.ts` | `pnpm seed:eval` | 분석 결과 → 30 골든셋 자동 시딩 |
 | `scripts/aws/` | EC2 Spot에서 실행 | EC2 인스턴스 론칭 + FashionSigLIP 임베딩 배치 |
 
 ---
