@@ -80,6 +80,7 @@ export async function GET(request: NextRequest) {
 
   type ProductRow = {
     id: string; brand: string; name: string; price: number | null;
+    source_currency: string | null; source_price: number | null;
     image_url: string | null; platform: string; category: string | null;
     in_stock: boolean; style_node: string | null; gender: string[] | null;
     created_at: string;
@@ -96,7 +97,7 @@ export async function GET(request: NextRequest) {
       const chunk = aiProductIds.slice(i, i + CHUNK_SIZE)
       let q = supabase
         .from("products")
-        .select("id, brand, name, price, image_url, platform, category, in_stock, style_node, gender, created_at, description, material, review_count")
+        .select("id, brand, name, price, source_currency, source_price, image_url, platform, category, in_stock, style_node, gender, created_at, description, material, review_count")
         .in("id", chunk)
 
       if (stockStatus === "in_stock") q = q.eq("in_stock", true)
@@ -133,7 +134,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from("products")
       .select(
-        "id, brand, name, price, image_url, platform, category, in_stock, style_node, gender, created_at, description, material, review_count",
+        "id, brand, name, price, source_currency, source_price, image_url, platform, category, in_stock, style_node, gender, created_at, description, material, review_count",
         { count: "exact" }
       )
 
@@ -206,6 +207,8 @@ export async function GET(request: NextRequest) {
       brand: p.brand,
       name: p.name,
       price: p.price,
+      sourceCurrency: p.source_currency,
+      sourcePrice: p.source_price,
       imageUrl: p.image_url,
       platform: p.platform,
       category: p.category,

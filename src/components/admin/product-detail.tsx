@@ -5,6 +5,7 @@ import Image from "next/image"
 import Link from "next/link"
 import {ArrowUpRight, ChevronLeft} from "lucide-react"
 import {cn} from "@/lib/utils"
+import {formatProductPrice} from "@/lib/format-product-price"
 
 type Review = {
   id: string
@@ -30,6 +31,8 @@ type ProductDetailProps = {
     price: number | null
     original_price: number | null
     sale_price: number | null
+    source_currency: string | null
+    source_price: number | null
     image_url: string | null
     images: string[] | null
     product_url: string
@@ -69,8 +72,12 @@ type Tab = "info" | "description" | "reviews"
 export function ProductDetail({ product, ai, reviews }: ProductDetailProps) {
   const [tab, setTab] = useState<Tab>("info")
 
-  const formatPrice = (price: number | null) =>
-    price != null ? `₩${price.toLocaleString("ko-KR")}` : "—"
+  const formatPrice = (krwPrice: number | null) =>
+    formatProductPrice({
+      sourcePrice: product.source_price,
+      sourceCurrency: product.source_currency,
+      krwPrice,
+    })
 
   const tabs: { key: Tab; label: string; count?: number }[] = [
     { key: "info", label: "기본 정보" },
