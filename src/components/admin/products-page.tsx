@@ -8,6 +8,7 @@ import {ChevronLeft, ChevronRight, Loader2, RotateCcw, Search, X} from "lucide-r
 import {Button} from "@/components/ui/button"
 import {CrawlCoverage} from "@/components/admin/crawl-coverage"
 import type {FilterOptionsResponse} from "@/app/api/admin/products/filter-options/route"
+import {formatProductPrice} from "@/lib/format-product-price"
 
 type ProductAI = {
   category: string | null
@@ -25,6 +26,8 @@ type Product = {
   brand: string
   name: string
   price: number | null
+  sourceCurrency: string | null
+  sourcePrice: number | null
   imageUrl: string | null
   platform: string
   category: string | null
@@ -123,7 +126,7 @@ function ProductCard({p}: {p: Product}) {
               <p className="text-muted-foreground">{p.brand}</p>
               <p className="text-foreground leading-tight">{p.name}</p>
               <p className="text-foreground font-bold tabular-nums mt-1">
-                {p.price != null ? `₩${p.price.toLocaleString()}` : "—"}
+                {formatProductPrice({sourcePrice: p.sourcePrice, sourceCurrency: p.sourceCurrency, krwPrice: p.price})}
               </p>
               <p className="text-muted-foreground/70 text-[9.5px] mt-0.5">{p.platform}</p>
             </div>
@@ -170,7 +173,7 @@ function ProductCard({p}: {p: Product}) {
           <p className="text-[10px] text-muted-foreground truncate">{p.brand}</p>
           <p className="text-[11px] text-foreground truncate leading-tight">{p.name}</p>
           <p className="text-[12px] font-bold tabular-nums">
-            {p.price != null ? `₩${p.price.toLocaleString()}` : "—"}
+            {formatProductPrice({sourcePrice: p.sourcePrice, sourceCurrency: p.sourceCurrency, krwPrice: p.price})}
           </p>
         </div>
       </article>
