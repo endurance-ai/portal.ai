@@ -3,10 +3,14 @@ import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import bcrypt from "bcryptjs"
 import {pool} from "@/lib/db"
+import {type AdminStatus, authConfig} from "@/auth.config"
 
-export type AdminStatus = "pending" | "approved" | "rejected"
+export type {AdminStatus}
 
+// Full Auth.js 인스턴스 — Credentials provider + DB lookup 포함 (Node.js 전용).
+// proxy.ts 는 이 파일을 import 하지 않음 (auth.config.ts 만 사용).
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  ...authConfig,
   providers: [
     Credentials({
       credentials: {
@@ -44,35 +48,4 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
-  session: { strategy: "jwt", maxAge: 60 * 60 * 24 * 7 },
-  pages: { signIn: "/admin/login" },
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id
-        token.status = user.status
-      }
-      return token
-    },
-    async session({ session, token }) {
-      // next-auth@5 beta module augmentation 의 JWT 인터페이스 추론이 callback 인자에서
-      // 깨지는 케이스가 있어 명시적 단언으로 처리.
-      const id = token.id as string | undefined
-      const status = token.status as AdminStatus | undefined
-      if (session.user && id && status) {
-        session.user.id = id
-        session.user.status = status
-      }
-      return session
-    },
-    authorized({ auth: session, request }) {
-      const { pathname } = request.nextUrl
-      if (!pathname.startsWith("/admin")) return true
-      const PUBLIC = ["/admin/login", "/admin/signup", "/admin/pending"]
-      if (PUBLIC.some((p) => pathname === p || pathname.startsWith(p + "/"))) return true
-      if (!session?.user) return false
-      return session.user.status === "approved"
-    },
-  },
-  trustHost: true,
 })
