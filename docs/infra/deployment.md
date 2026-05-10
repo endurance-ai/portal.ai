@@ -1,12 +1,12 @@
 # 배포 / 인프라
 
-> 메인 앱은 Vercel 단일 호스팅. AI 인코딩 배치는 AWS EC2 Spot 단발 spin-up→tear-down. LiteLLM 프록시는 EC2 호스팅하나 현재 OFF.
+> 메인 앱은 현재 Vercel 호스팅 (prod). EC2 self-host 파이프라인(Dockerfile + GitHub Actions)은 SPEC-INFRA-MIGRATE-001 P5로 준비 완료 — dev 환경에서 자동 배포 활성. AI 인코딩 배치는 AWS EC2 Spot 단발 spin-up→tear-down. LiteLLM 프록시는 EC2 호스팅하나 현재 OFF (메인 플로우용). 브랜드 메타 추론 배치는 LiteLLM 프록시 사용.
 
 ## 외부 서비스 매트릭스
 
 | 서비스 | 용도 | 비용 모델 |
 |---|---|---|
-| **Vercel** | Next.js 16 호스팅 (App Router, Turbopack) | Hobby/Pro 플랜 |
+| **Vercel / EC2** | Next.js 16 호스팅 (App Router, Turbopack, `output: standalone`). dev 자동 배포는 EC2 + GitHub Actions. prod 는 Vercel | Hobby/Pro 플랜 + EC2 비용 |
 | **Supabase Postgres** | 전 영속 데이터 + Auth + RLS + pgvector + pgroonga | Supabase Pro |
 | **Cloudflare R2** | 이미지 저장 (분석 원본 + IG 슬라이드) | 무료 한도 + zero egress |
 | **OpenAI** | GPT-4o-mini Vision/Text | 호출당 ~$0.003 (Vision, slide 1장) |
@@ -18,7 +18,7 @@
 
 ---
 
-## Vercel — 메인 앱
+## Vercel — 메인 앱 (prod)
 
 | 항목 | 값 |
 |---|---|
@@ -27,8 +27,32 @@
 | 빌드 명령 | `pnpm build` |
 | 환경변수 | Project Settings 에서 등록 (`docs/infra/env.md`) |
 | `vercel.json` | `{"framework": "nextjs"}` 만 — 런타임 옵션 기본값 |
-| `next.config.ts` | 이미지 `remotePatterns` 화이트리스트 (R2, Cafe24, 자사몰 호스트 등) |
+| `next.config.ts` | `output: "standalone"` (EC2 Docker 빌드와 공유), 이미지 `remotePatterns` 화이트리스트 |
 | 배포 트리거 | dev push → preview / main 머지 → prod |
+
+---
+
+## EC2 Self-host + GitHub Actions CI/CD (SPEC-INFRA-MIGRATE-001 P5)
+
+dev 환경 자동 배포 파이프라인. prod 전환 전 준비 완료 상태.
+
+```
+dev 브랜치 PR 머지
+  → .github/workflows/deploy-dev.yml 트리거
+  → Job 1: lint + test (fail 시 배포 중단)
+  → Job 2: Docker 이미지 빌드 (Next.js standalone, ARM64)
+             → ECR Push (태그: YYYYMMDDhhmmss-<sha>, latest)
+             → SSH → dev-app EC2 → /home/ec2-user/scripts/deploy.app.sh
+```
+
+| 항목 | 값 |
+|---|---|
+| Docker base | `Dockerfile` (Next.js standalone, node:20-alpine) |
+| ECR 리포 | `kikoai-dev/app` |
+| IAM | `portal-ai-gha` (portal/dev/* prefix push 권한) |
+| 리전 | `ap-northeast-2` |
+| 동시 배포 직렬화 | `concurrency: group: deploy-*`, cancel-in-progress: false |
+| 수동 트리거 | `workflow_dispatch` (배포 환경: dev 선택) |
 
 ---
 

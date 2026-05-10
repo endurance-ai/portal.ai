@@ -11,6 +11,7 @@
 | **v5 인프라** | ✅ 적용 (마이그레이션 027) | `products.embedding vector(768)` + HNSW + pgroonga + bulk RPC |
 | **v5 풀배치** | ⚠️ 테스트만, 81k 미실행 | `scripts/aws/embed_products.py` 단발 실행 필요 |
 | **v5 검색 분기** | ⬜ 미작성 | dense + sparse + RRF 통합 쿼리 + 피처 플래그 `SEARCH_ENGINE_VERSION` |
+| **브랜드 그래프 인프라** | ✅ 구축 완료 (마이그 037~043) | `brand_similar` (BGE-m3 cosine, 42k edges) — v6 검색 11번째 차원(brand vector) 사전 작업. 아직 검색엔진 미통합 |
 
 > v5 재설계 진행 중 — 기존 plans (`docs/plans/26-04-23-embedding-rewrite-plan.md`, `docs/plans/26-04-24-aws-embedding-infra.md`) 는 reference로만, 결정 기준은 다시 잡는다.
 
