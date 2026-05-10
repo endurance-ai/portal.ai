@@ -283,7 +283,7 @@ pnpm seed:eval
 - 두 번 실행 시: 모두 skipped (duplicate), DB 변경 0
 - intent_note 자동 생성: prompt_text 첫 200자 || items[0].searchQuery || `analysis-{id}`
 - query_signature: `analysis:{id}` (instagram_url null — analyses 테이블에 IG URL 컬럼 없음)
-- service-role 키 사용 (.env.local SUPABASE_SERVICE_ROLE_KEY) — RLS bypass
+- service-role 키 사용 (.env.local DB_TOKEN, 구 SUPABASE_SERVICE_ROLE_KEY) — RLS bypass
 
 #### 새 테스트 (V2)
 

@@ -2,7 +2,7 @@
 
 > 모든 영속 데이터는 **dev-app EC2 의 자체호스트 Postgres 16** 단일 인스턴스. PostgREST + nginx shim 으로 `/rest/v1/*` 노출. SPEC-INFRA-MIGRATE-001 P2/P4/P6 이후. (이전: Supabase Postgres — 2026-05-10 pause)
 >
-> 서버 접근은 PostgREST service JWT (`SUPABASE_SERVICE_ROLE_KEY` 논리명 유지) 또는 `pg` Pool 직접 (Auth.js 인증 경로). 어드민 SSR 쿠키는 Auth.js v5 JWT 로 전환됨 (SPEC-INFRA-MIGRATE-001 P3).
+> 서버 접근은 PostgREST service JWT (`DB_TOKEN`, 구 SUPABASE_SERVICE_ROLE_KEY) 또는 `pg` Pool 직접 (Auth.js 인증 경로). 어드민 SSR 쿠키는 Auth.js v5 JWT 로 전환됨 (SPEC-INFRA-MIGRATE-001 P3).
 
 ## 테이블 인벤토리
 
