@@ -20,7 +20,9 @@ if (!isBuildPhase) {
   }
 }
 
+// `||` (not `??`) so empty-string env vars also fall back to placeholder.
+// CI 의 secrets.SUPABASE_URL 이 비어있는 (또는 미설정) 경우에도 build 통과.
 export const supabase = createClient(
-  supabaseUrl ?? "https://build-time-placeholder.supabase.co",
-  supabaseKey ?? "build-time-placeholder-key"
+  supabaseUrl || "https://build-time-placeholder.supabase.co",
+  supabaseKey || "build-time-placeholder-key"
 )

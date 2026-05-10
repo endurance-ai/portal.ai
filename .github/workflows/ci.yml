@@ -62,8 +62,7 @@ jobs:
 
       - name: Build
         run: pnpm build
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        # 빌드 시 외부 env 주입 불필요:
+        #   - SUPABASE_* / SERPAPI_KEY: SPEC-INFRA-MIGRATE-001 P3+P6 cutover 후 미사용
+        #   - OPENAI_API_KEY: OpenAI/LiteLLM client lazy init (#40), module-load 시 미참조
+        # 모든 외부 의존성은 운영 컨테이너의 .env (dev-app:~/env/.env) 에서 런타임 주입.
