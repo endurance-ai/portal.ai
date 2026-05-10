@@ -214,13 +214,26 @@ def apply_to_db(sb, brand, parsed, dry_run=False):
     bid = brand["id"]
     conf = parsed["confidence"]
 
-    # 1. attribute proposals (vibe/palette/material) — always logged
+    # 1. attribute proposals (vibe/palette/material).
+    # 같은 (brand_id, field) 가 이미 pending/approved/auto_applied 상태로
+    # 존재하면 skip — 재실행 시 중복 누적 방지. rejected 만 새 시도 허용.
+    existing_q = (
+        sb.table("brand_attribute_proposals")
+        .select("field")
+        .eq("brand_id", bid)
+        .in_("status", ["pending", "approved", "auto_applied"])
+        .execute()
+    )
+    skip_fields = {row["field"] for row in (existing_q.data or [])}
+
     proposals_to_insert = []
     for field, vals in [("vibe", parsed["vibe"]),
                         ("palette", parsed["palette"]),
                         ("material", parsed["material"])]:
         if not vals:
             continue
+        if field in skip_fields:
+            continue  # 중복 방지
         status = ("auto_applied" if conf >= AUTO_MERGE
                   else "pending" if conf >= REVIEW_FLOOR
                   else "rejected")
@@ -273,8 +286,19 @@ def main():
 
     sb = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
 
-    # LiteLLM proxy 사용 — OpenAI-compat
-    base_url = os.environ.get("LITELLM_BASE_URL", "http://54.116.116.225:4000")
+    # LiteLLM proxy 사용 — OpenAI-compat.
+    # 보안: brand_name + 상품 샘플이 외부로 나가므로 평문 HTTP 차단.
+    # HTTP 강제 우회 시 LITELLM_ALLOW_INSECURE=1 환경변수 필요.
+    base_url = os.environ.get("LITELLM_BASE_URL")
+    if not base_url:
+        print("ERROR: LITELLM_BASE_URL 환경변수 필요 (https:// 권장)")
+        sys.exit(1)
+    if base_url.startswith("http://") and os.environ.get("LITELLM_ALLOW_INSECURE") != "1":
+        print(
+            f"ERROR: LITELLM_BASE_URL 이 평문 HTTP ({base_url}). "
+            "HTTPS endpoint 사용 또는 LITELLM_ALLOW_INSECURE=1 설정 필요."
+        )
+        sys.exit(1)
     api_key = os.environ.get("LITELLM_API_KEY") or os.environ.get("LITELLM_MASTER_KEY")
     if not api_key:
         print("ERROR: LITELLM_API_KEY 또는 LITELLM_MASTER_KEY 가 환경변수에 없음")

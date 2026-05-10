@@ -128,12 +128,15 @@ export default function BrandProposalsPage() {
   const singleAction = async (id: string, action: "approve" | "reject") => {
     setActing(true)
     try {
-      await fetch("/api/admin/brand-proposals/bulk", {
+      const res = await fetch("/api/admin/brand-proposals/bulk", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({ids: [id], action}),
       })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
       fetchList()
+    } catch (e) {
+      alert("실패: " + String(e))
     } finally {
       setActing(false)
     }

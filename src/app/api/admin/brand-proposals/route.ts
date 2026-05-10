@@ -16,6 +16,13 @@ interface ProposalRow {
   created_at: string
 }
 
+const MAX_LIMIT = 200
+
+function clamp(n: number, lo: number, hi: number, fallback: number): number {
+  if (!Number.isFinite(n)) return fallback
+  return Math.min(hi, Math.max(lo, n))
+}
+
 export async function GET(request: NextRequest) {
   const gate = await requireApprovedAdmin()
   if (gate instanceof NextResponse) return gate
@@ -23,17 +30,37 @@ export async function GET(request: NextRequest) {
   const sp = request.nextUrl.searchParams
   const status = sp.get("status") ?? "pending"
   const field = sp.get("field") ?? ""
-  const minConf = parseFloat(sp.get("min_conf") ?? "0")
-  const maxConf = parseFloat(sp.get("max_conf") ?? "1")
+  const minConf = clamp(parseFloat(sp.get("min_conf") ?? "0"), 0, 1, 0)
+  const maxConf = clamp(parseFloat(sp.get("max_conf") ?? "1"), 0, 1, 1)
   const brandQ = (sp.get("brand") ?? "").trim()
-  const page = parseInt(sp.get("page") ?? "0")
-  const limit = parseInt(sp.get("limit") ?? "50")
+  const page = clamp(parseInt(sp.get("page") ?? "0"), 0, 10000, 0)
+  const limit = clamp(parseInt(sp.get("limit") ?? "50"), 1, MAX_LIMIT, 50)
+
+  // brand 검색 시: 먼저 brand_nodes 에서 매치되는 id 목록 받아서 .in() 으로 필터
+  // → 카운트가 정확해지고 페이지네이션이 올바름.
+  let brandIdFilter: string[] | null = null
+  if (brandQ) {
+    const {data: matchedBrands, error: bErr} = await supabase
+      .from("brand_nodes")
+      .select("id")
+      .ilike("brand_name", `%${brandQ}%`)
+      .limit(2000)
+    if (bErr) {
+      console.error("[brand-proposals] brand search failed:", bErr)
+      return NextResponse.json({error: "internal error"}, {status: 500})
+    }
+    brandIdFilter = (matchedBrands ?? []).map((b) => b.id)
+    if (brandIdFilter.length === 0) {
+      return NextResponse.json({proposals: [], total: 0, page, limit})
+    }
+  }
 
   let query = supabase
     .from("brand_attribute_proposals")
-    .select("id, brand_id, field, proposed_values, confidence, reasoning, status, created_at", {
-      count: "exact",
-    })
+    .select(
+      "id, brand_id, field, proposed_values, confidence, reasoning, status, created_at",
+      {count: "exact"}
+    )
     .eq("status", status)
     .gte("confidence", minConf)
     .lte("confidence", maxConf)
@@ -42,19 +69,23 @@ export async function GET(request: NextRequest) {
     .range(page * limit, (page + 1) * limit - 1)
 
   if (field) query = query.eq("field", field)
+  if (brandIdFilter) query = query.in("brand_id", brandIdFilter)
 
   const {data: proposals, count, error} = await query
-  if (error) return NextResponse.json({error: error.message}, {status: 500})
+  if (error) {
+    console.error("[brand-proposals] list query failed:", error)
+    return NextResponse.json({error: "internal error"}, {status: 500})
+  }
 
-  // brand_name 조인 (brand_id → brand_name)
-  const brandIds = Array.from(new Set((proposals ?? []).map((p) => p.brand_id)))
+  // brand_name 조인
+  const proposalBrandIds = Array.from(new Set((proposals ?? []).map((p) => p.brand_id)))
   const {data: brands} = await supabase
     .from("brand_nodes")
     .select("id, brand_name")
-    .in("id", brandIds)
+    .in("id", proposalBrandIds)
   const brandMap = new Map((brands ?? []).map((b) => [b.id, b.brand_name as string]))
 
-  let rows: ProposalRow[] = (proposals ?? []).map((p) => ({
+  const rows: ProposalRow[] = (proposals ?? []).map((p) => ({
     id: p.id,
     brand_id: p.brand_id,
     brand_name: brandMap.get(p.brand_id) ?? "(?)",
@@ -65,12 +96,6 @@ export async function GET(request: NextRequest) {
     status: p.status,
     created_at: p.created_at,
   }))
-
-  // brand 검색은 후처리 (DB 단계에서 조인 불가)
-  if (brandQ) {
-    const q = brandQ.toLowerCase()
-    rows = rows.filter((r) => r.brand_name.toLowerCase().includes(q))
-  }
 
   return NextResponse.json({
     proposals: rows,

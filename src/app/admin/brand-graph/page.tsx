@@ -184,24 +184,32 @@ export default function BrandGraphPage() {
     return () => clearTimeout(t)
   }, [search, data])
 
-  // focused 바뀌면 neighbors 로드
+  // focused 바뀌면 neighbors 로드 (data fetching effect)
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!focused) {
       setNeighbors(null)
       return
     }
+    let cancelled = false
     setNeighborsLoading(true)
     fetch(`/api/admin/brand-graph/neighbors?id=${focused.id}&k=10`)
       .then((r) => r.json())
       .then((d) => {
+        if (cancelled) return
         setNeighbors(d.neighbors ?? [])
         setNeighborsLoading(false)
       })
       .catch(() => {
+        if (cancelled) return
         setNeighbors([])
         setNeighborsLoading(false)
       })
+    return () => {
+      cancelled = true
+    }
   }, [focused?.id])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const clusterCounts = useMemo(() => {
     if (!data) return []
@@ -422,15 +430,18 @@ function FullMapView({
   const pz = useSvgPanZoom(initialVb)
   const zoomFactor = pz.vb.w / 230
 
+  // ref / viewBox / handlers 는 hook 객체에서 꺼냄 — destructure 로 일관성 유지
+  const {svgRef, viewBox, onMouseDown, onMouseMove} = pz
+
   return (
     <svg
-      ref={pz.svgRef}
-      viewBox={pz.viewBox}
+      ref={svgRef}
+      viewBox={viewBox}
       preserveAspectRatio="xMidYMid meet"
       className="w-full h-full"
       style={{display: "block", cursor: "grab", userSelect: "none"}}
-      onMouseDown={pz.onMouseDown}
-      onMouseMove={pz.onMouseMove}
+      onMouseDown={onMouseDown}
+      onMouseMove={onMouseMove}
     >
       {/* 클러스터 라벨 (centroid 위치) — 줌 모드면 안 보여줌 */}
       {!activeCluster &&
@@ -577,17 +588,16 @@ function ConstellationView({
 
   // pan/zoom
   const pz = useSvgPanZoom({x: 0, y: 0, w: 1200, h: 900})
-  // zoom 비율로 노드/라벨 크기 보정
-  const zoomFactor = pz.vb.w / pz.initialW
+  const {svgRef, viewBox, onMouseDown, onMouseMove} = pz
 
   return (
     <svg
-      ref={pz.svgRef}
-      viewBox={pz.viewBox}
+      ref={svgRef}
+      viewBox={viewBox}
       className="w-full h-full"
       style={{display: "block", cursor: "grab", userSelect: "none"}}
-      onMouseDown={pz.onMouseDown}
-      onMouseMove={pz.onMouseMove}
+      onMouseDown={onMouseDown}
+      onMouseMove={onMouseMove}
     >
       {/* 거리 가이드 ring — 더 진하게, 라이트 톤 */}
       {[160, 220, 280, 340].map((r) => (

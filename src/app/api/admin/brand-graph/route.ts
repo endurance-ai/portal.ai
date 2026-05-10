@@ -1,5 +1,6 @@
 import {NextResponse} from "next/server"
 import {requireApprovedAdmin} from "@/lib/admin-auth"
+import {clusterFromSensitivity} from "@/lib/brand-cluster"
 import {supabase} from "@/lib/supabase"
 
 export const revalidate = 60
@@ -14,23 +15,11 @@ interface NodeData {
   y: number | null
 }
 
-function clusterFromSensitivity(tags: string[] | null): string {
-  if (!tags || tags.length === 0) return "unknown"
-  const first = tags[0]
-  if (first.startsWith("minimalist") || first.includes("미니멀")) return "minimalist"
-  if (first.startsWith("contemporary") || first.includes("컨템포러리")) return "contemporary"
-  if (first.startsWith("classic")) return "classic"
-  if (first.startsWith("vintage")) return "vintage"
-  if (first.startsWith("chic")) return "chic"
-  if (first.startsWith("casual")) return "casual"
-  if (first.startsWith("luxury") || first.includes("럭셔리") || first.includes("하이엔드")) return "luxury"
-  if (first.startsWith("avantgarde")) return "avantgarde"
-  if (first.startsWith("feminine")) return "feminine"
-  if (first.startsWith("streetwear")) return "streetwear"
-  return "other"
-}
-
-async function loadAll<T>(query: () => any, pageSize = 1000): Promise<T[]> {
+async function loadAll<T>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  query: () => any,
+  pageSize = 1000
+): Promise<T[]> {
   const out: T[] = []
   let from = 0
   while (true) {

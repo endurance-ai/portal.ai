@@ -1,5 +1,6 @@
 import {NextRequest, NextResponse} from "next/server"
 import {requireApprovedAdmin} from "@/lib/admin-auth"
+import {clusterFromSensitivity} from "@/lib/brand-cluster"
 import {supabase} from "@/lib/supabase"
 
 export const revalidate = 60
@@ -11,22 +12,6 @@ interface NeighborOut {
   cluster: string
   skuCount: number
   hasMeta: boolean
-}
-
-function clusterFromSensitivity(tags: string[] | null): string {
-  if (!tags || tags.length === 0) return "unknown"
-  const first = tags[0]
-  if (first.startsWith("minimalist") || first.includes("미니멀")) return "minimalist"
-  if (first.startsWith("contemporary") || first.includes("컨템포러리")) return "contemporary"
-  if (first.startsWith("classic")) return "classic"
-  if (first.startsWith("vintage")) return "vintage"
-  if (first.startsWith("chic")) return "chic"
-  if (first.startsWith("casual")) return "casual"
-  if (first.startsWith("luxury") || first.includes("럭셔리") || first.includes("하이엔드")) return "luxury"
-  if (first.startsWith("avantgarde")) return "avantgarde"
-  if (first.startsWith("feminine")) return "feminine"
-  if (first.startsWith("streetwear")) return "streetwear"
-  return "other"
 }
 
 export async function GET(request: NextRequest) {
@@ -44,7 +29,10 @@ export async function GET(request: NextRequest) {
     .eq("brand_id", id)
     .order("rank")
     .limit(k)
-  if (e1) return NextResponse.json({error: e1.message}, {status: 500})
+  if (e1) {
+    console.error("[brand-graph/neighbors] brand_similar lookup failed:", e1)
+    return NextResponse.json({error: "internal error"}, {status: 500})
+  }
   if (!edges || edges.length === 0) {
     return NextResponse.json({neighbors: []})
   }
@@ -55,7 +43,10 @@ export async function GET(request: NextRequest) {
     .from("brand_nodes")
     .select("id, brand_name, sensitivity_tags, brand_keywords, style_node, attributes")
     .in("id", ids)
-  if (e2) return NextResponse.json({error: e2.message}, {status: 500})
+  if (e2) {
+    console.error("[brand-graph/neighbors] brand_nodes join failed:", e2)
+    return NextResponse.json({error: "internal error"}, {status: 500})
+  }
 
   // SKU count
   const brandNames = (brands ?? []).map((b) => b.brand_name)

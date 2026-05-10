@@ -1,5 +1,6 @@
 import {NextRequest, NextResponse} from "next/server"
 import {requireApprovedAdmin} from "@/lib/admin-auth"
+import {clusterFromSensitivity} from "@/lib/brand-cluster"
 import {supabase} from "@/lib/supabase"
 
 export const revalidate = 30
@@ -51,22 +52,6 @@ interface BrandDetail {
   }>
 }
 
-function clusterFromSensitivity(tags: string[] | null): string {
-  if (!tags || tags.length === 0) return "unknown"
-  const first = tags[0]
-  if (first.startsWith("minimalist") || first.includes("미니멀")) return "minimalist"
-  if (first.startsWith("contemporary") || first.includes("컨템포러리")) return "contemporary"
-  if (first.startsWith("classic")) return "classic"
-  if (first.startsWith("vintage")) return "vintage"
-  if (first.startsWith("chic")) return "chic"
-  if (first.startsWith("casual")) return "casual"
-  if (first.startsWith("luxury") || first.includes("럭셔리") || first.includes("하이엔드")) return "luxury"
-  if (first.startsWith("avantgarde")) return "avantgarde"
-  if (first.startsWith("feminine")) return "feminine"
-  if (first.startsWith("streetwear")) return "streetwear"
-  return "other"
-}
-
 function median(nums: number[]): number | null {
   if (nums.length === 0) return null
   const sorted = [...nums].sort((a, b) => a - b)
@@ -81,14 +66,15 @@ export async function GET(request: NextRequest) {
   const id = request.nextUrl.searchParams.get("id")
   if (!id) return NextResponse.json({error: "missing id"}, {status: 400})
 
-  // 1. brand_nodes — 기본 정보
+  // 1. brand_nodes — 기본 정보 (embedding 벡터 / UMAP 좌표 등 패널에서 안 쓰는 컬럼 제외)
   const {data: brand, error: bErr} = await supabase
     .from("brand_nodes")
-    .select("*")
+    .select("id, brand_name, sensitivity_tags, brand_keywords, attributes, style_node, gender_scope, price_band, category_type, source_platforms, aliases")
     .eq("id", id)
     .single()
   if (bErr || !brand) {
-    return NextResponse.json({error: bErr?.message ?? "not found"}, {status: 404})
+    if (bErr) console.error("[brand-graph/detail] brand_nodes lookup failed:", bErr)
+    return NextResponse.json({error: "not found"}, {status: 404})
   }
 
   // 2. products — sample + 가격/카테고리/성별 집계용

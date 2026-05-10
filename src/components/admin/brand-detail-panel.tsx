@@ -93,8 +93,10 @@ export function BrandDetailPanel({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!brandId) return
+    let cancelled = false
     setLoading(true)
     setError(null)
     setDetail(null)
@@ -104,14 +106,20 @@ export function BrandDetailPanel({
         return r.json()
       })
       .then((d: BrandDetail) => {
+        if (cancelled) return
         setDetail(d)
         setLoading(false)
       })
       .catch((e) => {
+        if (cancelled) return
         setError(String(e))
         setLoading(false)
       })
+    return () => {
+      cancelled = true
+    }
   }, [brandId])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const isOpen = brandId !== null
 
