@@ -124,26 +124,25 @@ export function printCounts(counts: SeedCounts, log: (line: string) => void = co
 }
 
 async function main(): Promise<void> {
-  const supabaseUrl =
-    process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const dbUrl = process.env.DB_URL
+  const dbToken = process.env.DB_TOKEN
 
-  if (!supabaseUrl) {
+  if (!dbUrl) {
     console.error(
-      "FATAL: missing env NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL). Re-run with `npx dotenv -e .env.local -- pnpm tsx scripts/seed-eval-golden-queries.ts`."
+      "FATAL: missing env DB_URL. Re-run with `npx dotenv -e .env.local -- pnpm tsx scripts/seed-eval-golden-queries.ts`."
     )
     process.exit(1)
   }
-  if (!serviceRoleKey) {
+  if (!dbToken) {
     console.error(
-      "FATAL: missing env SUPABASE_SERVICE_ROLE_KEY. Re-run with `npx dotenv -e .env.local -- pnpm tsx scripts/seed-eval-golden-queries.ts`."
+      "FATAL: missing env DB_TOKEN. Re-run with `npx dotenv -e .env.local -- pnpm tsx scripts/seed-eval-golden-queries.ts`."
     )
     process.exit(1)
   }
 
-  console.error(`[seed] target: ${supabaseUrl}`)
+  console.error(`[seed] target: ${dbUrl}`)
 
-  const client = createClient(supabaseUrl, serviceRoleKey)
+  const client = createClient(dbUrl, dbToken)
   const counts = await seedGoldenQueries(client)
   printCounts(counts)
   process.exit(0)

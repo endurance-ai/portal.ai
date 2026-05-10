@@ -12,8 +12,8 @@
 import {createClient} from "@supabase/supabase-js"
 import {normalizeBrand} from "../src/lib/brand-normalize"
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL!
-const key = process.env.SUPABASE_SERVICE_ROLE_KEY!
+const url = process.env.DB_URL!
+const key = process.env.DB_TOKEN!
 const sb = createClient(url, key)
 
 const args = process.argv.slice(2)

@@ -7,16 +7,16 @@
 
 import {createClient} from "@supabase/supabase-js"
 
-const supabaseUrl = process.env.SUPABASE_URL
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+const dbUrl = process.env.DB_URL
+const dbToken = process.env.DB_TOKEN
 
-if (!supabaseUrl || !supabaseKey) {
-  console.error("❌ SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY 환경변수 필요")
+if (!dbUrl || !dbToken) {
+  console.error("❌ DB_URL, DB_TOKEN 환경변수 필요")
   console.error("   실행: npx dotenv -e .env.local -- npx tsx scripts/eval-search.ts --version=v1")
   process.exit(1)
 }
 
-const supabase = createClient(supabaseUrl, supabaseKey)
+const supabase = createClient(dbUrl, dbToken)
 
 const BASE_URL = process.env.EVAL_BASE_URL || "http://localhost:3400"
 
