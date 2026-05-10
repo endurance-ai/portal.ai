@@ -1,34 +1,28 @@
 # 배포 / 인프라
 
-> 메인 앱은 현재 Vercel 호스팅 (prod). EC2 self-host 파이프라인(Dockerfile + GitHub Actions)은 SPEC-INFRA-MIGRATE-001 P5로 준비 완료 — dev 환경에서 자동 배포 활성. AI 인코딩 배치는 AWS EC2 Spot 단발 spin-up→tear-down. LiteLLM 프록시는 EC2 호스팅하나 현재 OFF (메인 플로우용). 브랜드 메타 추론 배치는 LiteLLM 프록시 사용.
+> 메인 앱은 **dev-app EC2 self-host** (Dockerfile + GitHub Actions, SPEC-INFRA-MIGRATE-001 P5). 2026-05-10 Vercel pause — prod 트래픽 0. AI 인코딩 배치는 AWS EC2 Spot 단발 spin-up→tear-down. LiteLLM 프록시는 EC2 호스팅하나 현재 OFF (메인 플로우용). 브랜드 메타 추론 배치는 LiteLLM 프록시 사용.
 
 ## 외부 서비스 매트릭스
 
 | 서비스 | 용도 | 비용 모델 |
 |---|---|---|
-| **Vercel / EC2** | Next.js 16 호스팅 (App Router, Turbopack, `output: standalone`). dev 자동 배포는 EC2 + GitHub Actions. prod 는 Vercel | Hobby/Pro 플랜 + EC2 비용 |
-| **Supabase Postgres** | 전 영속 데이터 + Auth + RLS + pgvector + pgroonga | Supabase Pro |
+| **dev-app EC2** | Next.js 16 호스팅 (App Router, Turbopack, `output: standalone`). dev/prod 모두 EC2 + GitHub Actions (Vercel pause 2026-05-10) | EC2 비용 (~$50/월) |
+| **dev-app Postgres 16** (자체호스팅) | 전 영속 데이터 + RLS + pgvector + pgroonga + PostgREST nginx shim. SPEC-INFRA-MIGRATE-001 P2/P4/P6. (이전: Supabase Pro — 2026-05-10 pause) | EC2 비용에 포함 |
 | **Cloudflare R2** | 이미지 저장 (분석 원본 + IG 슬라이드) | 무료 한도 + zero egress |
 | **OpenAI** | GPT-4o-mini Vision/Text | 호출당 ~$0.003 (Vision, slide 1장) |
 | **AWS EC2 g5.xlarge Spot** | FashionSigLIP 임베딩 배치 (단발) | $950 Activate 크레딧 활용 |
 | **LiteLLM proxy (EC2, 현재 OFF)** | OpenAI 호출 라우팅·로깅·비용 통제 | EC2 인스턴스 비용 (가동 시) |
 | **Apify** (`apify/instagram-post-scraper`) | Instagram 포스트 스크래핑 (run-sync, ~5-10s) | $0.0023/post (FREE plan $5 credit = ~2,173 post 무료) |
 
-> AI 서버 없음. Python AI 서비스(FastAPI 등) 0개. 모든 LLM 호출은 Vercel 함수에서 OpenAI(또는 LiteLLM 프록시)로 직접.
+> portal/app 에는 Python AI 서비스(FastAPI 등) 0개. 모든 LLM 호출은 Next.js API Route 에서 OpenAI(또는 LiteLLM 프록시)로 직접. v5 검색 오케스트레이션은 별도 [`portal/ai`](https://github.com/endurance-ai/ai-server) 서버 (dev-ai EC2).
 
 ---
 
-## Vercel — 메인 앱 (prod)
+## ~~Vercel — 메인 앱 (prod)~~ (2026-05-10 pause)
 
-| 항목 | 값 |
-|---|---|
-| 프레임워크 | Next.js 16 App Router (Turbopack) |
-| Node | 자동 (Vercel 기본) |
-| 빌드 명령 | `pnpm build` |
-| 환경변수 | Project Settings 에서 등록 (`docs/infra/env.md`) |
-| `vercel.json` | `{"framework": "nextjs"}` 만 — 런타임 옵션 기본값 |
-| `next.config.ts` | `output: "standalone"` (EC2 Docker 빌드와 공유), 이미지 `remotePatterns` 화이트리스트 |
-| 배포 트리거 | dev push → preview / main 머지 → prod |
+> 2026-05-10 컷오버 이후 Vercel 프로젝트는 pause 상태. 모든 트래픽은 dev-app EC2 self-host 로 전환. 아래 EC2 섹션이 단일 호스팅 경로.
+>
+> 과거 Vercel 설정 (참고): `vercel.json` = `{"framework": "nextjs"}`, `next.config.ts` 의 `output: "standalone"` 은 EC2 Docker 빌드와 공유 (현재 EC2 가 단일 사용처).
 
 ---
 
@@ -77,7 +71,7 @@ dev 브랜치 PR 머지
        3. logs to /var/log/embed_products.log
        4. shutdown -h now (terminate, EBS도 같이 삭제)
                           ↓
-       Supabase bulk_update_product_embeddings RPC
+       dev-app PostgREST bulk_update_product_embeddings RPC
        → products.embedding 채워짐
 ```
 

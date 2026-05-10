@@ -1,14 +1,14 @@
 # 환경 변수
 
-> `.env.local` 에 들어가는 전체 키 + Vercel/AWS 측 자격증명. 코드 grep 기반 실측.
+> `.env.local` 에 들어가는 전체 키 + AWS 측 자격증명. 코드 grep 기반 실측. 2026-05-10 Vercel pause 이후 prod 도 dev-app EC2 의 컨테이너 환경변수가 단일 소스.
 
 ## 필수
 
 | 키 | 용도 | 노출 |
 |---|---|---|
 | `OPENAI_API_KEY` | GPT-4o-mini Vision/Text | 서버 전용 |
-| `SUPABASE_URL` | service role 접근용 URL | 서버 전용 |
-| `SUPABASE_SERVICE_ROLE_KEY` | RLS 바이패스 (DB 쓰기/관리) | 서버 전용 |
+| `SUPABASE_URL` | PostgREST 엔드포인트 (논리명 유지). 현재 dev-app 의 nginx PostgREST shim 을 가리킴 — Supabase.com 미사용 (SPEC-INFRA-MIGRATE-001 P6 이후) | 서버 전용 |
+| `SUPABASE_SERVICE_ROLE_KEY` | PostgREST service JWT — RLS 바이패스 (DB 쓰기/관리). 논리명 유지 | 서버 전용 |
 | `DATABASE_URL` | pg Pool 직접 접속 (Auth.js admin_profiles 조회용, P3) — `postgresql://user:pass@host:5432/db` 형식 | 서버 전용 |
 | `AUTH_SECRET` | Auth.js JWT 서명 비밀키 (`openssl rand -hex 32`) | 서버 전용 |
 | `NEXTAUTH_URL` | Auth.js 콜백 베이스 URL (dev: `http://localhost:3400`, prod: 도메인) | 서버 전용 |
@@ -38,7 +38,7 @@
 | 키 | 출처 |
 |---|---|
 | `NODE_ENV` | Next.js 자동 |
-| `NEXT_PUBLIC_*` | Vercel 빌드타임 인라인 |
+| `NEXT_PUBLIC_*` | Next.js 빌드타임 인라인 (이전: Vercel 빌드 — 2026-05-10 dev-app EC2 Docker 빌드로 전환) |
 
 ---
 
@@ -53,14 +53,15 @@
 배치 실행 전 사전 조건:
 1. `~/.aws/credentials` 에 `portal-ai` 프로필
 2. EC2 key pair `portal-key` (디버그 SSH용, 없으면 스크립트가 생성 제안)
-3. `.env.local` 에 `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` (user-data로 EC2에 주입됨)
+3. `.env.local` 에 `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` — 임베딩 배치는 dev-app PostgREST 가 아닌 dev-app Postgres 직접 접근(또는 RPC) 으로 변경 예정. 현재 user-data 로 EC2 에 주입
 
 ---
 
-## prod (Vercel) 차이
+## prod 환경 (dev-app EC2)
 
-- 모든 위 키는 Vercel Project Settings → Environment Variables 에 동일하게 등록
-- `NEXT_PUBLIC_*` 만 빌드타임 인라인 → Production / Preview / Development 모두 명시 필요
+- 2026-05-10 이전: Vercel Project Settings → Environment Variables 에 등록
+- 2026-05-10 이후 (현재): dev-app EC2 의 `docker compose` env 파일 (`/opt/kikoai-dev/.env.app`) + GitHub Actions secrets 가 단일 소스. Vercel pause.
+- `NEXT_PUBLIC_*` 만 빌드타임 인라인 — GHA Docker 빌드 단계에서 주입
 - LiteLLM 관련은 현재 prod에도 미설정 (OFF 상태) — v5 인프라 재설계와 함께 켤 때 같이 등록
 
 ---
@@ -69,5 +70,5 @@
 
 - 서비스 롤 키 / OpenAI 키 / `AUTH_SECRET` / `DATABASE_URL` 는 절대 클라이언트 노출 금지
 - `src/lib/supabase.ts`, `src/lib/r2.ts`, `src/lib/admin-auth.ts`, `src/lib/db.ts` 모두 `import "server-only"` 로 가드
-- `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Auth.js 전환(P3) 후 어드민 Auth 용도는 제거됨. Supabase 데이터 API 직접 호출 시 잔존 여부 확인 필요
+- `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Auth.js 전환(P3) 후 어드민 Auth 용도 제거됨. PostgREST shim 도 service role 만 사용 → 클라이언트 PostgREST 직접 호출 없음. 두 NEXT_PUBLIC 키는 사실상 미사용 (잔존 시 정리)
 - 로컬 `.env.local` 은 `.gitignore` — 절대 커밋 금지

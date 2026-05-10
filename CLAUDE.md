@@ -47,7 +47,7 @@ pnpm test:watch   # vitest watch
 | 검색 | v4 (enum 가중합) — v5 임베딩 인프라 적용 완료, 풀배치 미실행 |
 | 저장 | 자체호스트 Postgres 16 (dev-app EC2) + pgvector + pgroonga, PostgREST 게이트웨이 (nginx shim, SPEC-INFRA-MIGRATE-001 P6), Cloudflare R2 |
 | 크롤러 | **외부 리포 [`endurance-ai/crawler`](https://github.com/endurance-ai/crawler)** — Playwright (Cafe24 22) + Shopify JSON (10), 81k SKU / 697 브랜드 |
-| 배포 | Vercel (prod) + EC2 self-host (dev, Dockerfile + GitHub Actions CI/CD) + AWS EC2 g5 Spot (임베딩 배치) |
+| 배포 | dev-app EC2 self-host (Dockerfile + GitHub Actions CI/CD, SPEC-INFRA-MIGRATE-001 P5) + AWS EC2 g5 Spot (임베딩 배치). 2026-05-10 Vercel pause |
 
 ## 코딩 컨벤션
 

@@ -1,6 +1,8 @@
-# 데이터 모델 — Supabase Postgres
+# 데이터 모델 — dev-app Postgres
 
-> 모든 영속 데이터는 Supabase Postgres 단일 인스턴스. service role 키로 서버 접근, anon 키로 어드민 SSR 쿠키 인증.
+> 모든 영속 데이터는 **dev-app EC2 의 자체호스트 Postgres 16** 단일 인스턴스. PostgREST + nginx shim 으로 `/rest/v1/*` 노출. SPEC-INFRA-MIGRATE-001 P2/P4/P6 이후. (이전: Supabase Postgres — 2026-05-10 pause)
+>
+> 서버 접근은 PostgREST service JWT (`SUPABASE_SERVICE_ROLE_KEY` 논리명 유지) 또는 `pg` Pool 직접 (Auth.js 인증 경로). 어드민 SSR 쿠키는 Auth.js v5 JWT 로 전환됨 (SPEC-INFRA-MIGRATE-001 P3).
 
 ## 테이블 인벤토리
 
@@ -160,12 +162,12 @@ FROM products GROUP BY platform ORDER BY total DESC;
 
 | 파일 | 키/드라이버 | 사용처 |
 |---|---|---|
-| `src/lib/supabase.ts` | service role | API Routes — DB 쓰기/관리 작업 |
+| `src/lib/supabase.ts` | PostgREST service JWT (`@supabase/supabase-js` 클라이언트, 엔드포인트는 dev-app nginx shim) | API Routes — DB 쓰기/관리 작업 |
 | `src/lib/db.ts` | pg Pool (`DATABASE_URL`) | Auth.js Credentials Provider — `admin_profiles` 직접 조회 (P3, 2026-05-10) |
 | ~~`src/lib/supabase-server.ts`~~ | ~~anon (SSR 쿠키)~~ | **삭제됨** — Auth.js 전환 후 폐기 (SPEC-INFRA-MIGRATE-001 P3) |
 | ~~`src/lib/supabase-browser.ts`~~ | ~~anon (브라우저)~~ | **삭제됨** — 동일 이유 |
 
-자세한 패턴: `docs/PATTERNS.md` 의 "Supabase 클라이언트" 섹션.
+자세한 패턴: `docs/PATTERNS.md` 의 "DB 클라이언트" 섹션.
 
 ---
 
