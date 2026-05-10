@@ -156,15 +156,16 @@ FROM products GROUP BY platform ORDER BY total DESC;
 
 ---
 
-## 클라이언트 3종
+## DB 클라이언트
 
-| 파일 | 키 | 사용처 |
+| 파일 | 키/드라이버 | 사용처 |
 |---|---|---|
 | `src/lib/supabase.ts` | service role | API Routes — DB 쓰기/관리 작업 |
-| `src/lib/supabase-server.ts` | anon (SSR 쿠키) | RSC, middleware — 유저 인증 |
-| `src/lib/supabase-browser.ts` | anon (브라우저) | 어드민 페이지의 클라이언트 컴포넌트 |
+| `src/lib/db.ts` | pg Pool (`DATABASE_URL`) | Auth.js Credentials Provider — `admin_profiles` 직접 조회 (P3, 2026-05-10) |
+| ~~`src/lib/supabase-server.ts`~~ | ~~anon (SSR 쿠키)~~ | **삭제됨** — Auth.js 전환 후 폐기 (SPEC-INFRA-MIGRATE-001 P3) |
+| ~~`src/lib/supabase-browser.ts`~~ | ~~anon (브라우저)~~ | **삭제됨** — 동일 이유 |
 
-자세한 패턴: `docs/PATTERNS.md` 의 "Supabase 클라이언트 — 3종" 섹션.
+자세한 패턴: `docs/PATTERNS.md` 의 "Supabase 클라이언트" 섹션.
 
 ---
 

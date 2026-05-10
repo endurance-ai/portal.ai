@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Python venv (third-party JS in pip packages — e.g. torch model_dump)
+    ".venv-local/**",
+    ".venv/**",
   ]),
 ]);
 

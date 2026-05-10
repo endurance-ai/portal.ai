@@ -42,6 +42,7 @@ pnpm test:watch   # vitest watch
 |---|---|
 | 프레임워크 | Next.js 16 (App Router, Turbopack), React 19 |
 | UI | Tailwind 4, shadcn/ui, framer-motion, Pretendard |
+| 인증 | Auth.js v5 (next-auth@5 beta) Credentials Provider + bcryptjs + pg Pool (SPEC-INFRA-MIGRATE-001 P3) |
 | 이미지 분석 | OpenAI GPT-4o-mini Vision (LiteLLM 프록시 토글, 현재 OFF) |
 | 검색 | v4 (enum 가중합) — v5 임베딩 인프라 적용 완료, 풀배치 미실행 |
 | 저장 | Supabase Postgres + pgvector + pgroonga, Cloudflare R2 |

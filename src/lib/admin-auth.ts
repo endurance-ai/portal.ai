@@ -1,44 +1,35 @@
 import "server-only"
 import {cache} from "react"
 import {NextResponse} from "next/server"
-import {createSupabaseServer} from "@/lib/supabase-server"
-import {supabase as supabaseAdmin} from "@/lib/supabase"
-import type {User} from "@supabase/supabase-js"
+import {type AdminStatus, auth} from "@/auth"
 
-export type AdminStatus = "pending" | "approved" | "rejected"
+export type { AdminStatus }
+
+export type SessionUser = {
+  id: string
+  email: string
+  status: AdminStatus
+}
 
 export type AdminStatusResult =
   | { user: null; status: null }
-  | { user: User; status: AdminStatus | null }
+  | { user: SessionUser; status: AdminStatus }
 
 /**
- * Fetch the current admin's status from admin_profiles.
- * Returns status = null if the user row is missing (treat as not approved).
- * Memoized per-request via React.cache so layout + API routes share a single DB hit.
+ * Auth.js JWT 세션에서 admin user + status 를 반환.
+ * 세션이 없으면 user=null. React.cache 로 요청당 1회 평가.
  */
 export const getAdminStatus = cache(async (): Promise<AdminStatusResult> => {
-  const authClient = await createSupabaseServer()
-  const { data: { user } } = await authClient.auth.getUser()
-
-  if (!user) return { user: null, status: null }
-
-  const { data } = await supabaseAdmin
-    .from("admin_profiles")
-    .select("status")
-    .eq("user_id", user.id)
-    .maybeSingle()
-
-  return { user, status: (data?.status as AdminStatus) ?? null }
+  const session = await auth()
+  const user = session?.user
+  if (!user?.id || !user.email || !user.status) return { user: null, status: null }
+  return {
+    user: { id: user.id, email: user.email, status: user.status },
+    status: user.status,
+  }
 })
 
-/**
- * API route guard: returns a NextResponse error when not approved, or { user } when OK.
- * Usage:
- *   const gate = await requireApprovedAdmin()
- *   if (gate instanceof NextResponse) return gate
- *   const { user } = gate
- */
-export async function requireApprovedAdmin(): Promise<NextResponse | { user: User }> {
+export async function requireApprovedAdmin(): Promise<NextResponse | { user: SessionUser }> {
   const { user, status } = await getAdminStatus()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   if (status !== "approved") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
