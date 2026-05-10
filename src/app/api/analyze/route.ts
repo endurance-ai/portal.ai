@@ -13,10 +13,15 @@ const useLiteLLM =
   !!process.env.LITELLM_BASE_URL &&
   process.env.LITELLM_DISABLED !== "true"
 
+// Docker 빌드 시 env 없으면 OpenAI SDK 가 module-load throw → page data
+// collection 실패. 빌드 phase 엔 placeholder, 런타임엔 실제 env 검증.
+const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build"
+const resolvedApiKey = useLiteLLM
+  ? process.env.LITELLM_API_KEY || process.env.OPENAI_API_KEY
+  : process.env.OPENAI_API_KEY
+
 const openai = new OpenAI({
-  apiKey: useLiteLLM
-    ? process.env.LITELLM_API_KEY || process.env.OPENAI_API_KEY
-    : process.env.OPENAI_API_KEY,
+  apiKey: resolvedApiKey ?? (isBuildPhase ? "build-time-placeholder" : undefined),
   baseURL: useLiteLLM ? `${process.env.LITELLM_BASE_URL}/v1` : undefined,
   timeout: 90_000, // 90초 (Vision 호출이 느릴 수 있음)
   maxRetries: 2,
