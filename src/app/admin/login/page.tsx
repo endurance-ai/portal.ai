@@ -1,12 +1,11 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import Link from "next/link"
-import { createSupabaseBrowser } from "@/lib/supabase-browser"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import {useState} from "react"
+import {useRouter} from "next/navigation"
+import {signIn} from "next-auth/react"
+import {Button} from "@/components/ui/button"
+import {Input} from "@/components/ui/input"
+import {Label} from "@/components/ui/label"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -14,17 +13,28 @@ export default function LoginPage() {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const router = useRouter()
-  const supabase = createSupabaseBrowser()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
     setLoading(true)
 
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
+    const res = await signIn("credentials", {
+      email,
+      password,
+      redirect: false,
+    })
 
-    if (authError) {
-      setError(authError.message)
+    if (!res) {
+      setError("로그인 요청에 실패했습니다. 잠시 후 다시 시도해주세요.")
+      setLoading(false)
+      return
+    }
+    if (res.error) {
+      const msg = res.error === "CredentialsSignin"
+        ? "이메일 또는 비밀번호가 올바르지 않거나 승인되지 않은 계정입니다."
+        : "로그인 중 오류가 발생했습니다."
+      setError(msg)
       setLoading(false)
       return
     }
@@ -57,9 +67,8 @@ export default function LoginPage() {
             {loading ? "로그인 중..." : "로그인"}
           </Button>
         </form>
-        <p className="text-center text-sm text-muted-foreground">
-          계정이 없으신가요?{" "}
-          <Link href="/admin/signup" className="text-foreground underline underline-offset-4 hover:text-primary">회원가입</Link>
+        <p className="text-center text-xs text-muted-foreground">
+          계정 발급은 운영자에게 문의하세요.
         </p>
       </div>
     </div>

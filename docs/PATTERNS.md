@@ -160,27 +160,26 @@ const parsed = JSON.parse(cleaned)
 
 ---
 
-## Supabase 클라이언트 — 3종
+## DB / 인증 클라이언트 — 2종 (SPEC-INFRA-MIGRATE-001 P3+P6 이후)
 
 | 파일 | 용도 | 사용처 |
 |---|---|---|
-| `src/lib/supabase.ts` | service role (RLS 바이패스) | API Routes — DB 쓰기/관리 작업 |
-| `src/lib/supabase-server.ts` | SSR 쿠키 클라이언트 (anon key) | RSC, middleware — 유저 인증 |
-| `src/lib/supabase-browser.ts` | 브라우저 클라이언트 (anon key) | 어드민 페이지의 클라이언트 컴포넌트 |
+| `src/lib/supabase.ts` | PostgREST 게이트웨이 호출 (서비스 키 JWT) | API Routes — DB 쓰기/조회/RPC. URL 은 자체 호스트 nginx → PostgREST |
+| `src/lib/db.ts` | pg Pool — Postgres 직접 접속 | Auth.js authorize() 에서 admin_profiles lookup (password_hash 노출 방지) |
 
 ```ts
-// service role — 서버 전용
+// PostgREST 경유 (대부분의 데이터 접근)
 import {supabase} from "@/lib/supabase"
 const {data} = await supabase.from("analyses").insert({...})
 
-// SSR (쿠키) — 유저가 누군지 알아야 할 때
-import {createSupabaseServer} from "@/lib/supabase-server"
-const authClient = await createSupabaseServer()
-const {data: {user}} = await authClient.auth.getUser()
+// Auth.js 세션 — 유저가 누군지 알아야 할 때 (RSC, API route, middleware)
+import {auth} from "@/auth"
+const session = await auth()
+// session?.user?.id, session?.user?.email, session?.user?.status
 ```
 
-- 서비스 롤 키는 절대 클라이언트 노출 금지. 두 파일 모두 `import "server-only"` 로 가드
-- middleware 가 어떤 테이블을 읽는다면 그 테이블엔 RLS + own-row SELECT 정책이 반드시 있어야 함 (없으면 무한 리다이렉트). 회고: 메모리 `feedback_supabase_middleware_rls.md`
+- 서비스 롤 JWT 와 DATABASE_URL 비밀번호는 절대 클라이언트 노출 금지. 두 파일 모두 `import "server-only"` 로 가드
+- 옛 `@supabase/ssr` 의 cookie 기반 Auth 는 폐기 (P3 마이그). 인증 모델은 Auth.js v5 JWT 세션
 
 ---
 
@@ -195,21 +194,15 @@ admin layout (RSC) → requireApprovedAdmin() 재확인
 ```
 
 ```ts
-// src/lib/admin-auth.ts
+// src/lib/admin-auth.ts (P3 이후)
 import {cache} from "react"
+import {auth} from "@/auth"
 
 export const getAdminStatus = cache(async () => {
-  const authClient = await createSupabaseServer()
-  const {data: {user}} = await authClient.auth.getUser()
-  if (!user) return {user: null, status: null}
-
-  const {data} = await supabaseAdmin
-    .from("admin_profiles")
-    .select("status")
-    .eq("user_id", user.id)
-    .maybeSingle()
-
-  return {user, status: data?.status ?? null}
+  const session = await auth()
+  const user = session?.user
+  if (!user?.id || !user.email || !user.status) return {user: null, status: null}
+  return {user: {id: user.id, email: user.email, status: user.status}, status: user.status}
 })
 
 export async function requireApprovedAdmin() {

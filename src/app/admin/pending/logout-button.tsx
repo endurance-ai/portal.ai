@@ -1,21 +1,16 @@
 "use client"
 
 import {useState} from "react"
-import {useRouter} from "next/navigation"
-import {createSupabaseBrowser} from "@/lib/supabase-browser"
+import {signOut} from "next-auth/react"
 import {Button} from "@/components/ui/button"
 
 export function LogoutButton() {
   const [loading, setLoading] = useState(false)
-  const router = useRouter()
-  const supabase = createSupabaseBrowser()
 
   const handleLogout = async () => {
     setLoading(true)
     try {
-      await supabase.auth.signOut()
-      router.push("/admin/login")
-      router.refresh()
+      await signOut({ callbackUrl: "/admin/login" })
     } finally {
       setLoading(false)
     }

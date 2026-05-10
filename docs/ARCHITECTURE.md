@@ -107,7 +107,8 @@ graph TB
 | 서비스 | 용도 | 상세 |
 |---|---|---|
 | Vercel / EC2 | Next.js 16 호스팅 (output: standalone. 현재 Vercel, EC2 CI/CD 파이프라인 준비됨) | [infra/deployment.md](infra/deployment.md) |
-| Supabase Postgres | 영속 데이터 + Auth + RLS + pgvector + pgroonga | [infra/data-model.md](infra/data-model.md) |
+| Supabase Postgres | 영속 데이터 + RLS + pgvector + pgroonga (Auth는 Auth.js v5로 전환 완료) | [infra/data-model.md](infra/data-model.md) |
+| **PostgREST + nginx shim** | dev-app EC2 자체 호스팅 — Supabase.com REST 대신 로컬 PostgREST 라우팅 (SPEC-INFRA-MIGRATE-001 P6) | aws-infra 리포 |
 | Cloudflare R2 | 이미지 저장 (단일 버킷, prefix 분리) | [infra/deployment.md](infra/deployment.md#cloudflare-r2--이미지-저장) |
 | **Apify** (`instagram-post-scraper`) | Instagram 포스트 단발 스크래핑 — `run-sync-get-dataset-items`, ~5-10s, $0.0023/post | [features/main-flow.md](features/main-flow.md#step-1--instagram-포스트-스크래핑) |
 | OpenAI | GPT-4o-mini Vision (단일 슬라이드 분석) + 브랜드 메타 추론 (`fill_brand_meta.py` via LiteLLM) | [features/main-flow.md](features/main-flow.md#step-2--슬라이드별-vision-분석) |
@@ -139,9 +140,9 @@ graph TB
 
 ## 어드민 (`/admin`)
 
-3중 가드:
+3중 가드 (SPEC-INFRA-MIGRATE-001 P3, 2026-05-10 — Auth.js v5 전환):
 
-1. `src/proxy.ts` — Supabase SSR 쿠키로 user 확인 → `admin_profiles.status = 'approved'` 가 아니면 `/admin/pending` 리다이렉트 (Next.js 16.2+ proxy file convention, 구 middleware)
+1. `src/middleware.ts` — Auth.js `authorized` 콜백 → JWT 유효 + `admin_profiles.status = 'approved'` 아니면 `/admin/pending` 리다이렉트
 2. `src/app/admin/layout.tsx` — RSC에서 `requireApprovedAdmin()` 재확인
 3. `/api/admin/*` 라우트 핸들러 — 동일 헬퍼로 한번 더 검증
 
@@ -149,16 +150,23 @@ graph TB
 
 Eval 모듈 (v6-EVAL): 30 쿼리 골든셋 + NDCG@10/Precision@5 + v4 baseline 박제. 상세: `docs/features/search-engine.md` 의 "Evaluation Infrastructure" 섹션.
 
+인증 모델 (P3 — Auth.js v5 Credentials Provider):
+- 로그인: `signIn("credentials", {email, password})` → bcryptjs hash 검증 → JWT 발급
+- 인증 경로: `/api/auth/[...nextauth]` (NextAuth handler)
+- DB 직접 접근: `src/lib/db.ts` (pg Pool) → `admin_profiles.password_hash` 조회 (Supabase service role 대신 pg 직접)
+- 세션: JWT 쿠키 기반 (구 Supabase SSR 쿠키 → Auth.js JWT)
+
 승인 흐름:
-- `/admin/signup` → `admin_profiles` row 자동 생성 (`status=pending`)
+- `/admin/signup` — 셀프 가입 비활성화됨 (redirect). 계정은 관리자가 DB 직접 생성
 - 관리자가 DB에서 수동 `'approved'` 전환
 - 다음 로그인부터 통과
 
-⚠️ `admin_profiles` 는 RLS + own-row SELECT 정책 필수 — 없으면 proxy가 null 받아서 무한 리다이렉트. 회고는 메모리 `feedback_supabase_middleware_rls.md`.
+⚠️ `admin_profiles` 는 own-row SELECT 정책 필수 (RLS 미설정 시 middleware가 null 받아서 무한 리다이렉트). 회고는 메모리 `feedback_supabase_middleware_rls.md`.
 
 핵심 파일:
-- `src/proxy.ts`, `src/lib/admin-auth.ts`, `src/lib/supabase-server.ts`
-- `src/app/admin/layout.tsx`, `src/app/admin/pending/page.tsx`, `src/app/admin/login/page.tsx`
+- `src/auth.ts` (NextAuth 설정), `src/middleware.ts`, `src/lib/admin-auth.ts`, `src/lib/db.ts`
+- `src/app/api/auth/[...nextauth]/route.ts`, `src/app/admin/login/page.tsx`
+- `src/app/admin/layout.tsx`, `src/app/admin/pending/page.tsx`
 
 브랜드 그래프 관련 신규 (2026-05-10):
 - `src/app/admin/brand-graph/page.tsx` — UMAP 맵(2,100 dot) + Constellation + 사이드 패널
@@ -231,6 +239,8 @@ SPEC: SPEC-V6-EVAL, SPEC-V6-EVAL-V2
 
 | 날짜 | 사건 |
 |---|---|
+| 2026-05-10 | **Auth.js v5 마이그 (SPEC-INFRA-MIGRATE-001 P3)** — Supabase Auth 제거 → Auth.js Credentials Provider + bcryptjs + pg Pool. 신규: `src/auth.ts`, `src/lib/db.ts`, `src/middleware.ts`, `/api/auth/[...nextauth]`. 삭제: `src/proxy.ts`, `src/lib/supabase-browser.ts`, `src/lib/supabase-server.ts`, `@supabase/ssr` |
+| 2026-05-10 | **PostgREST 자체 호스팅 (SPEC-INFRA-MIGRATE-001 P6)** — dev-app EC2 내부에 PostgREST + nginx shim 구성. Supabase.com REST 엔드포인트 대체 (aws-infra 리포 반영됨) |
 | 2026-05-10 | **브랜드 유사도 그래프** — 마이그레이션 037~043 (brand_similar/embedding/proposals/aliases/UMAP/SKU 카운트) + 어드민 2 페이지 + 5 API 라우트 + 배치 스크립트 3종. EC2 self-host CI/CD (Dockerfile + deploy-dev.yml, SPEC-INFRA-MIGRATE-001 P5) |
 | 2026-05-05 | **크롤러 외부 리포 분리** — `scripts/crawl.ts` + 32 플랫폼 파서 → [`endurance-ai/crawler`](https://github.com/endurance-ai/crawler). DB 가 양 리포의 계약. portal.ai package.json 에서 `playwright` 제거 |
 | 2026-05-04 | **검색 v6 평가 인프라 (SPEC-V6-EVAL)** — eval_golden_queries / eval_judgments / eval_runs 3 테이블 + NDCG@10/Precision@5 lib + 6 API 라우트 + admin/eval 5탭 UI |

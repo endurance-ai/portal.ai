@@ -1,20 +1,15 @@
 "use client"
 
-import { useRouter } from "next/navigation"
-import { Moon, Sun, LogOut } from "lucide-react"
-import { useTheme } from "next-themes"
-import { Button } from "@/components/ui/button"
-import { createSupabaseBrowser } from "@/lib/supabase-browser"
+import {LogOut, Moon, Sun} from "lucide-react"
+import {useTheme} from "next-themes"
+import {signOut} from "next-auth/react"
+import {Button} from "@/components/ui/button"
 
 export function Header({ email }: { email?: string }) {
-  const router = useRouter()
   const { theme, setTheme } = useTheme()
-  const supabase = createSupabaseBrowser()
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push("/admin/login")
-    router.refresh()
+    await signOut({ callbackUrl: "/admin/login" })
   }
 
   return (
