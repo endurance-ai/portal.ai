@@ -1,6 +1,8 @@
 import type {NextConfig} from "next"
 
 const nextConfig: NextConfig = {
+  // SPEC-INFRA-MIGRATE-001 / P5: Vercel → EC2 self-host. standalone build.
+  output: "standalone",
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "*.googleusercontent.com" },
