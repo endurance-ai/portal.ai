@@ -45,7 +45,7 @@ pnpm test:watch   # vitest watch
 | 인증 | Auth.js v5 (next-auth@5 beta) Credentials Provider + bcryptjs + pg Pool (SPEC-INFRA-MIGRATE-001 P3) |
 | 이미지 분석 | OpenAI GPT-4o-mini Vision (LiteLLM 프록시 토글, 현재 OFF) |
 | 검색 | v4 (enum 가중합) — v5 임베딩 인프라 적용 완료, 풀배치 미실행 |
-| 저장 | Supabase Postgres + pgvector + pgroonga, Cloudflare R2 |
+| 저장 | 자체호스트 Postgres 16 (dev-app EC2) + pgvector + pgroonga, PostgREST 게이트웨이 (nginx shim, SPEC-INFRA-MIGRATE-001 P6), Cloudflare R2 |
 | 크롤러 | **외부 리포 [`endurance-ai/crawler`](https://github.com/endurance-ai/crawler)** — Playwright (Cafe24 22) + Shopify JSON (10), 81k SKU / 697 브랜드 |
 | 배포 | Vercel (prod) + EC2 self-host (dev, Dockerfile + GitHub Actions CI/CD) + AWS EC2 g5 Spot (임베딩 배치) |
 
@@ -55,7 +55,7 @@ pnpm test:watch   # vitest watch
 - 경로 별칭: `@/*` → `src/*`
 - shadcn/ui: `pnpm dlx shadcn@latest add <component>`
 - 서버/클라이언트: RSC 기본, 인터랙션 시만 `"use client"`
-- 서버 모듈: `import "server-only"` 로 누출 가드 (R2, Supabase service-role, admin-auth)
+- 서버 모듈: `import "server-only"` 로 누출 가드 (R2, PostgREST service JWT, pg Pool, Auth.js)
 - UI 텍스트: 메인 영어, 어드민 한글 (영어 고유명사 유지)
 - 코드 스타일: 무필요 주석/추상화 금지. 기능 추가 외 정리는 별도 PR
 
@@ -72,7 +72,7 @@ pnpm test:watch   # vitest watch
 | DB 스키마 / 마이그레이션 / RLS | `docs/infra/data-model.md` |
 | 환경변수 / AWS 프로필 | `docs/infra/env.md` |
 | 배포 / EC2 Spot / Git 워크플로 | `docs/infra/deployment.md` |
-| 새 API route / Supabase 클라이언트 / 프론트 패턴 | `docs/PATTERNS.md` |
+| 새 API route / DB·인증 클라이언트 / 프론트 패턴 | `docs/PATTERNS.md` |
 | 디자인 시스템 (Editorial, cream/ink, Pretendard) | `docs/design/system.md` |
 | 활성 plan (실행 대기) | `docs/plans/` |
 | 경쟁사·차별화 리서치 | `docs/research/` |
