@@ -1,19 +1,19 @@
 # 검색엔진 v6 — 핸드오프
 
 **작성일:** 2026-04-28
-**작성 세션:** portal/ai 쪽에서 시작 → 작업 비중 확인 후 portal/app으로 이관
+**작성 세션:** kikoai/ai 쪽에서 시작 → 작업 비중 확인 후 kikoai/app으로 이관
 **현재 상태:** **분석 완료, 의사결정 4건 미해결, 코드 변경 0**
 
 ---
 
 ## 0. 이 문서의 목적
 
-검색엔진 v5의 **구조적 결함**을 코드 ground truth로 확인했고, v6 방향성을 잡는 중. 작업 비중상 portal/ai보다 portal/app이 메인 무대라 세션을 이관함. 이 문서는 새 세션이 **cold start로 컨텍스트를 따라잡을 수 있게** 정리한 것.
+검색엔진 v5의 **구조적 결함**을 코드 ground truth로 확인했고, v6 방향성을 잡는 중. 작업 비중상 kikoai/ai보다 kikoai/app이 메인 무대라 세션을 이관함. 이 문서는 새 세션이 **cold start로 컨텍스트를 따라잡을 수 있게** 정리한 것.
 
 다음 세션에서 할 일:
 1. 아래 [결정 지점](#5-미해결-결정-지점) 4건을 사용자와 함께 결정
-2. 결정에 따라 portal/app 측 변경 (Vision 프롬프트 / DB 마이그레이션 / 백필 스크립트 / 페이로드 확장)
-3. portal/ai 측 contract 업데이트 (Pydantic 모델 + RPC 파라미터 매핑)
+2. 결정에 따라 kikoai/app 측 변경 (Vision 프롬프트 / DB 마이그레이션 / 백필 스크립트 / 페이로드 확장)
+3. kikoai/ai 측 contract 업데이트 (Pydantic 모델 + RPC 파라미터 매핑)
 
 ---
 
@@ -29,7 +29,7 @@ t
 
 ## 2. 코드 ground truth — 현재 흐름
 
-### 2-1. Vision 출력 (`portal/app/src/lib/prompts/analyze.ts:11-146`)
+### 2-1. Vision 출력 (`kikoai/app/src/lib/prompts/analyze.ts:11-146`)
 
 이미 매우 풍부한 스키마. 한 아이템당 12개 필드 + 이미지 레벨 6개 객체.
 
@@ -49,7 +49,7 @@ palette[{hex, label}], style {fit, aesthetic, detectedGender}
 
 모델은 **GPT-4o-mini** (`run-vision.ts:96`).
 
-### 2-2. portal/app → portal/ai 전송 (`src/app/api/find/search/route.ts:142-148`)
+### 2-2. kikoai/app → kikoai/ai 전송 (`src/app/api/find/search/route.ts:142-148`)
 
 ```typescript
 const commonAI = {
@@ -68,7 +68,7 @@ const commonAI = {
 - `mood.summary / vibe / season / occasion`
 - `styleNode.confidence / reasoning`
 
-### 2-3. portal/ai 진입 — Pydantic 필터링 (`portal/ai/app/models/request.py:13-26`)
+### 2-3. kikoai/ai 진입 — Pydantic 필터링 (`kikoai/ai/app/models/request.py:13-26`)
 
 ```python
 class AnalyzedItem(BaseModel):
@@ -85,7 +85,7 @@ class AnalyzedItem(BaseModel):
 
 **이 시점에 또 버려지는 것**: `detail`, `color`, `colorHex`, `position`. 그리고 `RecommendRequest`는 `style_node, mood_tags`를 받지만 (§2-4 참조) **search_step에서 사용 안 함**.
 
-### 2-4. RPC 파라미터 (`portal/ai/app/pipeline/search.py:24-39`)
+### 2-4. RPC 파라미터 (`kikoai/ai/app/pipeline/search.py:24-39`)
 
 ```python
 params = {
@@ -102,7 +102,7 @@ params = {
 
 `fit, fabric, color_family, name, category, styleNode, moodTags` **전부 RPC에 미전달.**
 
-### 2-5. SQL — `search_products_v5` (`portal/app/supabase/migrations/030_search_products_v5.sql` + `031_embeddings_halfvec.sql`)
+### 2-5. SQL — `search_products_v5` (`kikoai/app/supabase/migrations/030_search_products_v5.sql` + `031_embeddings_halfvec.sql`)
 
 - `FROM products p` — **`product_ai_analysis` 미참조** (§3-3 참조)
 - dense path: `p.embedding <=> query_embedding` (HNSW halfvec_cosine_ops)
@@ -114,11 +114,11 @@ params = {
 
 ## 3. v5의 구조적 결함 3가지
 
-### 결함 ①: portal/app→portal/ai 경계에서 손실
+### 결함 ①: kikoai/app→kikoai/ai 경계에서 손실
 
-§2-2, §2-3 — Vision의 풍부한 출력이 두 번 깎임. `detail, color, colorHex, palette, sensitivityTags, mood 객체, styleNode 메타`가 portal/ai에 도달조차 못 함.
+§2-2, §2-3 — Vision의 풍부한 출력이 두 번 깎임. `detail, color, colorHex, palette, sensitivityTags, mood 객체, styleNode 메타`가 kikoai/ai에 도달조차 못 함.
 
-### 결함 ②: portal/ai 내부에서 받기만 하고 활용 안 함
+### 결함 ②: kikoai/ai 내부에서 받기만 하고 활용 안 함
 
 `RecommendRequest`는 `styleNode, moodTags, priceFilter`까지 받지만 (`request.py:42-45`), `search.py`의 RPC 호출에는 `priceFilter`만 흐름. `styleNode/moodTags`는 **수신 후 버려짐**.
 
@@ -234,11 +234,11 @@ final_score(product) =
 - (a) RRF rank로 top-K 후보 뽑은 후 그 안에서만 boost로 rerank — 깔끔
 - (b) RRF score에 boost 더하기 — 간단하지만 RRF 0.016 ~ boost 0.3 스케일 차이로 boost가 dominate
 - (c) RRF rank → boost → 다시 정렬 (rank만 사용, score 무시) — 안정적
-- **추천: (a) two-stage.** SQL에서 top-200 추출 → portal/ai에서 rerank.
+- **추천: (a) two-stage.** SQL에서 top-200 추출 → kikoai/ai에서 rerank.
 
 ---
 
-## 6. portal/app 측 작업 목록 (axis 의사결정 후)
+## 6. kikoai/app 측 작업 목록 (axis 의사결정 후)
 
 ### 6-1. Vision 프롬프트 확장 (★ axis 추가 시)
 
@@ -290,19 +290,19 @@ final_score(product) =
 - 새 version (`v2` 등)으로 `product_ai_analysis`에 insert
 - 비용 추정: 81k × ~$0.0001 ≈ $8 (4o-mini 기준)
 
-### 6-5. portal/app→portal/ai 페이로드 확장
+### 6-5. kikoai/app→kikoai/ai 페이로드 확장
 
 - **파일:** `src/app/api/find/search/route.ts:142-148`
 - `commonAI`에 `item` 통째로 + 이미지 레벨 axis (sensitivityTags, palette 등) 추가
-- portal/ai 측 Pydantic이 받도록 §7 참조
+- kikoai/ai 측 Pydantic이 받도록 §7 참조
 
 ---
 
-## 7. portal/ai 측 contract 변경 (portal/app 작업 후)
+## 7. kikoai/ai 측 contract 변경 (kikoai/app 작업 후)
 
 ### 7-1. Pydantic 모델 확장
 
-- **파일:** `portal/ai/app/models/request.py:13-26`
+- **파일:** `kikoai/ai/app/models/request.py:13-26`
 - `AnalyzedItem`에 누락 필드 추가:
   ```python
   detail: str | None = None
@@ -320,7 +320,7 @@ final_score(product) =
 
 ### 7-2. RPC 파라미터 매핑
 
-- **파일:** `portal/ai/app/pipeline/search.py:24-39`
+- **파일:** `kikoai/ai/app/pipeline/search.py:24-39`
 - `search_products_v6` 함수명으로 변경
 - 모든 axis를 `target_*` 파라미터로 전달
 - DIAG 비활성화된 `gender_filter`, `subcategory_filter` 활성화 (DB 정합성 검증 후)
@@ -328,9 +328,9 @@ final_score(product) =
 ### 7-3. (선택) Two-stage rerank
 
 - §5-4에서 (a) 결정 시:
-- **새 파일:** `portal/ai/app/pipeline/rerank.py`
+- **새 파일:** `kikoai/ai/app/pipeline/rerank.py`
 - RPC가 top-200 dense+sparse RRF만 반환하게 단순화
-- portal/ai에서 axis boost 가중합으로 top-15 재정렬
+- kikoai/ai에서 axis boost 가중합으로 top-15 재정렬
 - 가중치는 `settings.RERANK_WEIGHTS` (yaml/env)로 운용
 
 ---
@@ -357,23 +357,23 @@ final_score(product) =
 
 ## 9. 참고 — 검색 파이프라인 26단계 (사용자 정리)
 
-이전 세션에서 사용자가 직접 정리한 v5 파이프라인 흐름. **portal/ai 세션 transcript 참고** (필요 시 user에게 요청).
+이전 세션에서 사용자가 직접 정리한 v5 파이프라인 흐름. **kikoai/ai 세션 transcript 참고** (필요 시 user에게 요청).
 
 요약:
-1. portal/app `/api/find/search` 진입
-2. portal/ai `/recommend` 호출 (8s timeout)
+1. kikoai/app `/api/find/search` 진입
+2. kikoai/ai `/recommend` 호출 (8s timeout)
 3. embed_step (Modal `/embed`, FashionSigLIP 768d L2-normalized)
 4. search_step (Supabase `search_products_v5` RPC, RRF=60)
 5. diversify_step (brand_cap=2/6, platform_cap=3, target=10+tolerance×10)
-6. RecommendResponse 직렬화 → portal/app → 클라이언트
+6. RecommendResponse 직렬화 → kikoai/app → 클라이언트
 
 ---
 
 ## 10. 다음 세션 개시 명령
 
 ```
-# portal/app 디렉토리에서
-cd /Users/hansangho/Desktop/portal/app
+# kikoai/app 디렉토리에서
+cd /Users/hansangho/Desktop/kikoai/app
 # 이 문서를 컨텍스트로 새 세션 시작
 cat HANDOFF.md
 ```
@@ -390,16 +390,16 @@ cat HANDOFF.md
 
 | 영역 | 파일 |
 |---|---|
-| Vision 프롬프트 | `portal/app/src/lib/prompts/analyze.ts` |
-| Vision 호출 | `portal/app/src/lib/analyze/run-vision.ts` |
-| 포털 라우트 | `portal/app/src/app/api/find/search/route.ts` |
-| DB products | `portal/app/supabase/migrations/004,005,006,008,011,017,027,031.sql` |
-| DB AI analysis | `portal/app/supabase/migrations/012,017.sql` |
-| RPC v5 | `portal/app/supabase/migrations/030,031.sql` |
-| portal/ai 진입 | `portal/ai/app/api/recommend.py`, `portal/ai/app/models/request.py` |
-| portal/ai 검색 | `portal/ai/app/pipeline/search.py` |
-| Embed | `portal/ai/app/pipeline/embed.py`, `embed_app.py` (Modal) |
+| Vision 프롬프트 | `kikoai/app/src/lib/prompts/analyze.ts` |
+| Vision 호출 | `kikoai/app/src/lib/analyze/run-vision.ts` |
+| 포털 라우트 | `kikoai/app/src/app/api/find/search/route.ts` |
+| DB products | `kikoai/app/supabase/migrations/004,005,006,008,011,017,027,031.sql` |
+| DB AI analysis | `kikoai/app/supabase/migrations/012,017.sql` |
+| RPC v5 | `kikoai/app/supabase/migrations/030,031.sql` |
+| kikoai/ai 진입 | `kikoai/ai/app/api/recommend.py`, `kikoai/ai/app/models/request.py` |
+| kikoai/ai 검색 | `kikoai/ai/app/pipeline/search.py` |
+| Embed | `kikoai/ai/app/pipeline/embed.py`, `embed_app.py` (Modal) |
 
 ---
 
-**TL;DR:** Vision은 잘 뽑고 있다. 문제는 **portal/app→portal/ai 경계에서 손실 + portal/ai 내부에서 무시 + DB의 product_ai_analysis가 RPC에서 사장**. 모델·프롬프트 업그레이드 전에 **이미 있는 axis들을 검색까지 흘려보내는 것**부터. ★ axis 추가는 그 다음 단계.
+**TL;DR:** Vision은 잘 뽑고 있다. 문제는 **kikoai/app→kikoai/ai 경계에서 손실 + kikoai/ai 내부에서 무시 + DB의 product_ai_analysis가 RPC에서 사장**. 모델·프롬프트 업그레이드 전에 **이미 있는 axis들을 검색까지 흘려보내는 것**부터. ★ axis 추가는 그 다음 단계.

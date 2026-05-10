@@ -917,7 +917,7 @@ export function FeedbackFlow({ sessionId, analysisId }: FeedbackFlowProps) {
         <div className="flex items-center gap-3 px-5 py-3 bg-card border border-turquoise/30 rounded-xl">
           <span className="text-base">✦</span>
           <div>
-            <p className="text-xs font-semibold text-foreground">Thanks for shaping portal.ai</p>
+            <p className="text-xs font-semibold text-foreground">Thanks for shaping kiko.ai</p>
             <p className="text-[9px] text-muted-foreground">Your feedback makes the next result better.</p>
           </div>
         </div>
@@ -1013,7 +1013,7 @@ export function FeedbackFlow({ sessionId, analysisId }: FeedbackFlowProps) {
               {/* Motivation message */}
               <div className="px-4 py-3 bg-surface-dim rounded-lg border-l-2 border-turquoise">
                 <p className="text-[11px] text-foreground leading-relaxed">
-                  Your voice shapes portal.ai
+                  Your voice shapes kiko.ai
                 </p>
                 <p className="text-[10px] text-muted-foreground mt-0.5">
                   We&apos;re building this together — every bit of feedback helps us get better.

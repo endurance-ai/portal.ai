@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** portal.ai 유저-facing UI 전체를 에디토리얼 톤(SSENSE × Mediabus)으로 리디자인. Cream `#fafaf7` + Ink `#111` + Pretendard 단일 패밀리 + PORTAL tracked caps wordmark. 로직 변경 없음 — presentation layer only.
+**Goal:** kiko.ai 유저-facing UI 전체를 에디토리얼 톤(SSENSE × Mediabus)으로 리디자인. Cream `#fafaf7` + Ink `#111` + Pretendard 단일 패밀리 + PORTAL tracked caps wordmark. 로직 변경 없음 — presentation layer only.
 
 **Architecture:** 기존 `src/app/page.tsx`에 `useReducer` 기반 Q&A Agent 4-step 플로우가 이미 통합돼 있음. 이 플랜은 (1) 토큰 시스템 교체 (`globals.css`, `layout.tsx`), (2) Chrome (Header/Footer) 재작성, (3) Home + AnalyzingView 재작성, (4) 4개 step 컴포넌트 리스타일 (props 인터페이스 유지), (5) 신규 `/about`, `/archive` 라우트 추가 순으로 진행.
 

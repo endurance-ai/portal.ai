@@ -4,7 +4,7 @@
 
 ## Overview
 
-portal.ai의 내부 운영 도구. 팀원 2~3명이 Fashion Genome DB를 관리하고, AI 분석 품질을 측정/개선하는 eval flywheel을 운영하기 위한 어드민 대시보드.
+kiko.ai의 내부 운영 도구. 팀원 2~3명이 Fashion Genome DB를 관리하고, AI 분석 품질을 측정/개선하는 eval flywheel을 운영하기 위한 어드민 대시보드.
 
 ## Users
 
@@ -88,7 +88,7 @@ Eval flywheel의 중심.
 
 ## Design
 
-- 기존 portal.ai B&W Minimal과 동일 톤
+- 기존 kiko.ai B&W Minimal과 동일 톤
 - 다크모드 디폴트, 라이트모드 토글
 - 모바일 반응형 필수 (사이드바 → 하단 탭바)
 - Vercel 대시보드 스타일 레퍼런스

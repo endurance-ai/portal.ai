@@ -7,13 +7,13 @@
 
 ## 0. TL;DR
 
-- **Alta는 portal.ai가 고민 중인 "풀 저니 AI 패션 어시스턴트"를 이미 구현 중인 유일한 서비스**
+- **Alta는 kiko.ai가 고민 중인 "풀 저니 AI 패션 어시스턴트"를 이미 구현 중인 유일한 서비스**
 - 2025.06 $11M 시드 (Menlo Ventures 리드), NYC 기반, Jenny Wang 단독 창업 (하버드 CS, 28세)
 - 옷장 디지타이징 + 일일 아웃핏 추천 + 쇼핑 연동 + 가상 아바타 + 여행 패킹까지 전부 포함
 - **하지만 한국 시장 커버리지 제로**, 니치/에디토리얼 셀렉트숍 약함, 쇼핑은 Saks/Nordstrom 등 대형 미국 리테일 위주
-- portal.ai가 학습할 점: storytelling, multi-input closet, gap-analysis shopping
-- portal.ai가 피해야 할 것: 기능 폭주 (2인 팀에 치명적), affiliate 단일 수익 모델의 구조적 모순
-- **결론: Alta는 벤치마크이지만 한국 시장에서는 portal.ai의 경쟁 우위가 명확함**
+- kiko.ai가 학습할 점: storytelling, multi-input closet, gap-analysis shopping
+- kiko.ai가 피해야 할 것: 기능 폭주 (2인 팀에 치명적), affiliate 단일 수익 모델의 구조적 모순
+- **결론: Alta는 벤치마크이지만 한국 시장에서는 kiko.ai의 경쟁 우위가 명확함**
 
 ---
 
@@ -21,7 +21,7 @@
 
 ### 전략 피벗의 배경
 
-portal.ai는 그동안 "검색 엔진 기술 차별화"로 Daydream과 경쟁하는 방향을 논의해왔다. 그러나 2026-04-13 대화에서 다음과 같은 한계가 드러났다:
+kiko.ai는 그동안 "검색 엔진 기술 차별화"로 Daydream과 경쟁하는 방향을 논의해왔다. 그러나 2026-04-13 대화에서 다음과 같은 한계가 드러났다:
 
 1. **속성 매칭** 방식은 Daydream의 판 — 전문가 팀 + $50M으로 이길 수 없음
 2. **이미지 임베딩** 방식도 Daydream이 이미 사용 중 — 차별점 아님
@@ -88,7 +88,7 @@ Alta의 투자자 구성은 단순한 자본이 아니라 **유통/마케팅 채
 - **Amjad Masad** (Replit CEO)
 - **Zita D'Hauteville** (유럽 럭셔리 네트워크)
 
-### portal.ai에게 의미
+### kiko.ai에게 의미
 - **투자자 = 미디어 노출 기계**: TIME, Vogue, ELLE, BoF, TechCrunch, Fortune 동시 커버리지 확보
 - 2인 팀이 이 자체를 따라갈 수 없지만, **한국판 전략**은 가능:
   - 한국 패션 인플루언서/에디터를 early angel/advisor로
@@ -114,7 +114,7 @@ Avatar 생성 (얼굴 + 전신 사진)
 
 ### 4.2 Closet Digitization — 다양한 입력 경로
 
-Alta의 강점이자 portal.ai가 학습해야 할 지점:
+Alta의 강점이자 kiko.ai가 학습해야 할 지점:
 
 | 입력 방식 | 설명 |
 |----------|------|
@@ -313,11 +313,11 @@ Glossy 인용: **"The intent is high, but repeat engagement is still forming."**
 
 ---
 
-## 10. portal.ai 관점 — Alta 대비 경쟁 우위
+## 10. kiko.ai 관점 — Alta 대비 경쟁 우위
 
-### 10.1 portal.ai가 가진 것 (Alta가 없는 것)
+### 10.1 kiko.ai가 가진 것 (Alta가 없는 것)
 
-| 영역 | portal.ai | Alta |
+| 영역 | kiko.ai | Alta |
 |------|-----------|------|
 | **한국 에디토리얼 셀렉트숍** | 22개 크롤링, 45K 상품 | 0개 |
 | **한국 니치/서브컬처 브랜드** | 보헤미안서울, 나체, YEEL, openYY 등 | 없음 |
@@ -325,9 +325,9 @@ Glossy 인용: **"The intent is high, but repeat engagement is still forming."**
 | **한국어 자연어 매칭** | korean-vocab.ts 115+ 항목 | 영어 전용 |
 | **검색 품질 평가 인프라** | eval-search.ts, golden set, search debugger | 기술 black box |
 
-### 10.2 Alta가 가진 것 (portal.ai가 없는 것)
+### 10.2 Alta가 가진 것 (kiko.ai가 없는 것)
 
-| 영역 | Alta | portal.ai |
+| 영역 | Alta | kiko.ai |
 |------|------|-----------|
 | **옷장 디지타이징** | 5가지 입력 경로 | 없음 |
 | **일일 outfit 추천** | 날씨·캘린더·이벤트 연동 | 없음 |
@@ -340,16 +340,16 @@ Glossy 인용: **"The intent is high, but repeat engagement is still forming."**
 ### 10.3 Moat 분석
 
 **단기 (1년)**:
-- portal.ai: 한국 에디토리얼 셀렉트숍 크롤링 데이터 (Alta가 한국 진출해도 즉시 못 따라옴)
+- kiko.ai: 한국 에디토리얼 셀렉트숍 크롤링 데이터 (Alta가 한국 진출해도 즉시 못 따라옴)
 - Alta: 글로벌 브랜드 카탈로그 + 투자자 네트워크
 
 **중기 (2-3년)**:
-- portal.ai: 한국 니치 유저의 옷장/취향 데이터 축적 시 → 한국 시장 독점적 moat
+- kiko.ai: 한국 니치 유저의 옷장/취향 데이터 축적 시 → 한국 시장 독점적 moat
 - Alta: B2B SaaS 확장 + Anthropic 기술 통합으로 글로벌 표준화 가능
 
 **장기**:
 - 유저의 **옷장 데이터 자체가 진짜 moat** — 한번 쌓이면 경쟁사로 이전 어려움
-- 한국 시장에서 portal.ai가 이것을 먼저 쌓으면 Alta 진출해도 lock-in됨
+- 한국 시장에서 kiko.ai가 이것을 먼저 쌓으면 Alta 진출해도 lock-in됨
 
 ---
 
@@ -359,7 +359,7 @@ Glossy 인용: **"The intent is high, but repeat engagement is still forming."**
 
 1. **Storytelling의 힘**
    - "Clueless" 영화 레퍼런스 하나로 모든 미디어가 자발적 커버
-   - portal.ai도 한국 문화에 맞는 강력한 cultural hook 필요
+   - kiko.ai도 한국 문화에 맞는 강력한 cultural hook 필요
    - 후보: K-drama styling? 한국 편집샵 디깅 문화? 서브컬처 아카이빙?
 
 2. **Multi-input Closet Digitization**
@@ -384,31 +384,31 @@ Glossy 인용: **"The intent is high, but repeat engagement is still forming."**
    - Alta는 closet + outfit + shopping + trip + avatar + social 전부 동시에
    - 결과: 7일 챌린지에서 "completely unsalvageable" 날 존재
    - **2인 팀이 따라하면 100% 실패**
-   - portal.ai는 **core(이미지 기반 검색 + 크로스플랫폼)에 먼저 집중**
+   - kiko.ai는 **core(이미지 기반 검색 + 크로스플랫폼)에 먼저 집중**
 
 2. **Affiliate 단일 수익 모델의 모순**
    - 옷장 활용이 잘될수록 수익 감소
-   - portal.ai는 처음부터 **B2B data licensing + brand tool SaaS + subscription** 다각화 설계 필요
+   - kiko.ai는 처음부터 **B2B data licensing + brand tool SaaS + subscription** 다각화 설계 필요
 
 3. **"12+ Models" 과장**
    - 기술적 검증 불가한 주장은 투자 유치엔 먹히지만 제품 품질과 괴리
-   - portal.ai는 **search debugger, eval pipeline으로 품질을 투명하게 증명**하는 것이 더 적합
+   - kiko.ai는 **search debugger, eval pipeline으로 품질을 투명하게 증명**하는 것이 더 적합
 
 4. **Mass Market 진입 시도**
    - Alta는 $11M + 28명 + celebrity 네트워크로 가능
-   - portal.ai는 **한국 니치 셀렉트숍이라는 좁고 깊은 시장**이 훨씬 현실적
+   - kiko.ai는 **한국 니치 셀렉트숍이라는 좁고 깊은 시장**이 훨씬 현실적
 
 5. **Repeat Engagement 미완성 상태로 확장**
    - Alta는 retention이 미완성인데 이미 40개국 확장 중
-   - portal.ai는 **한국 니치 유저 100명의 weekly active부터 확실히 만드는 것**이 순서
+   - kiko.ai는 **한국 니치 유저 100명의 weekly active부터 확실히 만드는 것**이 순서
 
 ---
 
-## 12. 전략 제안 — portal.ai의 차별화 축
+## 12. 전략 제안 — kiko.ai의 차별화 축
 
 ### 12.1 포지셔닝
 
-| Daydream | Alta | portal.ai (목표) |
+| Daydream | Alta | kiko.ai (목표) |
 |----------|------|-----------------|
 | **Discovery** 특화 | **Closet-centric** 스타일링 | **한국 니치 취향의 풀 저니 에이전트** |
 | 10,000+ 대형 브랜드, 미국 럭셔리 중심 | 4,000 브랜드, 미국 백화점 중심 | **22개 한국 에디토리얼 셀렉트숍 + 디자이너 브랜드** |
@@ -476,13 +476,13 @@ Phase 5: B2B SaaS (Alta의 Public School 임베드 벤치마크)
 
 4. **B2B로의 조기 피벗 가능성**
    - Alta가 Public School 임베드 시작 (2026.02)
-   - portal.ai도 한국 셀렉트숍에 "style analysis as a service" 제공 검토?
+   - kiko.ai도 한국 셀렉트숍에 "style analysis as a service" 제공 검토?
 
 ---
 
 ## 14. 결론
 
-**Alta는 portal.ai가 고민 중인 방향의 선례이자 벤치마크**이지만, 다음 이유로 **한국 시장에서 portal.ai의 경쟁 우위가 명확**하다:
+**Alta는 kiko.ai가 고민 중인 방향의 선례이자 벤치마크**이지만, 다음 이유로 **한국 시장에서 kiko.ai의 경쟁 우위가 명확**하다:
 
 1. Alta의 한국 커버리지는 제로, 진출 우선순위 낮음 → 12-18개월 선점 기회
 2. 한국 에디토리얼/니치 셀렉트숍은 글로벌 유일한 데이터 moat

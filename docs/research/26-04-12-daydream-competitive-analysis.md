@@ -1,7 +1,7 @@
 # Daydream 경쟁사 기술 분석 (2026-04 업데이트)
 
 > 작성일: 2026-04-12
-> 목적: Daydream의 기술 스택, 검색 엔진 구조, 약점을 분석하여 portal.ai의 검색 엔진 차별화 전략 도출
+> 목적: Daydream의 기술 스택, 검색 엔진 구조, 약점을 분석하여 kiko.ai의 검색 엔진 차별화 전략 도출
 > 소스: The Interline 팟캐스트 (2025.12), LinkedIn, 채용 공고, 언론 보도
 
 ---
@@ -117,7 +117,7 @@ Maria가 명시한 **4가지 검색 방식**:
 │ Enrichment (AI 속성 보강)        │
 │ - 피드에 없는 잠재 속성 추출      │
 │ - 텍스트/이미지에서 AI로 추출      │
-│ → portal.ai의 product_ai_analysis│
+│ → kiko.ai의 product_ai_analysis│
 │   와 동일한 개념                  │
 └─────────────────────────────────┘
   ↓
@@ -176,7 +176,7 @@ Fashion Knowledge Graph
 
 ### 5.2 추론 가능한 약점
 
-| 약점 | 분석 | portal.ai 기회 |
+| 약점 | 분석 | kiko.ai 기회 |
 |------|------|---------------|
 | **Look Decomposition 없음** | 이미지 → 유사 상품 매칭만 제공. 룩 분해(핫스팟+아이템별) 미언급 | **우리의 핵심 차별점** |
 | **럭셔리 편향** | Net-A-Porter, Nordstrom 중심. 가격 민감 유저 접근 어려움 | 크로스 가격대 (럭셔리~SPA) |
@@ -189,7 +189,7 @@ Fashion Knowledge Graph
 
 ### 5.3 그들의 검색 vs 우리의 검색
 
-| 비교 항목 | Daydream | portal.ai (현재) | portal.ai (방향) |
+| 비교 항목 | Daydream | kiko.ai (현재) | kiko.ai (방향) |
 |----------|----------|-----------------|-----------------|
 | 검색 방식 | Lexical + Vector + Image hybrid | Enum 매칭 + 색상 인접 + gradient scoring | Enum + Vector hybrid |
 | 모델 구조 | Ensemble (~12 models) | GPT-4o-mini 단일 | 분석 LLM + domain-specific scoring |
@@ -208,7 +208,7 @@ Fashion Knowledge Graph
 - "스타일리스트와 함께 쇼핑하는 즐거움" 제공
 - 넓고 세련된 패션 쇼핑 에이전트
 
-### portal.ai (방향)
+### kiko.ai (방향)
 > "당신이 이 제품에서 진짜 좋아한 건 정확히 무엇인가?"
 - **레퍼런스 제품의 미학적 핵심을 해체** → 대안 탐색
 - 니치 취향을 끝까지 이해하는 에이전트
@@ -220,7 +220,7 @@ Fashion Knowledge Graph
 Daydream:
 유저 프로필 + 자연어 질의 → 대형 카탈로그 매칭 → refinement
 
-portal.ai (목표):
+kiko.ai (목표):
 레퍼런스 제품 분석 → 취향 속성 추출 → 속성 우선순위화
 → 서브컬처 브랜드 그래프 탐색 → 대체 가능성 설명
 ```

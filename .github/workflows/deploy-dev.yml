@@ -1,5 +1,5 @@
 # ==============================================================================
-# portal-app CI/CD 파이프라인 (DEV)
+# kiko.ai-app CI/CD 파이프라인 (DEV)
 # ==============================================================================
 # 트리거:
 #   - dev 브랜치로의 PR 머지 시
@@ -11,7 +11,7 @@
 #   3. ECR Push (태그: <YYYYMMDDhhmmss>-<short_sha>, latest)
 #   4. SSH로 dev-app EC2 접속 → /home/ec2-user/scripts/deploy.app.sh 실행
 #
-# Reference: portal/ai 의 deploy-dev.yml (동일 패턴)
+# Reference: kikoai/ai 의 deploy-dev.yml (동일 패턴)
 # Repo: portal/dev/app (ECR), 이미 portal-ai-gha IAM user 가 portal/dev/* prefix push 권한 보유
 # ==============================================================================
 
@@ -152,6 +152,6 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             echo "=========================================="
-            echo "[portal-app DEV] 배포 시작"
+            echo "[kiko.ai-app DEV] 배포 시작"
             echo "=========================================="
             /home/ec2-user/scripts/deploy.app.sh ${{ needs.build-and-push.outputs.image_tag }}

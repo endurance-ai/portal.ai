@@ -52,5 +52,5 @@
 - 15/16 task 완료. T-016 (docs 3종 sync) 만 남음 — DP1 #5 frozen decision 에 따라 /moai sync 단계에서 수행.
 - T-016 COMPLETE: search-engine.md +55 LOC (Evaluation Infrastructure 섹션) + ARCHITECTURE.md +21 LOC (Search Engine v6 Evaluation Infra 섹션 + 어드민 모듈 inline 갱신) + data-model.md +91 LOC (3 신규 테이블 schema). 단일 진실 원천 cross-link: search-engine.md (알고리즘) ↔ data-model.md (스키마) ↔ ARCHITECTURE.md (토폴로지).
 - Push to remote: experiment/moai-adk → origin (10 commits, 80b777f..f99c63b)
-- **PR #32 created**: https://github.com/endurance-ai/portal.ai/pull/32 (base: dev, head: experiment/moai-adk)
+- **PR #32 created**: https://github.com/endurance-ai/kiko.ai-app/pull/32 (base: dev, head: experiment/moai-adk)
 - **16/16 task COMPLETE — SPEC-V6-EVAL DONE**

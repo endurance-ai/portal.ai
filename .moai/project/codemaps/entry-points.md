@@ -3,7 +3,7 @@ type: codemap
 updated: 2026-05-04
 ---
 
-# portal.ai — 진입점 목록
+# kiko.ai — 진입점 목록
 
 ## 페이지 엔트리
 

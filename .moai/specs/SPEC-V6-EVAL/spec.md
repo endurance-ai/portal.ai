@@ -19,7 +19,7 @@ issue_number: 0
 
 ## Overview
 
-portal.ai 검색엔진 v6 작업의 선행 인프라. 30개 골든셋 쿼리에 대해 **NDCG@10 + Precision@5** 두 메트릭을 사람 라벨링 기반으로 산출하고, v4 알고리즘 baseline 점수를 frozen row 로 박제하여 차후 v6 변경 시 정량적 회귀/개선 비교를 가능하게 한다. 메트릭과 라벨링은 어드민 (`/admin/eval`) 내부 도구로 한정하며, 외부/anon 접근은 RLS 로 차단한다.
+kiko.ai 검색엔진 v6 작업의 선행 인프라. 30개 골든셋 쿼리에 대해 **NDCG@10 + Precision@5** 두 메트릭을 사람 라벨링 기반으로 산출하고, v4 알고리즘 baseline 점수를 frozen row 로 박제하여 차후 v6 변경 시 정량적 회귀/개선 비교를 가능하게 한다. 메트릭과 라벨링은 어드민 (`/admin/eval`) 내부 도구로 한정하며, 외부/anon 접근은 RLS 로 차단한다.
 
 이번 SPEC 의 스코프 경계는 명확하다 — **측정 인프라만** 만든다. v5 임베딩 풀배치, rerank/fusion 가중치 변경, LLM-as-judge, 골든셋 100/300 확장, 프로덕션 자동 샘플링은 별도 SPEC (V6-CORE / V6-EVAL-V2 / V6-AUTOMATION) 으로 분리한다. 기존 `eval_reviews` / `eval_golden_set` 테이블 (legacy verdict pass/fail/partial) 은 건드리지 않고, 신규 3개 테이블 (`eval_golden_queries` / `eval_judgments` / `eval_runs`) 을 병렬 추가한다.
 

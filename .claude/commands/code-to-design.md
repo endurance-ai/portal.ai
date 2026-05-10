@@ -2,7 +2,7 @@
 description: "Code → Design 마이그레이션. 코드를 읽고 Pencil(.pen) 디자인을 현재 UI와 일치하도록 업데이트한다."
 ---
 
-# Code → Design (Pencil) Migration — portal.ai
+# Code → Design (Pencil) Migration — kiko.ai
 
 ## Role
 코드를 읽고, design.pen의 해당 페이지 프레임을 코드의 현재 UI 상태와 정확히 일치하도록 업데이트한다.

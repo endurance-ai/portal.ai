@@ -3,7 +3,7 @@ type: codemap
 updated: 2026-05-04
 ---
 
-# portal.ai — 데이터 흐름
+# kiko.ai — 데이터 흐름
 
 > **주의**: 이 문서는 모듈 레벨 추상화를 제공합니다. 가중치·RPC 파라미터·에러 코드 등 세부 비즈니스 룰의 정식 진실 원천은 `docs/features/main-flow.md` 및 `docs/features/search-engine.md`입니다.
 

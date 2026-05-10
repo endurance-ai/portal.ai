@@ -6,7 +6,7 @@
 사용:
   cd ../ai
   uv add umap-learn  # 첫 1회만
-  uv run python /Users/hansangho/Desktop/portal/app/scripts/umap_brand_layout.py
+  uv run python /Users/hansangho/Desktop/kikoai/app/scripts/umap_brand_layout.py
 """
 from __future__ import annotations
 

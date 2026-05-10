@@ -1,7 +1,7 @@
 # Editorial Redesign — Design Spec
 
 > 작성일: 2026-04-13
-> 범위: portal.ai 유저-facing UI 전체 (Admin 제외)
+> 범위: kiko.ai 유저-facing UI 전체 (Admin 제외)
 > 레퍼런스: SSENSE, Workroom, Savee, Dribbble, Mediabus, Apartamento, Fantastic Man
 > 이번 작업은 **presentation layer only** — 검색 엔진 / API / DB 스키마 전부 무변경
 

@@ -1,6 +1,6 @@
 # Crawler 리포 분리 Plan
 
-> portal/app 의 `scripts/` 크롤링 코드를 `endurance-ai/crawler` 신규 리포로 분리한다. ZARA/H&M/29CM/무신사/유니클로/후르츠 추가 작업은 분리 완료 후 새 리포에서 시작.
+> kikoai/app 의 `scripts/` 크롤링 코드를 `endurance-ai/crawler` 신규 리포로 분리한다. ZARA/H&M/29CM/무신사/유니클로/후르츠 추가 작업은 분리 완료 후 새 리포에서 시작.
 
 작성일: 2026-05-05
 기준 커밋: `5e3e7a0` (feature/spec-v6-core)
@@ -9,7 +9,7 @@
 
 ## 배경
 
-- 현재 `scripts/` 안에 81k SKU / 697 브랜드를 수집하는 크롤러가 portal/app 본체와 같이 살고 있음
+- 현재 `scripts/` 안에 81k SKU / 697 브랜드를 수집하는 크롤러가 kikoai/app 본체와 같이 살고 있음
 - Playwright 등 무거운 deps 가 웹 빌드와 무관하게 lockfile 에 박혀있음
 - 신규 6개 플랫폼 (ZARA/H&M/29CM/무신사/유니클로/후르츠) 추가 예정 — anti-bot, proxy 등 웹과 완전히 다른 도메인
 - 결론: **별도 리포로 분리**, DB(Supabase) 를 계약으로 유지. 마이크로서비스/API 게이트웨이는 도입하지 않음.
@@ -22,7 +22,7 @@
 | 가시성 | public |
 | 히스토리 | 새로 시작 (git filter-repo 미사용, README 에 ported-from 명시) |
 | 시점 | 분리 → 그 후 신규 6 플랫폼 추가 |
-| DB owner | portal/app 가 `supabase/migrations/` 계속 보유 |
+| DB owner | kikoai/app 가 `supabase/migrations/` 계속 보유 |
 | 통신 방식 | DB write-only (Supabase service-role 직접) |
 
 ## NOT in scope
@@ -30,8 +30,8 @@
 - ❌ REST API / gRPC / 이벤트 버스 도입
 - ❌ Kafka / SQS / BullMQ + Redis (Phase 1 에서는 cron 충분)
 - ❌ K8s / ECS / Fargate
-- ❌ portal/app 의 `scripts/aws/embed_products.py` (임베딩 배치) 이전 — 이건 portal/app 에 남김 (검색 도메인)
-- ❌ `scripts/eval-*.ts`, `scripts/seed-eval-*.ts` (검색 평가용) — portal/app 에 남김
+- ❌ kikoai/app 의 `scripts/aws/embed_products.py` (임베딩 배치) 이전 — 이건 kikoai/app 에 남김 (검색 도메인)
+- ❌ `scripts/eval-*.ts`, `scripts/seed-eval-*.ts` (검색 평가용) — kikoai/app 에 남김
 - ❌ ZARA/H&M 등 신규 플랫폼 구현 (분리 완료 후 별도 작업)
 
 ---
@@ -40,10 +40,10 @@
 
 | 영역 | 기술 | 비고 |
 |---|---|---|
-| 런타임 | Node.js + tsx (TS 직접 실행) | portal/app 와 동일 |
+| 런타임 | Node.js + tsx (TS 직접 실행) | kikoai/app 와 동일 |
 | 브라우저 자동화 | Playwright ^1.58 | Cafe24 22 사이트 |
 | HTTP fetch | 표준 fetch | Shopify 10 사이트 |
-| DB | @supabase/supabase-js (service-role) | DB 자체는 portal/app 와 공유 |
+| DB | @supabase/supabase-js (service-role) | DB 자체는 kikoai/app 와 공유 |
 | 이미지 | Cloudflare R2 (S3 호환) | 동일 R2 버킷 공유 |
 | 언어 | TypeScript | no transpile |
 
@@ -88,7 +88,7 @@ scripts/lib/product-analyzer.ts        → lib/product-analyzer.ts
 scripts/output/                        → output/ (gitignore)
 ```
 
-### portal/app 에 남김
+### kikoai/app 에 남김
 
 ```
 scripts/aws/embed_products.py          ← 임베딩 (검색 도메인)
@@ -136,7 +136,7 @@ crawler/
   README.md
 ```
 
-A3. `package.json` 작성 (deps: playwright, tsx, typescript, @supabase/supabase-js, @aws-sdk/client-s3, dotenv 등 — 실제 portal/app `package.json` 에서 크롤러가 쓰는 것만 식별해서 옮김)
+A3. `package.json` 작성 (deps: playwright, tsx, typescript, @supabase/supabase-js, @aws-sdk/client-s3, dotenv 등 — 실제 kikoai/app `package.json` 에서 크롤러가 쓰는 것만 식별해서 옮김)
 
 A4. `.env.example`:
 ```
@@ -152,16 +152,16 @@ A5. `README.md`:
 - 프로젝트 목적 (포탈AI 크롤러)
 - 빠른 시작 (clone → pnpm install → .env → pnpm tsx)
 - 플랫폼 추가 가이드 (configs/platforms.ts 에 객체 추가)
-- "Ported from endurance-ai/portal.ai @ commit 5e3e7a0 on 2026-05-05"
+- "Ported from endurance-ai/kiko.ai-app @ commit 5e3e7a0 on 2026-05-05"
 - 라이선스 (포탈.AI 와 동일)
 
 ### Phase B — 코드 이전
 
-B1. portal/app 의 `scripts/` 에서 크롤러 관련 파일을 위 매핑대로 crawler 리포에 복사 (cp, 깃 히스토리 안 따라감)
+B1. kikoai/app 의 `scripts/` 에서 크롤러 관련 파일을 위 매핑대로 crawler 리포에 복사 (cp, 깃 히스토리 안 따라감)
 
-B2. import 경로 수정: portal/app 안에서 `@/lib/...` 등 alias 썼다면 → crawler 내부 상대경로로 변경
+B2. import 경로 수정: kikoai/app 안에서 `@/lib/...` 등 alias 썼다면 → crawler 내부 상대경로로 변경
 
-B3. portal/app 의 `src/lib/...` 를 import 하는 부분이 있으면 → crawler 안으로 코드 복사 (의존성 끊기). 식별 대상:
+B3. kikoai/app 의 `src/lib/...` 를 import 하는 부분이 있으면 → crawler 안으로 코드 복사 (의존성 끊기). 식별 대상:
 - Supabase 클라이언트 헬퍼
 - R2 업로드 헬퍼
 - 타입 정의
@@ -186,16 +186,16 @@ C3. R2 이미지 업로드 1건 검증
 
 C4. Cafe24 1개 스토어 (Playwright 경로) 도 동일하게 dry-run + 1회 write
 
-C5. 웹 (portal/app `pnpm dev`) 메인 플로우 — 크롤러 결과가 검색에 정상 노출되는지 확인
+C5. 웹 (kikoai/app `pnpm dev`) 메인 플로우 — 크롤러 결과가 검색에 정상 노출되는지 확인
 
-### Phase D — portal/app 정리
+### Phase D — kikoai/app 정리
 
 D1. `scripts/` 에서 이전 대상 파일 삭제 (Phase A 매핑의 "이전" 목록만)
 
 D2. `package.json` 에서 크롤러 전용 deps 제거:
 - `playwright` (웹은 미사용 확실히 확인 후)
 - 기타 크롤러 전용으로 식별된 것
-- ⚠️ tsx, typescript 는 portal/app 도 쓸 수 있으므로 유지 여부 확인
+- ⚠️ tsx, typescript 는 kikoai/app 도 쓸 수 있으므로 유지 여부 확인
 
 D3. `pnpm install` → lockfile 갱신, `pnpm build` 통과 확인
 
@@ -239,11 +239,11 @@ E6. (선택) Discord webhook: 실패 시 알림
 
 ### Phase F — 마무리
 
-F1. portal/app 측 PR: "feat: scripts/ 크롤러 코드 외부 리포로 분리" — Phase D 결과물
+F1. kikoai/app 측 PR: "feat: scripts/ 크롤러 코드 외부 리포로 분리" — Phase D 결과물
 
 F2. crawler 리포 첫 release tag: v0.1.0
 
-F3. portal/app `docs/plans/` 의 본 plan 문서를 `docs/archive/plans/` 로 이동
+F3. kikoai/app `docs/plans/` 의 본 plan 문서를 `docs/archive/plans/` 로 이동
 
 F4. 회고: 분리 후 1주일 운영해보고 누락된 환경 변수 / 함수 / 의존성 정리
 
@@ -253,7 +253,7 @@ F4. 회고: 분리 후 1주일 운영해보고 누락된 환경 변수 / 함수 
 
 | 리스크 | 영향 | 대응 |
 |---|---|---|
-| 크롤러가 portal/app `src/lib/*` 에 숨은 의존 | crawler 빌드/실행 실패 | Phase B3 단계에서 grep 으로 모든 `@/` import 추적, 복사로 끊기 |
+| 크롤러가 kikoai/app `src/lib/*` 에 숨은 의존 | crawler 빌드/실행 실패 | Phase B3 단계에서 grep 으로 모든 `@/` import 추적, 복사로 끊기 |
 | Supabase service-role 키 노출 (public 리포) | 보안 사고 | `.env` 는 절대 커밋 금지, `.env.example` 에 placeholder만, gitleaks pre-commit 설정 |
 | Playwright 버전 불일치로 EC2 동작 차이 | 크롤 실패 | package.json 에 정확한 버전 핀, EC2 첫 실행 시 `npx playwright install --with-deps` |
 | anti-bot 우회 코드가 public 노출 | ZARA/H&M 차단 강화 가능성 | ZARA/H&M 추가 시점에 private 전환 재검토 (지금 결정사항: public 유지) |
@@ -270,7 +270,7 @@ F4. 회고: 분리 후 1주일 운영해보고 누락된 환경 변수 / 함수 
 - [ ] A5 — README
 - [ ] B1 — 파일 복사 (매핑표 기준)
 - [ ] B2 — import 경로 수정
-- [ ] B3 — portal/app 의존 끊기 (grep + 복사)
+- [ ] B3 — kikoai/app 의존 끊기 (grep + 복사)
 - [ ] B4 — supabase gen types
 - [ ] B5 — tsconfig
 - [ ] B6 — .gitignore
@@ -278,7 +278,7 @@ F4. 회고: 분리 후 1주일 운영해보고 누락된 환경 변수 / 함수 
 - [ ] C2 — Shopify 실제 write 1회
 - [ ] C3 — R2 업로드 검증
 - [ ] C4 — Cafe24 검증
-- [ ] C5 — portal/app 메인 플로우 정상 확인
+- [ ] C5 — kikoai/app 메인 플로우 정상 확인
 - [ ] D1 — scripts/ 정리
 - [ ] D2 — deps 제거
 - [ ] D3 — lockfile + build 확인
@@ -290,7 +290,7 @@ F4. 회고: 분리 후 1주일 운영해보고 누락된 환경 변수 / 함수 
 - [ ] E4 — systemd
 - [ ] E5 — 수동 실행 검증
 - [ ] E6 — Discord 알림 (선택)
-- [ ] F1 — portal/app PR
+- [ ] F1 — kikoai/app PR
 - [ ] F2 — crawler v0.1.0 tag
 - [ ] F3 — plan 문서 archive 이동
 - [ ] F4 — 1주일 운영 후 회고

@@ -14,7 +14,7 @@ methodology: DDD (ANALYZE-PRESERVE-IMPROVE) + Brownfield TDD for new pure functi
 - 2026-05-04 v0.1.1: Iteration 2 revision per plan-audit-1 report. Added C6 RLS integration test task; expanded D6 to 5 test files; extended Estimated Scope test count to 10. (Frontmatter version was not bumped at the time — corrected retroactively in v0.1.2 HISTORY.)
 - 2026-05-04 v0.1.0: Initial plan draft (Plan workflow Phase 2). DDD methodology selection, Phase A-F task decomposition with priority labels, Risk Mitigation table.
 
-## Tech Stack (현행 portal.ai 스택 유지, 신규 추가 없음)
+## Tech Stack (현행 kiko.ai 스택 유지, 신규 추가 없음)
 
 - 프레임워크: Next.js 16 App Router + React 19 (`src/app/admin/eval/*`, `src/app/api/admin/eval/*`)
 - DB: Supabase Postgres + RLS (마이그레이션 033 신규)

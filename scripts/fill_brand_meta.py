@@ -12,9 +12,9 @@
 
 사용:
   cd ../ai
-  uv run python /Users/hansangho/Desktop/portal/app/scripts/fill_brand_meta.py --limit 30
-  uv run python /Users/hansangho/Desktop/portal/app/scripts/fill_brand_meta.py        # 풀배치
-  uv run python /Users/hansangho/Desktop/portal/app/scripts/fill_brand_meta.py --dry-run --limit 5
+  uv run python /Users/hansangho/Desktop/kikoai/app/scripts/fill_brand_meta.py --limit 30
+  uv run python /Users/hansangho/Desktop/kikoai/app/scripts/fill_brand_meta.py        # 풀배치
+  uv run python /Users/hansangho/Desktop/kikoai/app/scripts/fill_brand_meta.py --dry-run --limit 5
 """
 from __future__ import annotations
 

@@ -242,11 +242,11 @@ Vector Similarity Search
 
 ---
 
-## Part 5: portal.ai와의 비교
+## Part 5: kiko.ai와의 비교
 
 ### 공통점
 
-| 항목 | ScreenShop (신규) | portal.ai |
+| 항목 | ScreenShop (신규) | kiko.ai |
 |------|-------------------|-----------|
 | 이미지 업로드 → 의류 분석 | O | O |
 | AI 기반 유사 상품 검색 | O | O |
@@ -255,7 +255,7 @@ Vector Similarity Search
 
 ### 차별점
 
-| 항목 | ScreenShop | portal.ai |
+| 항목 | ScreenShop | kiko.ai |
 |------|-----------|-----------|
 | UX | 이미지 위에 아이템 circle | 전체 이미지 분석 + 핫스팟 |
 | 룩 분해 | 단일 아이템 포커스 | **전체 룩을 아이템별 분해** (아코디언) |

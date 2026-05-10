@@ -2,7 +2,7 @@
 
 > - **작성일**: 2026-04-02
 > - **최종 검증**: 2026-04-02 (웹 검색 기반 팩트체크 완료)
-> - **프로젝트**: portal.ai — AI 이미지 기반 패션 무드 분석 & 상품 추천
+> - **프로젝트**: kiko.ai — AI 이미지 기반 패션 무드 분석 & 상품 추천
 > - **목적**: 현재 국내 편집샵 크롤링 한계 → 지속 가능한 상품 소싱 & 수익화 전략 수립
 
 ---
@@ -111,7 +111,7 @@
 
 ### 기타 검증된 네트워크
 
-| 네트워크 | 상태 | Product API | 패션 강점 | portal.ai 적합도 |
+| 네트워크 | 상태 | Product API | 패션 강점 | kiko.ai 적합도 |
 |----------|------|------------|----------|-----------------|
 | **Skimlinks** | ✅ Active | Product API (query/categories) | Farfetch, H&M, Everlane (48,500+ 머천트) | ★★★★ 자동 링크 변환 |
 | **Impact.com** | ✅ Active | Catalog API v12 (JSON) | Adidas, Reebok, Stitch Fix | ★★★ DTC 중심 |
@@ -138,7 +138,7 @@
 
 **가입 절차:**
 1. `https://signup.cj.com/member/signup/publisher/` 접속
-2. 필요 정보: portal.ai URL, 프로모션 모델("AI-powered fashion product recommendation"), 트래픽 정보
+2. 필요 정보: kiko.ai URL, 프로모션 모델("AI-powered fashion product recommendation"), 트래픽 정보
 3. W-8BEN 세금 양식 제출 (개인) — [IRS 양식](https://www.irs.gov/forms-pubs/about-form-w-8-ben)
 4. Payoneer 계정 연결 (없으면 가입 필요 — payoneer.com, 무료)
 5. 퍼블리셔 승인 대기 (1-3일)
@@ -156,7 +156,7 @@
 **가입 절차:**
 1. `https://ui.awin.com/publisher-signup` 접속
 2. 가입비 $1-5 결제 (첫 정산 시 환불)
-3. portal.ai URL + 프로모션 설명 입력
+3. kiko.ai URL + 프로모션 설명 입력
 4. 승인 후: ASOS, END Clothing 등 패션 광고주 Apply
 5. Product Feed API로 상품 데이터 수집 시작
 
@@ -189,7 +189,7 @@
 #### 2-3. ChatAds 조사 & 연동 검토
 - AI 쇼핑 어시스턴트 전용으로 설계된 신규 플랫폼
 - 커미션 수수료 0% (API 호출당 과금)
-- portal.ai 같은 AI 기반 서비스에 최적화 가능성 — 상세 조사 필요
+- kiko.ai 같은 AI 기반 서비스에 최적화 가능성 — 상세 조사 필요
 
 #### 2-4. Fashion Genome DB ↔ 어필리에이트 상품 매핑
 - 1,079 브랜드의 스타일 노드 → 어필리에이트 상품 자동 태깅
@@ -255,7 +255,7 @@
 
 4. **Amazon은 당장 못 한다** — PA-API는 이달 폐기, Creators API는 판매 실적 10건 요구. Skimlinks로 우회하며 실적 쌓기.
 
-5. **ChatAds는 다크호스** — AI 쇼핑 어시스턴트 전용 어필리에이트. portal.ai와 콘셉트 일치. 상세 조사 가치 있음.
+5. **ChatAds는 다크호스** — AI 쇼핑 어시스턴트 전용 어필리에이트. kiko.ai와 콘셉트 일치. 상세 조사 가치 있음.
 
 6. **크롤링 → 어필리에이트 전환은 필수 방향** — 합법성, 스케일, 수익화 모두 어필리에이트가 우세.
 

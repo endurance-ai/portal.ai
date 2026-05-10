@@ -17,7 +17,7 @@ methodology: Brownfield TDD (3 atomic tasks, small delta — RED-GREEN-REFACTOR 
 - 2026-05-04 v0.1.1: Iter 2 revisions per plan-audit iter-1 (9 defects 처리). Frontmatter 8 fields 정규화 + `spec_id` → `id` 통일 (D1). REQ-002 분리에 따른 V2-T-002 task 갱신 (2a + 2b 합쳐 4 케이스) (D2). seed script onConflict target 정확화: `(instagram_url, query_signature)` NULLS NOT DISTINCT (D4). stdout canonical order 통일 (D7). Affected files 재정합 — package.json precondition (D8). tsx 의존성 확인: 부재 → Run-phase precondition `pnpm add -D tsx` 명시 (D9). hedging 문구 ("또는 동등 부모 SPEC unique 제약 기준") 삭제.
 - 2026-05-04 v0.1.0: Initial plan draft. 3 atomic tasks (V2-T-001 backend / V2-T-002 frontend / V2-T-003 seed script). 순서: T-001 → T-002 (의존), T-003 독립 (병렬 가능). 신규 의존성 없음.
 
-## Tech Stack (현행 portal.ai 스택 유지)
+## Tech Stack (현행 kiko.ai 스택 유지)
 
 - 프레임워크: Next.js 16 App Router + React 19 (`src/app/api/admin/eval/run/route.ts`, `src/components/admin/eval-labeling-form.tsx`)
 - 테스트: Vitest 4 + @testing-library/react (jsdom env, vitest.config.ts 그대로)

@@ -3,7 +3,7 @@ type: project
 updated: 2026-05-04
 ---
 
-# portal.ai — 기술 스택
+# kiko.ai — 기술 스택
 
 ## 프라이머리 스택
 
@@ -77,7 +77,7 @@ AI 서버는 별도 Python 레포(`endurance-ai/ai-server`). `AI_SERVER_URL` 미
 | typescript 5 | 타입 안전성 |
 | eslint | 코드 품질 |
 
-크롤러(Playwright 기반)는 2026-05-05 부로 외부 리포 [`endurance-ai/crawler`](https://github.com/endurance-ai/crawler) 로 분리되어, portal.ai 본체에서는 playwright 의존성이 제거됨.
+크롤러(Playwright 기반)는 2026-05-05 부로 외부 리포 [`endurance-ai/crawler`](https://github.com/endurance-ai/crawler) 로 분리되어, kiko.ai 본체에서는 playwright 의존성이 제거됨.
 
 ## 개발 환경
 

@@ -6,14 +6,14 @@
 #   LIMIT=100 ./scripts/aws/launch_embed_batch.sh  # 100개만 (테스트)
 #
 # 사전 조건:
-#   - AWS CLI + ~/.aws/credentials에 'portal-ai' 프로필
+#   - AWS CLI + ~/.aws/credentials에 'kiko.ai' 프로필
 #   - .env.local에 SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY
 #   - supabase/migrations/027 적용 완료
 #
 # 완료는 Supabase product_embedding_coverage 뷰로 확인.
 set -euo pipefail
 
-PROFILE="portal-ai"
+PROFILE="kiko.ai"
 REGION="ap-northeast-2"
 INSTANCE_TYPE="g5.xlarge"
 SG_NAME="portal-embed-batch"

@@ -3,7 +3,7 @@ type: codemap
 updated: 2026-05-04
 ---
 
-# portal.ai — 모듈 설명
+# kiko.ai — 모듈 설명
 
 ## src/lib — 비즈니스 로직 레이어
 

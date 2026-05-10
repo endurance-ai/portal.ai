@@ -14,7 +14,7 @@
 | **LiteLLM proxy (EC2, 현재 OFF)** | OpenAI 호출 라우팅·로깅·비용 통제 | EC2 인스턴스 비용 (가동 시) |
 | **Apify** (`apify/instagram-post-scraper`) | Instagram 포스트 스크래핑 (run-sync, ~5-10s) | $0.0023/post (FREE plan $5 credit = ~2,173 post 무료) |
 
-> portal/app 에는 Python AI 서비스(FastAPI 등) 0개. 모든 LLM 호출은 Next.js API Route 에서 OpenAI(또는 LiteLLM 프록시)로 직접. v5 검색 오케스트레이션은 별도 [`portal/ai`](https://github.com/endurance-ai/ai-server) 서버 (dev-ai EC2).
+> kikoai/app 에는 Python AI 서비스(FastAPI 등) 0개. 모든 LLM 호출은 Next.js API Route 에서 OpenAI(또는 LiteLLM 프록시)로 직접. v5 검색 오케스트레이션은 별도 [`kikoai/ai`](https://github.com/endurance-ai/ai-server) 서버 (dev-ai EC2).
 
 ---
 
@@ -137,7 +137,7 @@ const useLiteLLM =
 | 항목 | 값 |
 |---|---|
 | 조직 | endurance-ai |
-| 레포 | [endurance-ai/portal.ai](https://github.com/endurance-ai/portal.ai) (public) |
+| 레포 | [endurance-ai/kiko.ai-app](https://github.com/endurance-ai/kiko.ai-app) (public) |
 | 기본 브랜치 | `dev` |
 | 흐름 | `dev` → feature branch → PR → squash merge → 머지 후 prod 배포 |
 

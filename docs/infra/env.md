@@ -27,7 +27,7 @@
 | `LITELLM_API_KEY` | 프록시 인증 | OPENAI_API_KEY로 폴백 |
 | `LITELLM_MODEL` | 프록시 모델 명시 | (현재 코드는 항상 `gpt-4o-mini`) |
 | `LITELLM_DISABLED` | `true` 로 두면 즉시 OpenAI direct 폴백 | 프록시 죽었을 때 비상 스위치 |
-| `AI_SERVER_URL` | portal-ai-server (FastAPI) base URL — `/api/find/search`가 v5 검색을 위해 호출 | 미설정 시 v4 in-process 폴백으로 자동 전환 |
+| `AI_SERVER_URL` | kiko-ai-server (FastAPI) base URL — `/api/find/search`가 v5 검색을 위해 호출 | 미설정 시 v4 in-process 폴백으로 자동 전환 |
 | `AI_SERVER_TIMEOUT_MS` | AI 서버 호출 타임아웃 (ms) | 기본 8000 |
 | `PROXY_HOST` / `PROXY_PORT` / `PROXY_USER` / `PROXY_PASS` | Instagram 스크래퍼 undici ProxyAgent | 미설정 시 직접 연결 |
 | `LOG_LEVEL` | pino 로그 레벨 | 기본 `info` |
@@ -48,10 +48,10 @@
 
 | 프로필 | 용도 | 리전 |
 |---|---|---|
-| `portal-ai` | EC2 Spot 기동 (FashionSigLIP 임베딩 배치) | `ap-northeast-2` |
+| `kiko.ai` | EC2 Spot 기동 (FashionSigLIP 임베딩 배치) | `ap-northeast-2` |
 
 배치 실행 전 사전 조건:
-1. `~/.aws/credentials` 에 `portal-ai` 프로필
+1. `~/.aws/credentials` 에 `kiko.ai` 프로필
 2. EC2 key pair `portal-key` (디버그 SSH용, 없으면 스크립트가 생성 제안)
 3. `.env.local` 에 `DB_URL` + `DB_TOKEN` — 임베딩 배치는 dev-app PostgREST 가 아닌 dev-app Postgres 직접 접근(또는 RPC) 으로 변경 예정. 현재 user-data 로 EC2 에 주입
 

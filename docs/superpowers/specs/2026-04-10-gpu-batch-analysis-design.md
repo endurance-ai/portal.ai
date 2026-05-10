@@ -1,7 +1,7 @@
 # GPU 배치 이미지 분석 설계
 
 > 현재 LiteLLM → Nova Lite 경유 배치 분석 (30k 이미지, 2-3일)을  
-> portal-ai AWS 계정 GPU Spot 인스턴스 + vLLM + Qwen2.5-VL-7B로 전환하여  
+> kiko.ai AWS 계정 GPU Spot 인스턴스 + vLLM + Qwen2.5-VL-7B로 전환하여  
 > **3-4시간 이내 완료**하는 것이 목표.
 
 ## 현재 상태
@@ -94,7 +94,7 @@ Deep Learning AMI GPU PyTorch 2.x (Amazon Linux 2023)
 
 ### 네트워크
 
-portal-ai 계정은 default VPC 사용 중.
+kiko.ai 계정은 default VPC 사용 중.
 
 | 항목 | 설정 |
 |------|------|
@@ -168,7 +168,7 @@ vLLM의 Qwen2.5-VL 지원에서 외부 URL 직접 로드가 되는지 확인 필
 aws ec2 create-security-group \
   --group-name portal-gpu-batch \
   --description "GPU batch analysis" \
-  --profile portal-ai --region ap-northeast-2
+  --profile kiko.ai --region ap-northeast-2
 
 # 2. 인바운드 규칙 추가 (내 IP)
 aws ec2 authorize-security-group-ingress \
@@ -188,7 +188,7 @@ aws ec2 run-instances \
   --instance-market-options '{"MarketType":"spot"}' \
   --block-device-mappings '[{"DeviceName":"/dev/xvda","Ebs":{"VolumeSize":100,"VolumeType":"gp3"}}]' \
   --associate-public-ip-address \
-  --region ap-northeast-2 --profile portal-ai
+  --region ap-northeast-2 --profile kiko.ai
 ```
 
 ### Step 2: vLLM 설치 + 모델 로드 (~20-30분)
@@ -228,7 +228,7 @@ npx tsx scripts/analyze-products.ts --version v1 --concurrency 16
 # GPU 인스턴스 종료
 aws ec2 terminate-instances \
   --instance-ids <INSTANCE_ID> \
-  --profile portal-ai --region ap-northeast-2
+  --profile kiko.ai --region ap-northeast-2
 ```
 
 ## 리스크 & 대응

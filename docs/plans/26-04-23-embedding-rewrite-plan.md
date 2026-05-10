@@ -33,7 +33,7 @@
 | D1 | Supabase에 pgvector/pgroonga extension 활성화, 마이그레이션 027 작성 | Supabase dashboard 권한 |
 | D1 | `products.embedding vector(768)` 컬럼 + HNSW 인덱스 (`m=16, ef_construction=200, vector_ip_ops`) | pgvector |
 | D1 | `products.search_text` tsvector 컬럼 + pgroonga 인덱스 (name+brand+material+description) | pgroonga |
-| D2 | `scripts/aws/embed_products.py` (EC2에서 실행되는 배치 스크립트, ThreadPool 병렬 다운로드) + `scripts/aws/launch_embed_batch.sh` (로컬 런처) 작성 | AWS CLI / portal-ai 프로필 |
+| D2 | `scripts/aws/embed_products.py` (EC2에서 실행되는 배치 스크립트, ThreadPool 병렬 다운로드) + `scripts/aws/launch_embed_batch.sh` (로컬 런처) 작성 | AWS CLI / kiko.ai 프로필 |
 | D2~3 | EC2 g5.xlarge Spot 1회 실행 → 81,444개 상품 임베딩 인코딩 → 자동 종료 (예상 45~60분, ~$0.40) | 위 스크립트 |
 | D4 | `/api/search-products` v5 — dense + sparse(pgroonga) + RRF 통합 쿼리. **피처 플래그 `SEARCH_ENGINE_VERSION=v5` 뒤에 추가, v4 유지** | 위 전부 |
 | D5~6 | Q&A reducer 조정 — Step 2는 쿼리 시점 Vision LLM 1회로 축소, Step 3~4 필터 로직 벡터 쿼리에 연결 | |

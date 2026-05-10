@@ -3,7 +3,7 @@ type: codemap
 updated: 2026-05-04
 ---
 
-# portal.ai — 아키텍처 개요
+# kiko.ai — 아키텍처 개요
 
 ## 한 줄 요약
 

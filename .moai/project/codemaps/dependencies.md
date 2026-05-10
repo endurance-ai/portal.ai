@@ -3,7 +3,7 @@ type: codemap
 updated: 2026-05-04
 ---
 
-# portal.ai — 의존성 그래프
+# kiko.ai — 의존성 그래프
 
 ## 외부 패키지 (카테고리별)
 

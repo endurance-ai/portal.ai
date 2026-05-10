@@ -15,7 +15,7 @@
 - ✅ DB user 3종: `app_user` (RW), `ai_user` (R+RPC), `backup_user` (read-all). password 는 dev-app 의 `~/kikoai-app/env/.env` 에 있음
 - ✅ S3 백업 cron (매일 19:00 UTC, `kiko-ai-pg-backups/dev-app/`)
 
-**portal/app 측 (이번 세션 일부 끝남, DONE)**
+**kikoai/app 측 (이번 세션 일부 끝남, DONE)**
 - ✅ `Dockerfile` (multi-stage, node:22-alpine, pnpm 10.23.0, standalone build)
 - ✅ `.dockerignore`
 - ✅ `.github/workflows/deploy-dev.yml` (GHA, ECR_REPOSITORY=`kikoai-dev/app`, dev branch PR merge trigger)
@@ -24,7 +24,7 @@
 
 **ECR/IAM (DONE — kiko.ai 프로필)**
 - ECR: `kikoai-dev/app` 신규
-- IAM user: `kikoai-dev-gha` (이전 portal-ai-gha 에서 rename, **access key 동일** — portal/ai 와 같은 secrets 재사용 가능)
+- IAM user: `kikoai-dev-gha` (이전 portal-ai-gha 에서 rename, **access key 동일** — kikoai/ai 와 같은 secrets 재사용 가능)
 - IAM 정책: `EcrPushPortalDev` (kikoai-dev/* + portal/dev/* push 가능)
 
 ---
@@ -32,7 +32,7 @@
 ## 2. 새 세션 첫 단계 — 사용자 작업 (~5분)
 
 ```bash
-cd /Users/hansangho/Desktop/portal/app
+cd /Users/hansangho/Desktop/kikoai/app
 
 # (1) 변경분 commit + push
 git add Dockerfile .dockerignore .github/workflows/deploy-dev.yml next.config.ts HANDOFF-p5-self-host.md
@@ -40,8 +40,8 @@ git commit -m "feat: SPEC-INFRA-MIGRATE-001 P5 — Vercel→EC2 self-host 인프
 git push origin <feature-branch>   # PR 은 dev branch 로
 
 # (2) GHA secrets 등록 (gh CLI)
-gh secret set AWS_ACCESS_KEY_ID                         # portal/ai 와 동일
-gh secret set AWS_SECRET_ACCESS_KEY                     # portal/ai 와 동일
+gh secret set AWS_ACCESS_KEY_ID                         # kikoai/ai 와 동일
+gh secret set AWS_SECRET_ACCESS_KEY                     # kikoai/ai 와 동일
 gh secret set SSH_HOST    --body "54.116.104.193"
 gh secret set SSH_USER    --body "ec2-user"
 gh secret set SSH_PRIVATE_KEY < ~/Desktop/aws-infra/portal-ai-key.pem
@@ -221,13 +221,13 @@ pnpm remove @supabase/ssr @supabase/supabase-js
 pnpm run build   # standalone 출력 → .next/standalone/ 생성 확인
 
 # (2) Docker 빌드 (로컬, M-series Mac 에서 ARM64 native)
-docker buildx build --platform=linux/arm64 -t portal-app:local --load .
+docker buildx build --platform=linux/arm64 -t kiko.ai-app:local --load .
 
 # (3) 컨테이너 띄우고 검증
 docker run --rm -p 3000:3000 \
   -e DATABASE_URL=postgresql://app_user:<PWD>@<dev-app-IP>:5432/kikoai?sslmode=require \
   -e NEXTAUTH_SECRET=<...> \
-  portal-app:local
+  kiko.ai-app:local
 curl http://localhost:3000/api/health
 # → 200 {"status":"ok"}
 
@@ -243,13 +243,13 @@ curl http://localhost:3000/api/health
 3. **RLS 정책 12개 마이그 fail**: Supabase auth.authenticated/anon role 의존이라 dev-app 에 미적용. Auth.js 로 application-level 권한 처리 (DB row-level X).
 4. **auth.users FK**: admin_profiles 의 user_id 가 Supabase auth.users 참조. Auth.js 마이그 시 auth.users 없음 → user_id 컬럼은 그대로 두되 FK constraint 제거 권장.
 5. **SSL cert**: dev-app Postgres 는 self-signed. Drizzle/pg 의 `ssl: { rejectUnauthorized: false }` 필수.
-6. **dev-ai (portal/ai) 와 같은 VPC**: dev-ai 사설 IP 172.31.61.166 → dev-app 5432 SG 허용됨. portal/app 안에서 AI_SERVER_URL=`http://172.31.61.166:8000` 로 호출 (P6 까지는 portal/ai 가 Supabase 가리킴이라 결과 inconsistent — P7 cutover 까지 임시).
+6. **dev-ai (kikoai/ai) 와 같은 VPC**: dev-ai 사설 IP 172.31.61.166 → dev-app 5432 SG 허용됨. kikoai/app 안에서 AI_SERVER_URL=`http://172.31.61.166:8000` 로 호출 (P6 까지는 kikoai/ai 가 Supabase 가리킴이라 결과 inconsistent — P7 cutover 까지 임시).
 
 ---
 
 ## 6. 끝나면 다음
 
-- **P6** (portal/ai 리포): SupabaseProvider → asyncpg, .env DATABASE_URL 갱신
+- **P6** (kikoai/ai 리포): SupabaseProvider → asyncpg, .env DATABASE_URL 갱신
 - **P7** Cutover: Supabase write 차단 + delta dump + 양 서비스 .env 동시 전환 + 24h 모니터링
 - **P8**: Vercel 프로젝트 off, Supabase 폐기, docs 동기화
 
@@ -260,7 +260,7 @@ curl http://localhost:3000/api/health
 - SPEC: `/Users/hansangho/Desktop/aws-infra/.moai/specs/SPEC-INFRA-MIGRATE-001/`
   - `spec.md` (정식 명세 + REQ-001~006)
   - `plan.md` (P1~P8 실행 계획)
-  - `acceptance.md` (AC-003 어드민 인증 / AC-005 portal/app self-host 시나리오)
+  - `acceptance.md` (AC-003 어드민 인증 / AC-005 kikoai/app self-host 시나리오)
   - `progress.md` (현 진척: P1~P5 인프라까지 done)
 - aws-infra 의 dev-app 운영 가이드: `/Users/hansangho/Desktop/aws-infra/kikoai-dev-servers/app/README.md`
 - dev-app 의 `.env` (실값): `ssh ec2-user@54.116.104.193 'cat ~/kikoai-app/env/.env'`
@@ -269,4 +269,4 @@ curl http://localhost:3000/api/health
 
 ---
 
-작성: aws-infra 세션 (2026-05-07). 다음 세션 (portal/app) 에서 이 문서 픽업해서 진행 가능.
+작성: aws-infra 세션 (2026-05-07). 다음 세션 (kikoai/app) 에서 이 문서 픽업해서 진행 가능.

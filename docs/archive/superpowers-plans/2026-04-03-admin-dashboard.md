@@ -4,7 +4,7 @@
 
 **Goal:** Fashion Genome 어드민 대시보드 — 브랜드 DB 관리, 분석 로그, AI 품질 평가 허브
 
-**Architecture:** Next.js 16 App Router의 `/admin` route group으로 분리. Supabase Auth(이메일/비번)로 인증, middleware에서 보호. 기존 portal.ai 메인 앱과 완전 독립된 레이아웃. 3페이지 구조: genome(DB 관리), analytics(로그+활동), eval(품질 허브).
+**Architecture:** Next.js 16 App Router의 `/admin` route group으로 분리. Supabase Auth(이메일/비번)로 인증, middleware에서 보호. 기존 kiko.ai 메인 앱과 완전 독립된 레이아웃. 3페이지 구조: genome(DB 관리), analytics(로그+활동), eval(품질 허브).
 
 **Tech Stack:** Next.js 16, React 19, Supabase Auth + @supabase/ssr, shadcn/ui (base-nova), Tailwind 4, recharts, next-themes, xlsx
 
@@ -362,7 +362,7 @@ export function Sidebar() {
       {/* Desktop sidebar */}
       <aside className="hidden md:flex w-52 flex-col border-r border-border bg-sidebar p-4 gap-1">
         <Link href="/admin" className="text-sm font-bold tracking-tight text-sidebar-foreground mb-6 px-2">
-          portal.ai <span className="text-muted-foreground font-normal">admin</span>
+          kiko.ai <span className="text-muted-foreground font-normal">admin</span>
         </Link>
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => (
           <Link
@@ -430,7 +430,7 @@ export function Header({ email }: { email?: string }) {
   return (
     <header className="flex items-center justify-between border-b border-border px-4 py-2 bg-background">
       <span className="text-sm text-muted-foreground md:hidden font-bold">
-        portal.ai <span className="font-normal">admin</span>
+        kiko.ai <span className="font-normal">admin</span>
       </span>
       <div className="flex items-center gap-2 ml-auto">
         <span className="text-xs text-muted-foreground hidden sm:block">{email}</span>
@@ -460,7 +460,7 @@ import { Sidebar } from "@/components/admin/sidebar"
 import { Header } from "@/components/admin/header"
 import { ThemeProvider } from "@/components/admin/theme-provider"
 
-export const metadata = { title: "portal.ai Admin" }
+export const metadata = { title: "kiko.ai Admin" }
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createSupabaseServer()
@@ -548,7 +548,7 @@ export default function LoginPage() {
     <div className="flex min-h-dvh items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center space-y-1">
-          <h1 className="text-lg font-bold tracking-tight">portal.ai admin</h1>
+          <h1 className="text-lg font-bold tracking-tight">kiko.ai admin</h1>
           <p className="text-sm text-muted-foreground">Sign in to continue</p>
         </div>
         <form onSubmit={handleLogin} className="space-y-4">
@@ -652,7 +652,7 @@ export default function SignupPage() {
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center space-y-1">
           <h1 className="text-lg font-bold tracking-tight">Create account</h1>
-          <p className="text-sm text-muted-foreground">portal.ai admin access</p>
+          <p className="text-sm text-muted-foreground">kiko.ai admin access</p>
         </div>
         <form onSubmit={handleSignup} className="space-y-4">
           <div className="space-y-2">
@@ -2233,8 +2233,8 @@ git commit -m "feat: Eval 페이지 — 품질 지표 대시보드 + 리뷰 큐 
 ```json
 // public/manifest.json
 {
-  "name": "portal.ai Admin",
-  "short_name": "portal.ai",
+  "name": "kiko.ai Admin",
+  "short_name": "kiko.ai",
   "start_url": "/admin",
   "display": "standalone",
   "background_color": "#09090B",
@@ -2291,12 +2291,12 @@ git commit -m "feat: Eval 페이지 — 품질 지표 대시보드 + 리뷰 큐 
 
 ```ts
 export const metadata = {
-  title: "portal.ai Admin",
+  title: "kiko.ai Admin",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "portal.ai",
+    title: "kiko.ai",
   },
   themeColor: "#09090B",
 }

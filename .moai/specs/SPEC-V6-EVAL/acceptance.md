@@ -25,7 +25,7 @@ AND "신규 추가" 버튼이 페이지 상단에 노출된다
 ### Scenario 1.2: 신규 골든셋 쿼리 추가
 
 GIVEN "Golden Queries" 탭이 열려 있고
-WHEN 사용자가 "신규 추가" 버튼을 누르고 다이얼로그에서 instagram_url="https://www.instagram.com/p/ABC123/", intent_note="bone-white knit fit", created_by="admin@portal.ai" 를 입력하고 "저장"
+WHEN 사용자가 "신규 추가" 버튼을 누르고 다이얼로그에서 instagram_url="https://www.instagram.com/p/ABC123/", intent_note="bone-white knit fit", created_by="admin@kiko.ai" 를 입력하고 "저장"
 THEN `POST /api/admin/eval/golden-queries` 가 호출되고
 AND `eval_golden_queries` 테이블에 새 row 가 INSERT 되며 (query_signature 는 instagram_url 에서 derive)
 AND 다이얼로그가 닫히고 테이블에 새 row 가 표시된다

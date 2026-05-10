@@ -1,4 +1,4 @@
-# portal.ai
+# kiko.ai
 
 AI 이미지 기반 패션 스타일 분석 & 크로스플랫폼 상품 추천. "Paste any Instagram post. We'll tell you where to buy the fit."
 
@@ -76,7 +76,7 @@ pnpm test:watch   # vitest watch
 | 디자인 시스템 (Editorial, cream/ink, Pretendard) | `docs/design/system.md` |
 | 활성 plan (실행 대기) | `docs/plans/` |
 | 경쟁사·차별화 리서치 | `docs/research/` |
-| 새 크롤 사이트 추가 가이드 | [`endurance-ai/crawler` README](https://github.com/endurance-ai/crawler) (DB 스키마 변경 시만 portal.ai 작업 필요 — `docs/guides/platform-parser-guide.md`) |
+| 새 크롤 사이트 추가 가이드 | [`endurance-ai/crawler` README](https://github.com/endurance-ai/crawler) (DB 스키마 변경 시만 kiko.ai 작업 필요 — `docs/guides/platform-parser-guide.md`) |
 
 > 어드민/archived flow 는 분리 안 함 → `docs/ARCHITECTURE.md` 안에 한 섹션씩.
 
@@ -106,7 +106,7 @@ pnpm test:watch   # vitest watch
 
 ## GitHub
 
-- 조직: endurance-ai · 레포: [endurance-ai/portal.ai](https://github.com/endurance-ai/portal.ai) (public)
+- 조직: endurance-ai · 레포: [endurance-ai/kiko.ai-app](https://github.com/endurance-ai/kiko.ai-app) (public)
 - 기본 브랜치: `dev` · 흐름: dev → feature → PR → squash merge
 - `git add -A` 금지, force push 금지
 - **Commit attribution**: MoAI-ADK 표준 적용 (`.claude/settings.json` 의 `attribution.commit/pr` = `🗿 MoAI <email@mo.ai.kr>`). 기존 `Co-Authored-By: Claude` 룰은 폐기 (2026-05-04, MoAI 전면 도입). legacy 백업: `CLAUDE.md.pre-moai`

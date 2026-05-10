@@ -2,7 +2,7 @@
 
 > 작성일: 2026-04-12
 > 원본: "Computational Technologies for Fashion Recommendation: A Survey" (Ding et al., ACM Computing Surveys, 2023)
-> 목적: 패션 추천 기술 전체 지형 파악 → portal.ai 검색 엔진 고도화를 위한 학술적 기반 마련
+> 목적: 패션 추천 기술 전체 지형 파악 → kiko.ai 검색 엔진 고도화를 위한 학술적 기반 마련
 
 ---
 
@@ -38,7 +38,7 @@ Fashion Recommendation
 | 3세대 | VBPR + Aesthetic | 미적(aesthetic) 특징 추가 — "이게 뭔가" + "이게 예쁜가" 동시 모델링 |
 | 4세대 | Attribute-specific | 의미 속성(semantic attribute) 공간 학습 — 색상/소재/핏별 fine-grained 선호 |
 
-### portal.ai 시사점
+### kiko.ai 시사점
 
 **VBPR + Attribute-specific 접근법이 우리의 "니치 취향 에이전트"에 핵심적.**
 
@@ -80,7 +80,7 @@ Fashion Recommendation
 - Graph Auto-encoder (GAE)로 맥락 정보(같이 코디된 아이템, 같이 본 아이템) 통합
 - **Yang et al. [174]**: 구매 관계 + 같이 본 관계를 heterogeneous graph로 모델링
 
-### portal.ai 시사점
+### kiko.ai 시사점
 
 **우리의 "발렌시아가 마이애미 더비 비슷하지만 저렴한 것" 문제는 CFR의 변형.**
 
@@ -116,7 +116,7 @@ Item Embedding Generation → Outfit Modeling → Compatibility Discrimination
 - Chen et al. [13]: Transformer 기반, masked item prediction으로 학습
 - OutfitTransformer [129]: outfit token + item token → global outfit representation
 
-### portal.ai 시사점
+### kiko.ai 시사점
 
 **현재 우리는 "룩 분해" (이미지 → 개별 아이템)를 하고 있지만, "아웃핏 추천" (이 룩에 어울리는 다른 아이템)은 아직 없음.**
 
@@ -142,7 +142,7 @@ Item Embedding Generation → Outfit Modeling → Compatibility Discrimination
 - SVM 기반 feature-occasion-attribute 모델링 [99]
 - scene-aware: 아웃핏 이미지의 **배경 장면**도 호환성에 영향
 
-### portal.ai 시사점
+### kiko.ai 시사점
 
 사이즈 추천은 팀이 인식한 고객 pain point이지만, 기술적으로 매우 어렵고 데이터 의존도가 높음.
 **현 단계에서는 "사이즈 정보 표시"에 집중하고, 추천 로직은 후순위.**
@@ -171,7 +171,7 @@ occasion 기반 추천은 이미 우리의 mood/occasion 분석과 맞닿아 있
 | iFashion (Taobao) | 3.6M 유저, 4.5M 아이템 | 클릭 시퀀스 데이터 |
 | IQON3000 | 672K 아이템 | 일본 패션, likes 데이터 |
 
-### portal.ai 시사점
+### kiko.ai 시사점
 
 **우리의 eval 파이프라인 (eval-search.ts, eval-prompt-v2.ts)은 이미 좋은 출발점.**
 학술적 평가 프로토콜을 참고해서:
@@ -222,7 +222,7 @@ occasion 기반 추천은 이미 우리의 mood/occasion 분석과 맞닿아 있
 
 ## 8. 핵심 기술 용어 정리
 
-| 용어 | 설명 | portal.ai 매핑 |
+| 용어 | 설명 | kiko.ai 매핑 |
 |------|------|---------------|
 | Collaborative Filtering (CF) | 유저-아이템 상호작용 기반 추천 | 아직 미도입 (유저 데이터 부족) |
 | Content-Based Filtering | 아이템 속성 기반 추천 | **현재 우리의 핵심 방식** (enum 매칭) |
@@ -235,7 +235,7 @@ occasion 기반 추천은 이미 우리의 mood/occasion 분석과 맞닿아 있
 
 ---
 
-## 9. 결론: portal.ai에 가장 관련성 높은 기술 방향
+## 9. 결론: kiko.ai에 가장 관련성 높은 기술 방향
 
 | 우선순위 | 기술 | 이유 | 복잡도 |
 |---------|------|------|--------|

@@ -2,7 +2,7 @@
 
 > **2026-05-05 부로 별도 리포로 분리됨** → [`endurance-ai/crawler`](https://github.com/endurance-ai/crawler)
 
-이 portal.ai 리포는 크롤러가 적재한 데이터의 **소비자**다. 검색·추천·어드민에서 Supabase 의 `products`, `brands`, `product_images` 등을 read-only 로 사용한다.
+이 kiko.ai 리포는 크롤러가 적재한 데이터의 **소비자**다. 검색·추천·어드민에서 Supabase 의 `products`, `brands`, `product_images` 등을 read-only 로 사용한다.
 
 ## 데이터 흐름
 
@@ -12,17 +12,17 @@ endurance-ai/crawler (EC2 batch)
    ↓ R2 write        (이미지 바이너리)
 Supabase + R2
    ↓
-endurance-ai/portal.ai (Vercel)  ← 이 리포
+endurance-ai/kiko.ai-app (Vercel)  ← 이 리포
    - 검색 / 추천 / 어드민
 ```
 
-크롤러와 portal.ai 사이에 **직접 호출 / API / 이벤트버스 없음.** DB 가 유일한 계약.
+크롤러와 kiko.ai 사이에 **직접 호출 / API / 이벤트버스 없음.** DB 가 유일한 계약.
 
 ## DB 스키마 owner
 
-`supabase/migrations/` 는 portal.ai 가 owner. 스키마 변경 시:
+`supabase/migrations/` 는 kiko.ai 가 owner. 스키마 변경 시:
 
-1. portal.ai 에서 마이그레이션 작성 / 적용
+1. kiko.ai 에서 마이그레이션 작성 / 적용
 2. crawler 리포에서 `supabase gen types` 재실행 후 PR
 
 ## 분리 시점 규모 (참고)

@@ -244,7 +244,7 @@ interface ProductWithMatch extends Product {
 
 ### Step 3: 텍스트 + 이메일 (선택, AnimatePresence로 펼쳐짐)
 
-- 상단 메시지 블록: "Your voice shapes portal.ai" + "We're building this together — every bit of feedback helps us get better." (turquoise left-border accent)
+- 상단 메시지 블록: "Your voice shapes kiko.ai" + "We're building this together — every bit of feedback helps us get better." (turquoise left-border accent)
 - 텍스트 입력: "Tell us more (optional)..." placeholder
 - 이메일 입력: "your@email.com" placeholder
 - Early adopter 넛지: ✦ 아이콘 + "Be among the first to know when we launch." + "Early supporters get priority access & exclusive updates." (turquoise 배경 박스)
@@ -253,7 +253,7 @@ interface ProductWithMatch extends Product {
 ### Step 4: 감사 토스트
 
 - 피드백 전송 후 토스트 알림 (3초 자동 닫힘)
-- ✦ 아이콘 + "Thanks for shaping portal.ai" + "Your feedback makes the next result better."
+- ✦ 아이콘 + "Thanks for shaping kiko.ai" + "Your feedback makes the next result better."
 - turquoise border accent
 
 ### API: POST /api/feedback

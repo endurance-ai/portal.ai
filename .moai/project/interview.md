@@ -5,7 +5,7 @@ Project type: Existing (Next.js 16 + Supabase fullstack monolith).
 
 ## Round 1: Ownership and Purpose
 
-Question: portal.ai 의 현재 단계와 향후 방향은?
+Question: kiko.ai 의 현재 단계와 향후 방향은?
 Answer: Active product, v6 검색 고도화 중.
 - 현재 활발히 개발 중인 프로덕트.
 - 다음 마일스톤: 검색엔진 v6 + 어드민 자체평가 시스템 구축.
@@ -13,7 +13,7 @@ Answer: Active product, v6 검색 고도화 중.
 
 ## Round 2: Constraints and Non-Goals
 
-Question: portal.ai 의 알려진 제약·기술부채·non-goal 은?
+Question: kiko.ai 의 알려진 제약·기술부채·non-goal 은?
 Answer: 검색 품질·평가 인프라 부재.
 - v5 임베딩 풀배치 미실행.
 - 골든셋·NDCG 측정 도구 없음.

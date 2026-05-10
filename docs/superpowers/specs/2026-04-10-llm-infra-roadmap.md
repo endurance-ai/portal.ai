@@ -1,13 +1,13 @@
-# Portal.ai LLM 인프라 로드맵
+# kiko.ai LLM 인프라 로드맵
 
-> 현재 portal.ai의 추천 파이프라인은 "키워드 추출 → enum 매칭 → score sort"로,
+> 현재 kiko.ai의 추천 파이프라인은 "키워드 추출 → enum 매칭 → score sort"로,
 > LLM이 진짜로 "이해"하는 것이 아니라 분류기 역할만 하고 있다.
 > 이 문서는 4가지 핵심 문제를 정의하고, 각각에 대한 해결 방향과
 > 필요한 인프라를 단계별로 가이드한다.
 >
 > **핵심 전제**: 회사(optigen)에서 이미 운영 중인 LangGraph + Qdrant + BGE-M3 +
 > Cohere Reranker + LangSmith 스택을 적극 참고하되,
-> portal.ai의 규모(26K 상품, 100-1000 쿼리/일)에 맞게 경량화한다.
+> kiko.ai의 규모(26K 상품, 100-1000 쿼리/일)에 맞게 경량화한다.
 
 ---
 
@@ -193,7 +193,7 @@ const STYLE_ADJACENCY: Record<string, Record<string, number>> = {
 #### LangGraph 그래프 설계
 
 ```python
-# portal.ai RAG Graph (seed-lognia 패턴 차용)
+# kiko.ai RAG Graph (seed-lognia 패턴 차용)
 class PortalRAGState(TypedDict):
     query: str                    # 유저 입력
     messages: list[BaseMessage]   # 대화 히스토리
@@ -232,7 +232,7 @@ collect_metadata → 토큰 사용량, 검색 스코어 기록
 
 #### seed-lognia에서 가져올 수 있는 것
 
-| 컴포넌트 | seed-lognia 원본 | portal.ai 적용 |
+| 컴포넌트 | seed-lognia 원본 | kiko.ai 적용 |
 |---------|-----------------|---------------|
 | LangGraph 그래프 | `app/graphs/rag.py` (4 nodes) | 동일 패턴, 노드 내용만 변경 |
 | ScoreRetriever | `app/integrations/retrievers/score_retriever.py` | 하이브리드 검색 (dense + sparse) |
@@ -296,7 +296,7 @@ collect_metadata → 토큰 사용량, 검색 스코어 기록
 
 ```python
 # seed-lognia에서 이미 사용 중인 패턴
-@traceable(name="search_products", tags=["portal-ai"])
+@traceable(name="search_products", tags=["kiko.ai"])
 async def search_products(query: str, filters: dict):
     # 각 단계가 LangSmith에 span으로 기록됨
     enhanced = await enhance_query(query, history)
@@ -313,7 +313,7 @@ LangSmith가 제공하는 것:
 
 대안: **Langfuse** (오픈소스, 셀프호스트 가능)
 - seed-lognia가 LangSmith를 쓰고 있으므로 동일 도구 사용이 학습비용 최소
-- 단, portal.ai 단독이라면 Langfuse 셀프호스트도 괜찮음 (Docker 1개)
+- 단, kiko.ai 단독이라면 Langfuse 셀프호스트도 괜찮음 (Docker 1개)
 
 #### Phase 3: 어드민 검색 디버거
 
@@ -387,9 +387,9 @@ LangSmith가 제공하는 것:
         └──────────────────────────┘
 ```
 
-### seed-lognia 패턴을 portal.ai에 적용
+### seed-lognia 패턴을 kiko.ai에 적용
 
-| seed-lognia | portal.ai 적용 | 변경점 |
+| seed-lognia | kiko.ai 적용 | 변경점 |
 |-------------|---------------|--------|
 | Qdrant (Docker, 별도 컨테이너) | pgvector (Supabase 내장) | 26K 상품이라 pgvector로 충분. 인프라 추가 없음 |
 | BGE-M3 (HuggingFace, GPU/MPS) | BGE-M3 (API 또는 CPU) | 26K 임베딩은 1회 배치. 온라인 쿼리는 작아서 CPU OK |
@@ -529,9 +529,9 @@ LIMIT 50;
 
 EC2 배포:
 ```
-portal-ai 계정
+kiko.ai 계정
 ├─ portal-litellm (t4g.small) — 기존, LLM 프록시
-└─ portal-ai-server (t4g.medium) — 신규, FastAPI AI 서버
+└─ kiko-ai-server (t4g.medium) — 신규, FastAPI AI 서버
    ├─ FastAPI + LangGraph
    ├─ BGE-M3 (CPU, 온라인 쿼리 임베딩용)
    └─ LangSmith 연동
@@ -572,7 +572,7 @@ portal-ai 계정
 | 항목 | 비용/월 | 비고 |
 |------|--------|------|
 | portal-litellm (t4g.small) | ~$15 | 기존 |
-| portal-ai-server (t4g.medium) | ~$30 | 신규 |
+| kiko-ai-server (t4g.medium) | ~$30 | 신규 |
 | LLM API (GPT-4o-mini) | ~$3-10 | 1000 쿼리/일 기준 |
 | Cohere Rerank | ~$1-5 | 1000 쿼리/일 기준 |
 | Supabase | 기존 | pgvector 추가 비용 없음 |

@@ -2,7 +2,7 @@
 description: "기존 페이지 코드에 모바일 반응형을 추가/개선한다. Mobile-First Tailwind 패턴 적용."
 ---
 
-# Make Responsive — portal.ai
+# Make Responsive — kiko.ai
 
 ## Role
 기존 페이지 코드를 분석하고, Tailwind Mobile-First 반응형을 적용한다.

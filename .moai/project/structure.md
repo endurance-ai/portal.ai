@@ -3,12 +3,12 @@ type: project
 updated: 2026-05-04
 ---
 
-# portal.ai — 코드베이스 구조
+# kiko.ai — 코드베이스 구조
 
 ## 디렉토리 트리 (상위 2 레벨)
 
 ```
-portal/app/
+kikoai/app/
 ├── src/
 │   ├── app/                    # Next.js App Router 진입점
 │   │   ├── api/                # 19개 API Route 핸들러

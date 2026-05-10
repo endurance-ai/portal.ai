@@ -109,7 +109,7 @@ SPEC-V6-EVAL 이 disable 상태로 남긴 **end-to-end 라벨링 플로우를 un
 
 ## 10. manager-spec 에 전달할 추가 컨텍스트
 
-- 코드베이스: `/Users/hansangho/Desktop/portal/app`
+- 코드베이스: `/Users/hansangho/Desktop/kikoai/app`
 - 부모 SPEC 참조 doc:
   - `.moai/specs/SPEC-V6-EVAL/spec.md` (REQ-002 의 step 3 `PATCH /api/admin/eval/judgments/{id}` contract)
   - `.moai/specs/SPEC-V6-EVAL/research.md` (admin/eval 모듈 + judgment-store 패턴)
