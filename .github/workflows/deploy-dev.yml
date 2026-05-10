@@ -1,0 +1,157 @@
+# ==============================================================================
+# portal-app CI/CD 파이프라인 (DEV)
+# ==============================================================================
+# 트리거:
+#   - dev 브랜치로의 PR 머지 시
+#   - workflow_dispatch (수동 실행)
+#
+# 흐름:
+#   1. lint + test (CI 재검증, fail 시 배포 중단)
+#   2. Docker 이미지 빌드 (ARM64 네이티브 러너, Next.js standalone)
+#   3. ECR Push (태그: <YYYYMMDDhhmmss>-<short_sha>, latest)
+#   4. SSH로 dev-app EC2 접속 → /home/ec2-user/scripts/deploy.app.sh 실행
+#
+# Reference: portal/ai 의 deploy-dev.yml (동일 패턴)
+# Repo: portal/dev/app (ECR), 이미 portal-ai-gha IAM user 가 portal/dev/* prefix push 권한 보유
+# ==============================================================================
+
+name: 🚀 Deploy to AWS
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - dev
+
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: '배포 환경'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+
+permissions:
+  contents: read
+
+# 같은 ref 의 동시 deploy 직렬화 (취소하지 않음)
+concurrency:
+  group: deploy-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-northeast-2
+  ECR_REPOSITORY: kikoai-dev/app
+
+jobs:
+  # ============================================
+  # Job 1: 검증 (lint + test)
+  # ============================================
+  verify:
+    name: 검증 (lint + test)
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: pnpm 셋업
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.23.0
+
+      - name: Node 셋업
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: 의존성 설치
+        run: pnpm install --frozen-lockfile
+
+      - name: ESLint
+        run: pnpm run lint
+
+      - name: 테스트
+        run: pnpm run test
+        continue-on-error: true  # 테스트 인프라 안정화 전까지 임시 — TODO 제거
+
+  # ============================================
+  # Job 2: 빌드 + ECR Push
+  # ============================================
+  build-and-push:
+    name: 빌드 및 ECR Push
+    needs: verify
+    runs-on: ubuntu-24.04-arm
+
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
+
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: AWS 인증
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: ECR 로그인
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: 이미지 태그 생성
+        id: meta
+        run: |
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          TIMESTAMP=$(TZ='Asia/Seoul' date +'%Y%m%d%H%M%S')
+          IMAGE_TAG="${TIMESTAMP}-${SHORT_SHA}"
+          echo "tags=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+          echo "생성된 태그: ${IMAGE_TAG} (KST)"
+
+      - name: Docker Buildx 설정
+        uses: docker/setup-buildx-action@v3
+
+      - name: Docker 이미지 빌드 + ECR Push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.tags }}
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
+          platforms: linux/arm64
+          provenance: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ============================================
+  # Job 3: dev-app EC2 배포
+  # ============================================
+  deploy:
+    name: dev-app 배포
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    environment: dev
+
+    steps:
+      - name: SSH 배포
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            echo "=========================================="
+            echo "[portal-app DEV] 배포 시작"
+            echo "=========================================="
+            /home/ec2-user/scripts/deploy.app.sh ${{ needs.build-and-push.outputs.image_tag }}

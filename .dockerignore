@@ -1,0 +1,54 @@
+# Node
+node_modules
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# Next.js
+.next
+out
+
+# Build artifacts
+dist
+build
+
+# Env (secret 은 컨테이너 런타임 mount)
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# IDE / OS
+.idea
+.vscode
+.DS_Store
+
+# Git / CI
+.git
+.gitignore
+.github
+
+# Vercel
+.vercel
+
+# MoAI / 분석 도구
+.moai
+.claude
+.claude-pre-moai.tar.gz
+.superpowers
+.ruff_cache
+
+# 문서 (이미지 빌드 불필요)
+docs
+HANDOFF*.md
+CLAUDE.md*
+
+# Tests / fixtures (필요 시 제거)
+data
+design.pen
+
+# Local Python venv (테스트 도구)
+.venv-local
+
+# MCP
+.mcp.json

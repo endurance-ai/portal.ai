@@ -46,7 +46,7 @@ pnpm test:watch   # vitest watch
 | 검색 | v4 (enum 가중합) — v5 임베딩 인프라 적용 완료, 풀배치 미실행 |
 | 저장 | Supabase Postgres + pgvector + pgroonga, Cloudflare R2 |
 | 크롤러 | **외부 리포 [`endurance-ai/crawler`](https://github.com/endurance-ai/crawler)** — Playwright (Cafe24 22) + Shopify JSON (10), 81k SKU / 697 브랜드 |
-| 배포 | Vercel + AWS EC2 g5 Spot (배치) |
+| 배포 | Vercel (prod) + EC2 self-host (dev, Dockerfile + GitHub Actions CI/CD) + AWS EC2 g5 Spot (임베딩 배치) |
 
 ## 코딩 컨벤션
 

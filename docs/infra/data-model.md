@@ -11,8 +11,11 @@
 | **상품** | `products` | 004 + 005 + 006 + 011 + 027 | 크롤로 들어온 모든 SKU. 임베딩 컬럼 추가됨 (027) |
 | | `product_reviews` | 019 | 상품 리뷰 |
 | | `product_ai_analysis` | 012 | v4 검색이 INNER JOIN 하는 LLM 분석 산출물. **v5 검증 후 드랍 예정** |
-| **브랜드** | `brand_nodes` | 002 + 007 | Fashion Genome v2: 15 style nodes + brand DNA |
+| **브랜드** | `brand_nodes` | 002 + 007 + 037 + 040 + 041 + 042 | Fashion Genome v2: 15 style nodes + brand DNA + embedding(1024-dim BGE-m3) + aliases + UMAP 2D cache |
 | | `brand_attributes` | 010 | 어드민에서 채우는 브랜드 속성 |
+| | `brand_similar` | 038 | 브랜드 간 유사도 그래프 (top-20 edges per brand, cosine similarity) |
+| | `brand_attribute_proposals` | 039 | LLM 추론 브랜드 속성 검수큐 (confidence ≥ 0.85 자동/0.7~0.85 pending/< 0.7 폐기) |
+| | `brand_sku_counts` | 043 | 브랜드별 SKU 카운트 MATERIALIZED VIEW (perf 캐시) |
 | **검색 품질** | `search_quality_logs` | 014 | 검색 호출당 score breakdown (어드민 디버거 시각화) |
 | **평가** | `eval_reviews`, `eval_golden_set` | 013 + 015 | 평가 골든셋 + 리뷰 핀 |
 | | `eval_golden_queries` | 033 | v6 평가용 골든셋 쿼리 카탈로그 (dual identity) |
@@ -143,6 +146,13 @@ FROM products GROUP BY platform ORDER BY total DESC;
 | 028 | instagram_post_scrapes (메인 플로우용) |
 | 029 | 구 /dna 용 instagram_scrapes 드랍 |
 | **033** | **v6 평가 인프라 — eval_golden_queries + eval_judgments + eval_runs + RLS + frozen baseline trigger** |
+| **037** | **brand_nodes.embedding vector(1024) + HNSW** — BGE-m3 텍스트 임베딩 |
+| **038** | **brand_similar** — 브랜드 유사도 그래프 (cosine, top-20 per brand) |
+| **039** | **brand_attribute_proposals** — LLM 메타 추론 검수큐 (admin RLS) |
+| **040** | **brand_nodes.aliases** — 브랜드 별칭 배열 |
+| **041** | brand_nodes 컬럼 NOT NULL 완화 (style_node / sensitivity_tags / brand_keywords / gender_scope) |
+| **042** | brand_sku_counts VIEW + UMAP layout cache 컬럼 (x_umap / y_umap) |
+| **043** | brand_sku_counts → MATERIALIZED VIEW (perf 개선) |
 
 ---
 
@@ -155,6 +165,47 @@ FROM products GROUP BY platform ORDER BY total DESC;
 | `src/lib/supabase-browser.ts` | anon (브라우저) | 어드민 페이지의 클라이언트 컴포넌트 |
 
 자세한 패턴: `docs/PATTERNS.md` 의 "Supabase 클라이언트 — 3종" 섹션.
+
+---
+
+## Brand Graph 테이블 (2026-05-10, migrations 037~043)
+
+### brand_nodes (신규 컬럼)
+
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| embedding | vector(1024) | BGE-m3 텍스트 임베딩 — HNSW 인덱스 (ip ops) |
+| aliases | text[] | 브랜드 별칭 배열 (정규화 매칭용) |
+| x_umap / y_umap | float8 | UMAP 2D 투영 좌표 캐시 (어드민 그래프 UI용) |
+
+### brand_similar
+
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| brand_id | int8 | FK → brand_nodes.id |
+| similar_brand_id | int8 | FK → brand_nodes.id |
+| score | float8 | cosine similarity (BGE-m3 기반) |
+| created_at | timestamptz | — |
+
+top-20 per brand 기준 약 42,000 edges. `(brand_id, similar_brand_id)` UNIQUE.
+
+### brand_attribute_proposals
+
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| id | uuid | PK |
+| brand_id | int8 | FK → brand_nodes.id |
+| attribute_key | text | 속성 이름 (vibe, palette, material, sensitivity 등) |
+| proposed_value | text | LLM 추론 값 |
+| confidence | float8 | 0.0~1.0 (≥ 0.85 auto / 0.7~0.85 pending / < 0.7 폐기) |
+| status | text | `auto` / `pending` / `approved` / `rejected` |
+| created_at | timestamptz | — |
+
+RLS admin-only. 어드민 `/admin/brand-proposals` 에서 일괄 승인/거절.
+
+### brand_sku_counts (MATERIALIZED VIEW, migration 043)
+
+브랜드별 SKU 카운트 캐시. `REFRESH MATERIALIZED VIEW CONCURRENTLY brand_sku_counts` 로 갱신.
 
 ---
 
