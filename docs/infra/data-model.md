@@ -28,6 +28,8 @@
 | **어드민 인증** | `admin_profiles` | 022 + 023 + 024 | `status: pending/approved/rejected` 승인 게이트 |
 | **Instagram** | `instagram_post_scrapes` | 028 | 메인 플로우 스크랩 결과 (shortcode unique, raw_data jsonb) |
 | | `instagram_post_scrape_images` | 028 | 슬라이드별 R2 URL + tagged_users + is_video |
+| **스타일 노드** | `style_nodes` | 049 + 050 | Fashion Genome taxonomy DB 관리 (20 nodes A~T, admin CRUD). `src/lib/style-nodes-db.ts` 로 fetch (5 min cache). `fashion-genome.ts` 의 hardcoded 15-node 대체 |
+| | `style_node_adjacency` | 051 | 스타일 노드 간 관계 그래프 (빈 테이블 — SPEC-BRAND-EMBED-001 이 채울 예정) |
 | **API 로깅** | `api_access_logs` | — | 외부 API 호출 추적 |
 
 ---
@@ -161,6 +163,9 @@ FROM products GROUP BY platform ORDER BY total DESC;
 | **046** | 모든 테이블/컬럼 한글 COMMENT 부여 |
 | **047** | pgcrypto extension drop (gen_random_uuid → PG 내장 함수로 대체) |
 | **048** | **eval 4 테이블 drop** — eval_golden_queries / eval_golden_set / eval_judgments / eval_runs + prevent_frozen_v4_baseline_overwrite 함수. eval_reviews 는 유지 |
+| **049** | **`style_nodes` 테이블** — code(PK), name_en, name_ko, mood, include_rule, exclude_rule, keywords_en[], keywords_ko[], is_active, created_at, updated_at |
+| **050** | **`style_nodes` 20-node seed** — A~T 코드 초기 데이터 삽입 (Fashion Genome taxonomy 이전) |
+| **051** | **`style_node_adjacency` 테이블** — source_code, target_code, weight (빈 테이블 — SPEC-BRAND-EMBED-001 이 채울 예정) |
 
 ---
 
