@@ -17,8 +17,8 @@
  * update the test deliberately (and document in the commit).
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { cleanup, render, screen, waitFor, fireEvent, within } from "@testing-library/react"
+import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
+import {cleanup, fireEvent, render, screen, waitFor, within} from "@testing-library/react"
 import EvalPage from "../page"
 
 // --------------------------------------------------------------------------
@@ -112,8 +112,6 @@ const TWENTY_ITEM_QUEUE_RESPONSE = {
   })),
 }
 
-const EMPTY_GOLDEN_RESPONSE = { goldenSet: [] }
-
 // --------------------------------------------------------------------------
 // Fetch mock helpers
 // --------------------------------------------------------------------------
@@ -125,19 +123,12 @@ interface FetchCall {
 
 function installFetchMock(routes: {
   evalQueue?: unknown
-  goldenSet?: unknown
 }): { calls: FetchCall[] } {
   const calls: FetchCall[] = []
   globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input.toString()
     calls.push({ url, init })
 
-    if (url.startsWith("/api/admin/eval/golden-set")) {
-      return new Response(JSON.stringify(routes.goldenSet ?? EMPTY_GOLDEN_RESPONSE), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      })
-    }
     if (url.startsWith("/api/admin/eval")) {
       return new Response(JSON.stringify(routes.evalQueue ?? EMPTY_QUEUE_RESPONSE), {
         status: 200,
@@ -150,7 +141,7 @@ function installFetchMock(routes: {
 }
 
 beforeEach(() => {
-  installFetchMock({ evalQueue: EMPTY_QUEUE_RESPONSE, goldenSet: EMPTY_GOLDEN_RESPONSE })
+  installFetchMock({ evalQueue: EMPTY_QUEUE_RESPONSE })
 })
 
 afterEach(() => {

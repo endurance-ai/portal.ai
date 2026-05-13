@@ -19,10 +19,11 @@
 | | `brand_attribute_proposals` | 039 | LLM 추론 브랜드 속성 검수큐 (confidence ≥ 0.85 자동/0.7~0.85 pending/< 0.7 폐기) |
 | | `brand_sku_counts` | 043 | 브랜드별 SKU 카운트 MATERIALIZED VIEW (perf 캐시) |
 | **검색 품질** | `search_quality_logs` | 014 | 검색 호출당 score breakdown (어드민 디버거 시각화) |
-| **평가** | `eval_reviews`, `eval_golden_set` | 013 + 015 | 평가 골든셋 + 리뷰 핀 |
-| | `eval_golden_queries` | 033 | v6 평가용 골든셋 쿼리 카탈로그 (dual identity) |
-| | `eval_judgments` | 033 | 사람 라벨링 (golden_query × product × algorithm_version) |
-| | `eval_runs` | 033 | NDCG@10/Precision@5 메트릭 스냅샷 (frozen baseline 지원) |
+| **평가** | `eval_reviews` | 013 + 015 | 평가 대기열 리뷰 핀 (유일하게 유지) |
+| | ~~`eval_golden_set`~~ | ~~013~~→**048 드랍** | migration 048 (2026-05-13) 에서 삭제됨 |
+| | ~~`eval_golden_queries`~~ | ~~033~~→**048 드랍** | migration 048 에서 삭제됨 |
+| | ~~`eval_judgments`~~ | ~~033~~→**048 드랍** | migration 048 에서 삭제됨 |
+| | ~~`eval_runs`~~ | ~~033~~→**048 드랍** | migration 048 에서 삭제됨 |
 | **유저 피드백** | `user_feedbacks` | 021 | rating + tag + comment + email |
 | **어드민 인증** | `admin_profiles` | 022 + 023 + 024 | `status: pending/approved/rejected` 승인 게이트 |
 | **Instagram** | `instagram_post_scrapes` | 028 | 메인 플로우 스크랩 결과 (shortcode unique, raw_data jsonb) |
@@ -87,7 +88,7 @@ CREATE INDEX idx_products_embedding_pending
 | 함수 | 시그니처 | 용도 |
 |---|---|---|
 | `bulk_update_product_embeddings(payload jsonb)` | returns int | `scripts/aws/embed_products.py` 가 배치 인코딩 결과를 한 번에 upsert |
-| `set_hnsw_ef_search(ef int)` | returns void | 런타임 ef_search 튜닝 (recall ↔ latency) |
+| ~~`set_hnsw_ef_search(ef int)`~~ | — | **044 드랍** — 호출 0 hits, A/B 실험용 잔재 |
 | `get_product_filter_counts()` | returns table | 어드민 상품 필터 옵션 (10min CDN cache) |
 
 ### 모니터링 뷰
@@ -155,6 +156,11 @@ FROM products GROUP BY platform ORDER BY total DESC;
 | **041** | brand_nodes 컬럼 NOT NULL 완화 (style_node / sensitivity_tags / brand_keywords / gender_scope) |
 | **042** | brand_sku_counts VIEW + UMAP layout cache 컬럼 (x_umap / y_umap) |
 | **043** | brand_sku_counts → MATERIALIZED VIEW (perf 개선) |
+| **044** | **legacy 5종 drop** — item_search_results 테이블, set_hnsw_ef_search() 함수, rls_auto_enable event trigger, handle_new_admin_user() 함수, brand_nodes.platform 컬럼 |
+| **045** | **product_ai_analysis v6 axis 8 컬럼** — neckline/sleeve/length/closure/texture/decoration/silhouette/formality + 복합 btree 인덱스 8종 |
+| **046** | 모든 테이블/컬럼 한글 COMMENT 부여 |
+| **047** | pgcrypto extension drop (gen_random_uuid → PG 내장 함수로 대체) |
+| **048** | **eval 4 테이블 drop** — eval_golden_queries / eval_golden_set / eval_judgments / eval_runs + prevent_frozen_v4_baseline_overwrite 함수. eval_reviews 는 유지 |
 
 ---
 
