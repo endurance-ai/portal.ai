@@ -1,0 +1,716 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>DB Reference Review — 26-05-07-db-reference.md</title>
+<meta name="color-scheme" content="light">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['"Pretendard Variable"', 'Pretendard', '-apple-system', 'system-ui', 'sans-serif'],
+          mono: ['"JetBrains Mono"', '"SF Mono"', 'Menlo', 'monospace'],
+        },
+      }
+    }
+  }
+</script>
+<style>
+  :root { color-scheme: light; }
+  html, body { background: #fafaf9; }
+  body {
+    font-family: "Pretendard Variable", Pretendard, -apple-system, system-ui, sans-serif;
+    color: #1c1d20;
+    font-feature-settings: "ss01", "ss02", "cv01", "cv11";
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    line-height: 1.65;
+  }
+  .mono { font-family: "JetBrains Mono", "SF Mono", Menlo, monospace; letter-spacing: -0.01em; }
+  details > summary { cursor: pointer; list-style: none; }
+  details > summary::-webkit-details-marker { display: none; }
+  details > summary::before {
+    content: "▸"; display: inline-block; width: 1em; transition: transform .15s;
+    color: #9ca3af; margin-right: .25rem;
+  }
+  details[open] > summary::before { transform: rotate(90deg); }
+  .pill {
+    display: inline-flex; align-items: center; padding: 2px 9px;
+    border-radius: 999px; font-size: 11px; font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+  table { border-collapse: separate; border-spacing: 0; }
+  th, td { vertical-align: top; }
+  .row-drop  { background: rgba(254, 226, 226, 0.55); }
+  .row-keep  { background: rgba(209, 250, 229, 0.5); }
+  .row-fix   { background: rgba(254, 243, 199, 0.55); }
+  ::selection { background: rgba(59, 130, 246, 0.22); color: #0f172a; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #d4d4d8; border-radius: 999px; }
+  ::-webkit-scrollbar-thumb:hover { background: #a1a1aa; }
+  .filter-btn.active { box-shadow: inset 0 0 0 1px rgba(24,24,27,0.6); }
+</style>
+</head>
+<body class="min-h-screen">
+
+<header class="sticky top-0 z-20 backdrop-blur-md bg-[#fafaf9]/85 border-b border-zinc-200">
+  <div class="max-w-6xl mx-auto px-8 py-5 flex items-end justify-between gap-6">
+    <div>
+      <div class="flex items-center gap-2 text-[11px] uppercase tracking-widest text-zinc-500 mb-1">
+        <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+        kikoai dev-app · postgres review
+      </div>
+      <h1 class="text-[22px] font-semibold text-zinc-900 leading-tight">26-05-07-db-reference.md</h1>
+      <p class="text-[12px] text-zinc-500 mono mt-1">/Users/hansangho/Desktop/aws-infra/docs/kikoai-dev/</p>
+    </div>
+    <nav class="flex gap-1.5 text-[12px]" id="filters">
+      <button data-filter="all"     class="filter-btn active px-3 py-1.5 rounded-md bg-zinc-900 text-zinc-50 hover:bg-zinc-800 transition">전체</button>
+      <button data-filter="stale"   class="filter-btn px-3 py-1.5 rounded-md bg-amber-100 text-amber-900 hover:bg-amber-200 transition">🟡 Stale</button>
+      <button data-filter="drop"    class="filter-btn px-3 py-1.5 rounded-md bg-red-100 text-red-900 hover:bg-red-200 transition">🔴 Drop</button>
+      <button data-filter="confirm" class="filter-btn px-3 py-1.5 rounded-md bg-blue-100 text-blue-900 hover:bg-blue-200 transition">❓ 확인</button>
+      <button data-filter="ok"      class="filter-btn px-3 py-1.5 rounded-md bg-emerald-100 text-emerald-900 hover:bg-emerald-200 transition">🟢 OK</button>
+    </nav>
+  </div>
+</header>
+
+<main class="max-w-6xl mx-auto px-8 py-10 space-y-10">
+
+  <!-- 진행 -->
+  <section>
+    <div class="flex items-baseline gap-3 mb-4">
+      <span class="text-[11px] uppercase tracking-widest text-zinc-500">progress</span>
+      <h2 class="text-lg font-medium text-zinc-900">작업 진행</h2>
+    </div>
+    <ol class="space-y-2 text-[14px] text-zinc-700">
+      <li class="flex gap-3"><span class="text-emerald-600 flex-none">✓</span><span>브랜치 정리 — <span class="mono text-zinc-500">feature/data-debt-foundation</span>, <span class="mono text-zinc-500">feature/spec-v6-core</span> 삭제 (로컬 + 원격)</span></li>
+      <li class="flex gap-3"><span class="text-emerald-600 flex-none">✓</span><span>코드 grep 검증 — 22 테이블 / 함수 / 컬럼별 호출처 fresh scan (kikoai/app + ai + crawler)</span></li>
+      <li class="flex gap-3"><span class="text-emerald-600 flex-none">✓</span><span>보수 정리 원칙 확정 — <span class="text-zinc-900 font-medium">INSERT 만 있어도 유지</span>, 진짜 dead 만 drop</span></li>
+      <li class="flex gap-3"><span class="text-amber-600 flex-none">◆</span><span class="text-zinc-900"><b>지금 여기</b> — doc 정독하면서 stale 수정 (§1 → §2 → … → §9)</span></li>
+      <li class="flex gap-3"><span class="text-zinc-400 flex-none">○</span><span class="text-zinc-500">Migration 044 작성 (drop 안 확정 후)</span></li>
+      <li class="flex gap-3"><span class="text-zinc-400 flex-none">○</span><span class="text-zinc-500">v6 새 설계 (인프라 정리 후)</span></li>
+    </ol>
+  </section>
+
+  <!-- 최종 drop catalog -->
+  <section data-tag="drop">
+    <div class="flex items-baseline gap-3 mb-4">
+      <span class="text-[11px] uppercase tracking-widest text-red-600">drop catalog</span>
+      <h2 class="text-lg font-medium text-zinc-900">최종 drop 안전 목록</h2>
+      <span class="text-[12px] text-zinc-500">총 5개</span>
+    </div>
+    <div class="rounded-lg border border-zinc-200 bg-white overflow-hidden shadow-sm">
+      <table class="w-full text-[13px]">
+        <thead class="bg-zinc-50 text-[11px] uppercase tracking-wider text-zinc-500 border-b border-zinc-200">
+          <tr>
+            <th class="text-left py-3 px-4 font-medium">대상</th>
+            <th class="text-left py-3 font-medium">종류</th>
+            <th class="text-left py-3 font-medium">grep 결과</th>
+            <th class="text-left py-3 pr-4 font-medium">verdict</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-zinc-100">
+          <tr><td class="py-3 px-4 mono text-zinc-900">item_search_results</td>          <td class="text-zinc-600">테이블</td>         <td class="mono text-zinc-500">0 hits</td><td class="pr-4 text-red-700 font-medium">✅ Drop</td></tr>
+          <tr><td class="py-3 px-4 mono text-zinc-900">set_hnsw_ef_search(int)</td>      <td class="text-zinc-600">함수</td>          <td class="mono text-zinc-500">0 hits</td><td class="pr-4 text-red-700 font-medium">✅ Drop</td></tr>
+          <tr><td class="py-3 px-4 mono text-zinc-900">rls_auto_enable</td>              <td class="text-zinc-600">event trigger</td> <td class="mono text-zinc-500">0 hits</td><td class="pr-4 text-red-700 font-medium">✅ Drop · BYPASSRLS 환경</td></tr>
+          <tr><td class="py-3 px-4 mono text-zinc-900">handle_new_admin_user()</td>      <td class="text-zinc-600">함수 + 트리거</td><td class="mono text-zinc-500">migration sql 자체정의만</td><td class="pr-4 text-red-700 font-medium">✅ Drop · P3 후 source 부재</td></tr>
+          <tr><td class="py-3 px-4 mono text-zinc-900">brand_nodes.platform</td>         <td class="text-zinc-600">컬럼</td>          <td class="mono text-zinc-500">read/write 0</td><td class="pr-4 text-red-700 font-medium">✅ Drop · source_platforms 대체</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="text-[12px] text-zinc-500 mt-3">다른 후보들은 INSERT 만 있어도 유지 결정 (보수 정리 원칙 — v6 설계가 활용할 가능성 보존).</p>
+  </section>
+
+  <!-- §1 -->
+  <section data-tag="stale">
+    <div class="flex items-baseline gap-3 mb-4">
+      <span class="text-[11px] uppercase tracking-widest text-amber-700">§1 — overview</span>
+      <h2 class="text-lg font-medium text-zinc-900">개요</h2>
+      <span class="text-[12px] text-zinc-500 mono">line 1~62</span>
+    </div>
+
+    <div class="space-y-3">
+      <details class="rounded-lg border border-emerald-200 bg-emerald-50/60 overflow-hidden">
+        <summary class="px-4 py-3 flex items-center justify-between hover:bg-emerald-100/60 transition">
+          <span class="flex items-center gap-2 text-[14px]">
+            <span class="pill bg-emerald-200 text-emerald-900 ring-1 ring-emerald-300">✅ FIXED</span>
+            <span class="text-zinc-900">헤더 line 12 — P 단계 표기 <span class="text-[11px] text-emerald-700 mono">2026-05-12 적용</span></span>
+          </span>
+          <span class="text-[11px] text-zinc-500 mono">priority high</span>
+        </summary>
+        <div class="px-4 pb-4 space-y-3 text-[13px]">
+          <div>
+            <div class="text-[11px] uppercase tracking-wider text-zinc-500 mb-1.5">사용자 답</div>
+            <ul class="space-y-1 text-zinc-700">
+              <li class="flex gap-2"><span class="text-emerald-700 flex-none">✓</span><span>P7 — 트래픽 100% 자체 PG 이전 완료</span></li>
+              <li class="flex gap-2"><span class="text-emerald-700 flex-none">✓</span><span>P8 — Supabase pause 상태로 보존, 운영 미사용 (사유 불기재)</span></li>
+            </ul>
+          </div>
+          <div>
+            <div class="text-[11px] uppercase tracking-wider text-emerald-700 mb-1.5">적용된 본문</div>
+            <pre class="bg-emerald-50 border border-emerald-200 rounded p-3 mono text-[12px] leading-relaxed whitespace-pre-wrap text-emerald-900">상태 (2026-05-12 갱신): SPEC-INFRA-MIGRATE-001 P1~P7 완료. dev-app Postgres + PostgREST + Auth.js v5 자체 호스트 운영 중, 트래픽 100% 자체 PG 이전. P8 (Supabase 프로젝트 삭제) — pause 상태로 보존, 운영 트래픽 0.</pre>
+          </div>
+          <div class="text-[12px] text-zinc-600">
+            <span class="font-medium">동시 갱신:</span> §9.5 마이그레이션 이력도 같은 stale 가 있어 함께 정정 (P1~P7 완료 / 트래픽 이전 / Supabase pause 보존).
+          </div>
+        </div>
+      </details>
+
+      <details class="rounded-lg border border-emerald-200 bg-emerald-50/60 overflow-hidden">
+        <summary class="px-4 py-3 flex items-center justify-between hover:bg-emerald-100/60 transition">
+          <span class="flex items-center gap-2 text-[14px]">
+            <span class="pill bg-emerald-200 text-emerald-900 ring-1 ring-emerald-300">🟢 OK</span>
+            <span class="text-zinc-900">§1.1 호스트 / 접속</span>
+          </span>
+          <span class="text-[11px] text-zinc-500 mono">line 16~30</span>
+        </summary>
+        <div class="px-4 pb-4 text-[13px] text-zinc-600">
+          전역 CLAUDE.md 의 EC2 매핑 (<span class="mono text-zinc-900">i-033e3d2edcdeaa8c6 / 54.116.104.193 / 172.31.59.31</span>) 와 일치.
+          Postgres 16.13 패치 변경 가능성만 사용자 확인.
+        </div>
+      </details>
+
+      <details class="rounded-lg border border-emerald-200 bg-emerald-50/60 overflow-hidden">
+        <summary class="px-4 py-3 flex items-center justify-between hover:bg-emerald-100/60 transition">
+          <span class="flex items-center gap-2 text-[14px]">
+            <span class="pill bg-emerald-200 text-emerald-900 ring-1 ring-emerald-300">🟢 OK</span>
+            <span class="text-zinc-900">§1.2 확장 / 검색 스택</span>
+          </span>
+          <span class="text-[11px] text-zinc-500 mono">line 32~37</span>
+        </summary>
+        <div class="px-4 pb-4 text-[13px] text-zinc-600">
+          pgvector 0.8.2 / pgroonga 4.0.6 / pgcrypto 일관.
+          HNSW 136 MB + pgroonga 25 MB (5/10 생성) 정확.
+          <span class="mono text-zinc-900">pgroonga_crash_safer</span> 단독 등록 메모도 §6.4 와 일치.
+        </div>
+      </details>
+
+      <details open class="rounded-lg border border-emerald-200 bg-emerald-50/60 overflow-hidden">
+        <summary class="px-4 py-3 flex items-center justify-between hover:bg-emerald-100/60 transition">
+          <span class="flex items-center gap-2 text-[14px]">
+            <span class="pill bg-emerald-200 text-emerald-900 ring-1 ring-emerald-300">✅ FIXED</span>
+            <span class="text-zinc-900">§1.3 사용자 권한 — <span class="mono">crawler_user 행 제거 + 헤더 (4 user)</span></span>
+          </span>
+          <span class="text-[11px] text-zinc-500 mono">line 39 · 2026-05-12 적용 (재정정)</span>
+        </summary>
+        <div class="px-4 pb-4 text-[13px] text-zinc-700 space-y-2">
+          <div>EC2 직접 확인 결과 (<span class="mono">SELECT FROM pg_roles</span>) 실제 user 는 <b>4명</b> — postgres / app_user / ai_user / backup_user. <span class="mono">crawler_user</span> 는 없음. 크롤러는 별도 user 없이 <span class="mono">app_user</span> 권한 활용 (사용자 확인).</div>
+          <div class="text-[12px] text-zinc-500">정정 사항:</div>
+          <ul class="ml-4 list-disc space-y-0.5 text-[12px]">
+            <li>§1.3 헤더 → <span class="mono">"(4 user)"</span></li>
+            <li>§1.3 표 → <span class="mono">crawler_user</span> 행 제거</li>
+            <li>§9.1 → "4 user ... BYPASSRLS" → <b>3 user</b> + 크롤러 = app_user 메모</li>
+          </ul>
+        </div>
+      </details>
+
+      <details class="rounded-lg border border-emerald-200 bg-emerald-50/60 overflow-hidden">
+        <summary class="px-4 py-3 flex items-center justify-between hover:bg-emerald-100/60 transition">
+          <span class="flex items-center gap-2 text-[14px]">
+            <span class="pill bg-emerald-200 text-emerald-900 ring-1 ring-emerald-300">✅ OK</span>
+            <span class="text-zinc-900">§1.4 백업 / 복구</span>
+          </span>
+          <span class="text-[11px] text-zinc-500 mono">line 52~60 · 2026-05-12 검증</span>
+        </summary>
+        <div class="px-4 pb-4 text-[13px] text-zinc-700">
+          사용자 검증 완료 — doc 본문 변경 없음.
+          <ul class="mt-2 ml-4 list-disc space-y-1 text-zinc-600">
+            <li>✓ 백업 정상 동작 중</li>
+            <li>✓ S3 버킷 <span class="mono text-zinc-900">s3://kiko-ai-pg-backups/dev-app/</span> 유효</li>
+            <li>✓ runbook 경로 살아있음</li>
+          </ul>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- §2 -->
+  <section data-tag="ok">
+    <div class="flex items-baseline gap-3 mb-4">
+      <span class="text-[11px] uppercase tracking-widest text-emerald-700">§2 — tables</span>
+      <h2 class="text-lg font-medium text-zinc-900">테이블 매트릭스</h2>
+      <span class="text-[12px] text-zinc-500">22 + 1 view + 1 mv</span>
+    </div>
+    <div class="grid grid-cols-2 gap-3 text-[13px]">
+      <div class="rounded-lg border border-zinc-200 bg-white px-4 py-3 hover:border-zinc-300 transition">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="inline-block w-2 h-2 rounded-sm bg-orange-500"></span>
+          <span class="text-[11px] uppercase tracking-wider text-zinc-500">상품 카탈로그 · 3</span>
+        </div>
+        <div class="mono text-zinc-700">products · product_ai_analysis · product_reviews</div>
+      </div>
+      <div class="rounded-lg border border-zinc-200 bg-white px-4 py-3 hover:border-zinc-300 transition">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="inline-block w-2 h-2 rounded-sm bg-blue-500"></span>
+          <span class="text-[11px] uppercase tracking-wider text-zinc-500">브랜드 그래프 · 3 + 1mv</span>
+        </div>
+        <div class="mono text-zinc-700">brand_nodes · brand_similar · brand_attribute_proposals · brand_sku_counts(mv)</div>
+      </div>
+      <div class="rounded-lg border border-zinc-200 bg-white px-4 py-3 hover:border-zinc-300 transition">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="inline-block w-2 h-2 rounded-sm bg-emerald-500"></span>
+          <span class="text-[11px] uppercase tracking-wider text-zinc-500">분석 워크플로 · 3</span>
+        </div>
+        <div class="mono text-zinc-700">analyses · analysis_items · analysis_sessions</div>
+      </div>
+      <div class="rounded-lg border border-zinc-200 bg-white px-4 py-3 hover:border-zinc-300 transition">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="inline-block w-2 h-2 rounded-sm bg-sky-500"></span>
+          <span class="text-[11px] uppercase tracking-wider text-zinc-500">검색 결과 / 품질 · 3</span>
+        </div>
+        <div class="mono text-zinc-700">
+          <span class="text-red-700 line-through decoration-red-500/60">item_search_results</span> · search_quality_logs · user_feedbacks
+        </div>
+      </div>
+      <div class="rounded-lg border border-zinc-200 bg-white px-4 py-3 hover:border-zinc-300 transition">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="inline-block w-2 h-2 rounded-sm bg-purple-500"></span>
+          <span class="text-[11px] uppercase tracking-wider text-zinc-500">어드민 · 1</span>
+        </div>
+        <div class="mono text-zinc-700">admin_profiles</div>
+      </div>
+      <div class="rounded-lg border border-zinc-200 bg-white px-4 py-3 hover:border-zinc-300 transition">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="inline-block w-2 h-2 rounded-sm bg-rose-500"></span>
+          <span class="text-[11px] uppercase tracking-wider text-zinc-500">인스타 수집 · 2</span>
+        </div>
+        <div class="mono text-zinc-700">instagram_post_scrapes · instagram_post_scrape_images</div>
+      </div>
+      <div class="rounded-lg border border-zinc-200 bg-white px-4 py-3 hover:border-zinc-300 transition">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="inline-block w-2 h-2 rounded-sm bg-yellow-500"></span>
+          <span class="text-[11px] uppercase tracking-wider text-zinc-500">평가 eval-* · 5</span>
+        </div>
+        <div class="mono text-zinc-700">eval_golden_queries · eval_golden_set · eval_judgments · eval_reviews · eval_runs</div>
+      </div>
+      <div class="rounded-lg border border-zinc-200 bg-white px-4 py-3 hover:border-zinc-300 transition">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="inline-block w-2 h-2 rounded-sm bg-amber-500"></span>
+          <span class="text-[11px] uppercase tracking-wider text-zinc-500">운영 로깅 · 1</span>
+        </div>
+        <div class="mono text-zinc-700">api_access_logs</div>
+      </div>
+    </div>
+    <p class="text-[12px] text-zinc-500 mt-3">§2 자체는 stale 거의 없음. <span class="mono text-red-700">item_search_results</span> drop 표기 정도만 반영하면 됨.</p>
+  </section>
+
+  <!-- §9.3 정정 -->
+  <section data-tag="stale">
+    <div class="flex items-baseline gap-3 mb-1">
+      <span class="text-[11px] uppercase tracking-widest text-amber-700">§9.3 — deprecated 후보</span>
+      <h2 class="text-lg font-medium text-zinc-900">대대적 정정 필요</h2>
+    </div>
+    <p class="text-[13px] text-zinc-600 mb-4">현재 doc 의 표는 stale 가 많음. grep 검증 결과 기준으로 갱신.</p>
+
+    <div class="rounded-lg border border-zinc-200 bg-white overflow-hidden shadow-sm">
+      <table class="w-full text-[13px]">
+        <thead class="bg-zinc-50 text-[11px] uppercase tracking-wider text-zinc-500 border-b border-zinc-200">
+          <tr>
+            <th class="text-left py-3 px-4 font-medium">대상</th>
+            <th class="text-left py-3 font-medium">doc 추정 (stale)</th>
+            <th class="text-left py-3 font-medium">grep 실제</th>
+            <th class="text-left py-3 pr-4 font-medium">verdict</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-zinc-100">
+          <tr class="row-drop"><td class="py-3 px-4 mono text-zinc-900">item_search_results</td><td class="text-zinc-600">legacy SerpAPI</td><td class="mono text-zinc-500">0 hits</td><td class="pr-4 text-red-700 font-medium">🔴 Drop</td></tr>
+          <tr class="row-keep"><td class="py-3 px-4 mono text-zinc-900">brand_attribute_proposals</td><td class="text-zinc-600">admin UI 미구축</td><td class="mono text-zinc-700">/admin/brand-proposals 존재</td><td class="pr-4 text-emerald-700 font-medium">🟢 유지</td></tr>
+          <tr class="row-fix"><td class="py-3 px-4 mono text-zinc-900">bulk_update_product_embeddings</td><td class="text-zinc-600">Modal embed batch</td><td class="mono text-zinc-700">kikoai/ai/scripts/embed_batch_local.py</td><td class="pr-4 text-amber-700 font-medium">🟡 정정 (사용 중)</td></tr>
+          <tr class="row-drop"><td class="py-3 px-4 mono text-zinc-900">set_hnsw_ef_search</td><td class="text-zinc-600">A/B 디버깅 추정</td><td class="mono text-zinc-500">0 hits</td><td class="pr-4 text-red-700 font-medium">🔴 Drop</td></tr>
+          <tr class="row-keep"><td class="py-3 px-4 mono text-zinc-900">products.crawled_at</td><td class="text-zinc-600">read 미발견</td><td class="mono text-zinc-700">crawler INSERT (1)</td><td class="pr-4 text-emerald-700 font-medium">🟢 유지 · 소프트삭제 판단</td></tr>
+          <tr class="row-keep"><td class="py-3 px-4 mono text-zinc-900">products.size_info</td><td class="text-zinc-600">read 미발견</td><td class="mono text-zinc-700">admin product-detail (3)</td><td class="pr-4 text-emerald-700 font-medium">🟢 유지</td></tr>
+          <tr class="row-keep"><td class="py-3 px-4 mono text-zinc-900">products.product_code</td><td class="text-zinc-600">read 미발견</td><td class="mono text-zinc-700">crawler INSERT (3)</td><td class="pr-4 text-emerald-700 font-medium">🟢 유지 · 사용자 의사</td></tr>
+          <tr class="row-keep"><td class="py-3 px-4 mono text-zinc-900">products.review_count</td><td class="text-zinc-600">read 미발견</td><td class="mono text-zinc-700">search + admin filter + coverage (5)</td><td class="pr-4 text-emerald-700 font-medium">🟢 유지</td></tr>
+          <tr class="row-keep"><td class="py-3 px-4 mono text-zinc-900">products.source_price</td><td class="text-zinc-600">FX 입력</td><td class="mono text-zinc-700">admin + FX (4)</td><td class="pr-4 text-emerald-700 font-medium">🟢 유지</td></tr>
+          <tr class="row-keep"><td class="py-3 px-4 mono text-zinc-900">analyses.image_filename</td><td class="text-zinc-600">read 미발견</td><td class="mono text-zinc-700">admin tables/charts/eval (9)</td><td class="pr-4 text-emerald-700 font-medium">🟢 유지</td></tr>
+          <tr class="row-keep"><td class="py-3 px-4 mono text-zinc-900">analyses.analysis_duration_ms / search_duration_ms</td><td class="text-zinc-600">read 미발견</td><td class="mono text-zinc-700">analytics + admin + eval (각 5)</td><td class="pr-4 text-emerald-700 font-medium">🟢 유지</td></tr>
+          <tr class="row-keep"><td class="py-3 px-4 mono text-zinc-900">analyses.items / search_results</td><td class="text-zinc-600">read 미발견 (jsonb 박제)</td><td class="mono text-zinc-700">admin eval/analytics (4)</td><td class="pr-4 text-emerald-700 font-medium">🟢 유지</td></tr>
+          <tr class="row-keep"><td class="py-3 px-4 mono text-zinc-900">analyses.mood_summary</td><td class="text-zinc-600">read 미발견</td><td class="mono text-zinc-700">eval-review-detail display</td><td class="pr-4 text-emerald-700 font-medium">🟢 유지</td></tr>
+          <tr class="row-keep"><td class="py-3 px-4 mono text-zinc-900">analyses.palette / sensitivity_tags</td><td class="text-zinc-600">read 미발견</td><td class="mono text-zinc-500">INSERT only</td><td class="pr-4 text-emerald-700 font-medium">🟢 유지 · v6 활용 의사</td></tr>
+          <tr class="row-keep"><td class="py-3 px-4 mono text-zinc-900">analyses.mood_vibe / style_fit / image_size_bytes / error / search_queries</td><td class="text-zinc-600">read 미발견</td><td class="mono text-zinc-500">INSERT only</td><td class="pr-4 text-emerald-700 font-medium">🟢 유지 · 보수 정리</td></tr>
+          <tr class="row-keep"><td class="py-3 px-4 mono text-zinc-900">analysis_items.position_top / left / color_hex / detail</td><td class="text-zinc-600">read 미발견</td><td class="mono text-zinc-500">INSERT only</td><td class="pr-4 text-emerald-700 font-medium">🟢 유지 · 보수 정리</td></tr>
+          <tr class="row-drop"><td class="py-3 px-4 mono text-zinc-900">brand_nodes.platform</td><td class="text-zinc-600">legacy</td><td class="mono text-zinc-500">read/write 0</td><td class="pr-4 text-red-700 font-medium">🔴 Drop · source_platforms 대체</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- v6 결정 박제 -->
+  <section>
+    <div class="flex items-baseline gap-3 mb-4">
+      <span class="text-[11px] uppercase tracking-widest text-blue-700">v6 decisions</span>
+      <h2 class="text-lg font-medium text-zinc-900">v6 설계 결정 박제</h2>
+      <span class="text-[12px] text-zinc-500">2026-05-12 확정</span>
+    </div>
+
+    <!-- 결정 5개 -->
+    <div class="rounded-lg border border-zinc-200 bg-white overflow-hidden mb-4">
+      <table class="w-full text-[13px]">
+        <thead class="bg-zinc-50 text-[11px] uppercase tracking-wider text-zinc-500 border-b border-zinc-200">
+          <tr>
+            <th class="text-left py-2.5 px-4 font-medium w-8">#</th>
+            <th class="text-left font-medium">결정</th>
+            <th class="text-left pr-4 font-medium">상태</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-zinc-100">
+          <tr>
+            <td class="py-2.5 px-4 text-zinc-500">1</td>
+            <td><b>PAI 백필 방식</b> — AWS Bedrock <b>batch</b> 사용 결정</td>
+            <td class="pr-4 text-amber-700">🟡 진행 중 (authorization 막힘)</td>
+          </tr>
+          <tr>
+            <td class="py-2.5 px-4 text-zinc-500">2</td>
+            <td><b>PAI version 운용</b> — <span class="mono">v1</span> 하나로만 운용. 다중 version 공존 X, RPC 파라미터 불필요</td>
+            <td class="pr-4 text-emerald-700">✅ 확정</td>
+          </tr>
+          <tr>
+            <td class="py-2.5 px-4 text-zinc-500">3</td>
+            <td><b>PAI 컬럼 활용 범위</b> — 현 20개 다 활용 + <b>추가 axis 더 박을 예정</b> (현 컬럼만으론 적어보임)</td>
+            <td class="pr-4 text-emerald-700">✅ 확정</td>
+          </tr>
+          <tr>
+            <td class="py-2.5 px-4 text-zinc-500">4</td>
+            <td><b>SoT</b> — <span class="mono">products.style_node</span> + <span class="mono">PAI.style_node</span> 양쪽 다 활용 (categori/subcategory 도 동일)</td>
+            <td class="pr-4 text-emerald-700">✅ 확정</td>
+          </tr>
+          <tr>
+            <td class="py-2.5 px-4 text-zinc-500">5</td>
+            <td><b>brand_similar 통합</b> — 42k edges 그래프를 v6 검색의 11번째 차원 (brand vector) 으로 활용</td>
+            <td class="pr-4 text-emerald-700">✅ 확정</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- AWS Bedrock 해결 경로 -->
+    <h3 class="text-base font-medium mt-6 mb-2 flex items-center gap-2">
+      <span class="pill bg-amber-200 text-amber-900 ring-1 ring-amber-300">#1 unblock</span>
+      AWS Bedrock batch authorization 해결 경로
+    </h3>
+    <p class="text-[12px] text-zinc-600 mb-3">AWS Support 답변 = 청구 부서로 라우팅됨. 기술 issue 니까 다시 escalate.</p>
+    <div class="rounded-lg border border-zinc-200 bg-white overflow-hidden">
+      <table class="w-full text-[12px]">
+        <thead class="bg-zinc-50 text-[11px] uppercase tracking-wider text-zinc-500 border-b border-zinc-200">
+          <tr>
+            <th class="text-left py-2.5 px-4 font-medium w-12">순서</th>
+            <th class="text-left font-medium">경로</th>
+            <th class="text-left font-medium">설명</th>
+            <th class="text-left pr-4 font-medium">속도 · 비용</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-zinc-100">
+          <tr class="bg-emerald-50/40">
+            <td class="py-2 px-4 mono text-emerald-700">1st</td>
+            <td class="font-medium">(b) AWS 콘솔 Bedrock → Model access</td>
+            <td><span class="mono">us.anthropic.claude-haiku-4-5</span> inference profile 의 <b>batch inference toggle 별도</b> 일 수 있음. 콘솔에서 model access 재확인</td>
+            <td class="pr-4 text-emerald-700 font-medium">즉시 · 무료</td>
+          </tr>
+          <tr class="bg-emerald-50/40">
+            <td class="py-2 px-4 mono text-emerald-700">1st</td>
+            <td class="font-medium">(c) Service Quotas → Bedrock</td>
+            <td>Region 별 <span class="mono">CreateModelInvocationJob</span> quota 가 분리됨. quota 0 일 가능성. 증액 신청</td>
+            <td class="pr-4 text-emerald-700 font-medium">1-2일 · 무료</td>
+          </tr>
+          <tr>
+            <td class="py-2 px-4 mono text-zinc-500">2nd</td>
+            <td class="font-medium">(d) us-east-1 으로 마이그 후 재시도</td>
+            <td>현재 us-west-2. <b>Bedrock batch 는 region 별 권한 분리</b> — us-east-1 에서 더 일찍 가능한 사례 다수. SourceArn condition + S3 region 만 맞추면 cheap</td>
+            <td class="pr-4 text-zinc-700">1h 셋업 · 무료</td>
+          </tr>
+          <tr>
+            <td class="py-2 px-4 mono text-zinc-500">3rd</td>
+            <td class="font-medium">(a) Support 케이스 재오픈</td>
+            <td>"<b>Bedrock service team escalation</b>, CreateModelInvocationJob authorization grant 요청" 명시. 청구 부서 X 표기</td>
+            <td class="pr-4 text-zinc-700">1-3일 · 무료</td>
+          </tr>
+          <tr>
+            <td class="py-2 px-4 mono text-zinc-500">최후</td>
+            <td class="font-medium">(e) Developer Support 1개월 가입</td>
+            <td>$29/월. 기술 엔지니어 직접 채팅. authorization 받고 해지</td>
+            <td class="pr-4 text-zinc-700">즉시 · <span class="font-medium">$29</span></td>
+          </tr>
+          <tr class="bg-zinc-50">
+            <td class="py-2 px-4 mono text-zinc-500">대안</td>
+            <td>(f) sync InvokeModel 우회</td>
+            <td>T2.5b 이미 작성됨. workers=8, ~18h. 배치 거치지 않고 끝낼 수도 있음 (사용자는 batch 선호)</td>
+            <td class="pr-4 text-zinc-500">18h · 무료</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="mt-3 rounded-lg border-l-4 border-blue-400 bg-blue-50/60 p-3 text-[13px]">
+      <div class="font-medium text-zinc-900 mb-1">📋 다음 액션</div>
+      <p class="text-zinc-700"><b>(b) + (c) 동시 시도부터</b> — 1분이면 결과 확인. 안 되면 (d) us-east-1 마이그. 그래도 안 되면 (a) 재오픈.</p>
+    </div>
+
+    <!-- ★ axis 후보 -->
+    <h3 class="text-base font-medium mt-8 mb-2 flex items-center gap-2">
+      <span class="pill bg-blue-200 text-blue-900 ring-1 ring-blue-300">#3 expand</span>
+      추가 axis 후보 (Vision 으로 추출 가능)
+    </h3>
+    <p class="text-[12px] text-zinc-600 mb-3">기존 spec-v6-core 의 부모 컨텍스트 (HANDOFF.md, 2026-04-28) 의 ★ axis 7개 + 2개 추가. v6 새 설계 시 어떤 걸 PAI 컬럼으로 추가할지 결정.</p>
+    <div class="rounded-lg border border-zinc-200 bg-white overflow-hidden">
+      <table class="w-full text-[12px]">
+        <thead class="bg-zinc-50 text-[11px] uppercase tracking-wider text-zinc-500 border-b border-zinc-200">
+          <tr>
+            <th class="text-left py-2.5 px-4 font-medium">후보</th>
+            <th class="text-left font-medium">의미 / 값 예시</th>
+            <th class="text-left pr-4 font-medium">Vision 추출</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-zinc-100">
+          <tr><td class="py-2 px-4 mono">neckline</td><td>라운드 / V / 터틀 / 스퀘어 / 홀터 / 오프숄더 / 보트 / 헨리</td><td class="pr-4 text-emerald-700">✅</td></tr>
+          <tr><td class="py-2 px-4 mono">sleeve</td><td>슬리브리스 / 반팔 / 긴팔 / 풍선소매 / 퍼프 / 비숍 / 케이프</td><td class="pr-4 text-emerald-700">✅</td></tr>
+          <tr><td class="py-2 px-4 mono">length</td><td>크롭 / 레귤러 / 롱 / 맥시 / 미디 / 미니</td><td class="pr-4 text-emerald-700">✅</td></tr>
+          <tr><td class="py-2 px-4 mono">closure</td><td>단추 / 지퍼 / 벨트 / 타이 / 엘라스틱 / 후크</td><td class="pr-4 text-emerald-700">✅</td></tr>
+          <tr><td class="py-2 px-4 mono">texture</td><td>무광 / 유광 / 펄 / 벨벳 / 메탈릭 / 데님 워싱</td><td class="pr-4 text-emerald-700">✅</td></tr>
+          <tr><td class="py-2 px-4 mono">decoration</td><td>자수 / 프린트 / 패치 / 리본 / 체인 / 비즈 / 프린지</td><td class="pr-4 text-emerald-700">✅</td></tr>
+          <tr class="bg-blue-50/40"><td class="py-2 px-4 mono">silhouette <span class="text-[10px] text-blue-700 ml-1">[추가 제안]</span></td><td>박시 / 슬림 / A라인 / H라인 / 벌룬 / 코쿤 / 머메이드</td><td class="pr-4 text-emerald-700">✅</td></tr>
+          <tr class="bg-blue-50/40"><td class="py-2 px-4 mono">formality <span class="text-[10px] text-blue-700 ml-1">[추가 제안]</span></td><td>캐주얼 / 스마트캐주얼 / 세미포멀 / 포멀 / 비치 / 라운지웨어</td><td class="pr-4 text-emerald-700">✅</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="text-[11px] text-zinc-500 mt-2">참고: 기존 PAI 의 <span class="mono">pattern</span> 컬럼이 일부 decoration 영역 (stripe/floral) 을 커버 → 일부는 합칠지 / 분리할지 결정 필요.</p>
+  </section>
+
+  <!-- 다음 단계 -->
+  <!-- §3 — 전체 ERD -->
+  <section data-tag="stale">
+    <div class="flex items-baseline gap-3 mb-4">
+      <span class="text-[11px] uppercase tracking-widest text-emerald-700">§3 — global ERD</span>
+      <h2 class="text-lg font-medium text-zinc-900">전체 ERD sanity check</h2>
+      <span class="text-[12px] text-zinc-500 mono">line 116~215</span>
+    </div>
+    <details class="rounded-lg border border-emerald-200 bg-emerald-50/60 overflow-hidden">
+      <summary class="px-4 py-3 flex items-center justify-between hover:bg-emerald-100/60 transition">
+        <span class="flex items-center gap-2 text-[14px]">
+          <span class="pill bg-emerald-200 text-emerald-900 ring-1 ring-emerald-300">🟢 OK · 정정 0건</span>
+          <span class="text-zinc-900">테이블 21 ↔ EC2 21, FK 20 ↔ ERD 11 라인 완전 일치</span>
+        </span>
+        <span class="text-[11px] text-zinc-500 mono">2026-05-12</span>
+      </summary>
+      <div class="px-4 pb-4 text-[13px] text-zinc-700 space-y-2">
+        <p>EC2 <span class="mono">pg_tables(public)</span> 21개 = doc §3 ERD 21개 동일. <span class="mono">information_schema.foreign_key</span> 20건 모두 doc ERD 의 11개 관계선으로 커버됨 (multi-FK 테이블은 1라인이 여러 FK 표현).</p>
+        <p><b>발견:</b> <span class="mono">admin_profiles</span> 는 P3 이후 <span class="mono">auth.users</span> FK 가 제거된 standalone 테이블이 됨 (<span class="mono">email</span>+<span class="mono">password_hash</span> 직접 보유). §3 ERD 에 관계선 없는 박스로 박힌 것과 일치. §4.5 검증 시 본문도 P3 후 상태 일치 여부 재확인.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- §4.1 — 상품 카탈로그 -->
+  <section data-tag="stale">
+    <div class="flex items-baseline gap-3 mb-4">
+      <span class="text-[11px] uppercase tracking-widest text-amber-700">§4.1 — domain ERD</span>
+      <h2 class="text-lg font-medium text-zinc-900">상품 카탈로그 (products / PAI / product_reviews)</h2>
+      <span class="text-[12px] text-zinc-500 mono">line 219~275</span>
+    </div>
+
+    <div class="space-y-3">
+      <details open class="rounded-lg border border-emerald-200 bg-emerald-50/60 overflow-hidden">
+        <summary class="px-4 py-3 flex items-center justify-between hover:bg-emerald-100/60 transition">
+          <span class="flex items-center gap-2 text-[14px]">
+            <span class="pill bg-emerald-200 text-emerald-900 ring-1 ring-emerald-300">✅ FIXED</span>
+            <span class="text-zinc-900">PAI ERD 보강 — <span class="mono">color_detail</span> + <span class="mono">mood_tags</span> 박제</span>
+          </span>
+          <span class="text-[11px] text-zinc-500 mono">2026-05-12</span>
+        </summary>
+        <div class="px-4 pb-4 text-[13px] text-zinc-700 space-y-2">
+          <p>PAI 실제 21개 컬럼 중 ERD 에 박혀있던 건 14개. 운영 메타 (model_id, prompt_hash, raw_response, error, created_at) 5개는 정상 누락 — 그러나 <b><span class="mono">color_detail</span> (color_family 보완)</b> 과 <b><span class="mono">mood_tags</span> (text[], GIN index 적재)</b> 는 v6 axis 후보로 ERD 에 박을 가치 충분. md + html ERD 양쪽 추가 완료.</p>
+          <p class="text-[12px] text-amber-900 bg-amber-100/60 border border-amber-200 rounded px-2 py-1.5">v6 새 설계 시 axis 11개 (category/subcategory/fit/fabric/color_family/color_detail/style_node/season/pattern/mood_tags/keywords_*) 와 추가 후보 (neckline/sleeve/length/closure/texture/decoration/silhouette/formality) 간 중복·재정의 정리 필요.</p>
+        </div>
+      </details>
+
+      <details open class="rounded-lg border border-emerald-200 bg-emerald-50/60 overflow-hidden">
+        <summary class="px-4 py-3 flex items-center justify-between hover:bg-emerald-100/60 transition">
+          <span class="flex items-center gap-2 text-[14px]">
+            <span class="pill bg-emerald-200 text-emerald-900 ring-1 ring-emerald-300">✅ FIXED</span>
+            <span class="text-zinc-900">본문 stale 3건 정정 — Modal ×2 + crawler_user ×1</span>
+          </span>
+          <span class="text-[11px] text-zinc-500 mono">2026-05-12</span>
+        </summary>
+        <div class="px-4 pb-4 text-[13px] text-zinc-700">
+          <table class="w-full mt-1 text-[12px]">
+            <thead class="text-zinc-500 text-left border-b border-zinc-200">
+              <tr><th class="py-1 pr-3">위치</th><th class="py-1 pr-3">stale</th><th class="py-1">정정</th></tr>
+            </thead>
+            <tbody class="divide-y divide-zinc-100">
+              <tr><td class="py-1.5 pr-3 mono text-zinc-500">L269</td><td class="py-1.5 pr-3">"Modal 임베딩 배치가 embedding 만 UPDATE"</td><td class="py-1.5 mono text-emerald-800">로컬 embed batch (kikoai/ai/scripts/embed_batch_local.py)</td></tr>
+              <tr><td class="py-1.5 pr-3 mono text-zinc-500">L272</td><td class="py-1.5 pr-3">"crawler_user → products INSERT"</td><td class="py-1.5 mono text-emerald-800">app_user (P3 이후 crawler_user 폐기)</td></tr>
+              <tr><td class="py-1.5 pr-3 mono text-zinc-500">L273</td><td class="py-1.5 pr-3">"Modal embed batch → bulk_update_product_embeddings RPC"</td><td class="py-1.5 mono text-emerald-800">로컬 batch (AWS EC2 g5 Spot) → RPC (RPC 자체 존재 ✅)</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
+
+      <details class="rounded-lg border border-zinc-200 bg-zinc-50 overflow-hidden">
+        <summary class="px-4 py-3 flex items-center justify-between hover:bg-zinc-100 transition">
+          <span class="flex items-center gap-2 text-[14px]">
+            <span class="pill bg-zinc-200 text-zinc-700 ring-1 ring-zinc-300">🟢 OK</span>
+            <span class="text-zinc-900">ERD 컬럼 (products 16 / PAI 14→16 / reviews 4) — EC2 일치</span>
+          </span>
+          <span class="text-[11px] text-zinc-500 mono">verified</span>
+        </summary>
+        <div class="px-4 pb-4 text-[12px] text-zinc-600">products 32 / PAI 21 / reviews 8 컬럼 중 ERD 핵심 발췌는 모두 실재. <span class="mono">bulk_update_product_embeddings(jsonb)</span> RPC 존재 확인.</div>
+      </details>
+    </div>
+  </section>
+
+  <!-- §4.2 — 브랜드 그래프 -->
+  <section data-tag="stale">
+    <div class="flex items-baseline gap-3 mb-4">
+      <span class="text-[11px] uppercase tracking-widest text-amber-700">§4.2 — domain ERD</span>
+      <h2 class="text-lg font-medium text-zinc-900">브랜드 그래프 (brand_nodes / brand_similar / brand_attribute_proposals)</h2>
+      <span class="text-[12px] text-zinc-500 mono">line 281~320</span>
+    </div>
+
+    <div class="space-y-3">
+      <details open class="rounded-lg border border-emerald-200 bg-emerald-50/60 overflow-hidden">
+        <summary class="px-4 py-3 flex items-center justify-between hover:bg-emerald-100/60 transition">
+          <span class="flex items-center gap-2 text-[14px]">
+            <span class="pill bg-emerald-200 text-emerald-900 ring-1 ring-emerald-300">✅ FIXED</span>
+            <span class="text-zinc-900">md L320 "deprecated 가능성" stale — admin UI 실재로 정정</span>
+          </span>
+          <span class="text-[11px] text-zinc-500 mono">2026-05-12</span>
+        </summary>
+        <div class="px-4 pb-4 text-[13px] text-zinc-700 space-y-2">
+          <p>md 본문이 <b>이중 stale</b>: 원본 "admin 콘솔 미구축" + 1차 정정 "admin 콘솔 아직 미구축" 둘 다 stale. 실제 코드 확인 결과:</p>
+          <ul class="space-y-1 text-[12px] mono">
+            <li>✓ <span class="text-emerald-700">src/app/admin/brand-proposals/page.tsx</span></li>
+            <li>✓ <span class="text-emerald-700">src/app/api/admin/brand-proposals/route.ts</span></li>
+            <li>✓ <span class="text-emerald-700">src/app/api/admin/brand-proposals/bulk/route.ts</span></li>
+            <li>✓ <span class="text-emerald-700">src/components/admin/sidebar.tsx</span> 등록</li>
+          </ul>
+          <p>최종 표기: "autonomous-loop INSERT + admin 검수 UPDATE 양방향 정상 운영 중. §9 deprecated 후보에서 제외 (2026-05-12 재검증)". db-reference.html (L385/L722) 는 이미 올바른 상태 — md 만 정정.</p>
+        </div>
+      </details>
+
+      <details class="rounded-lg border border-zinc-200 bg-zinc-50 overflow-hidden">
+        <summary class="px-4 py-3 flex items-center justify-between hover:bg-zinc-100 transition">
+          <span class="flex items-center gap-2 text-[14px]">
+            <span class="pill bg-zinc-200 text-zinc-700 ring-1 ring-zinc-300">🟢 OK</span>
+            <span class="text-zinc-900">brand_nodes 운용미상 3컬럼은 ERD 미박제 유지</span>
+          </span>
+          <span class="text-[11px] text-zinc-500 mono">decision</span>
+        </summary>
+        <div class="px-4 pb-4 text-[12px] text-zinc-600">
+          <span class="mono">sensitivity_tags</span> / <span class="mono">gender_scope</span> / <span class="mono">price_band</span> — 인덱스도 없고 운용 의도도 불명. v6 axis 후보 아님. §5 컬럼 사전에서만 표기. 운용 부활 시 ERD 재편입.
+        </div>
+      </details>
+
+      <details class="rounded-lg border border-emerald-200 bg-emerald-50/60 overflow-hidden">
+        <summary class="px-4 py-3 flex items-center justify-between hover:bg-emerald-100/60 transition">
+          <span class="flex items-center gap-2 text-[14px]">
+            <span class="pill bg-emerald-200 text-emerald-900 ring-1 ring-emerald-300">🟢 OK</span>
+            <span class="text-zinc-900">brand_nodes ERD 에 <span class="mono">platform</span> 미표기 = drop catalog 와 일관</span>
+          </span>
+          <span class="text-[11px] text-zinc-500 mono">verified</span>
+        </summary>
+        <div class="px-4 pb-4 text-[12px] text-zinc-600">EC2 에는 컬럼 실재하지만 ERD 에 박혀있지 않음. drop 5종 중 1개 (<span class="mono">source_platforms</span> 가 대체) 표시와 일관. Migration 044 작성 시 함께 drop.</div>
+      </details>
+    </div>
+  </section>
+
+  <!-- §4.3 — 분석 워크플로 -->
+  <section data-tag="stale">
+    <div class="flex items-baseline gap-3 mb-4">
+      <span class="text-[11px] uppercase tracking-widest text-amber-700">§4.3 — domain ERD</span>
+      <h2 class="text-lg font-medium text-zinc-900">분석 워크플로 (analysis_sessions / analyses / analysis_items)</h2>
+      <span class="text-[12px] text-zinc-500 mono">line 322~369</span>
+    </div>
+
+    <div class="space-y-3">
+      <details open class="rounded-lg border border-emerald-200 bg-emerald-50/60 overflow-hidden">
+        <summary class="px-4 py-3 flex items-center justify-between hover:bg-emerald-100/60 transition">
+          <span class="flex items-center gap-2 text-[14px]">
+            <span class="pill bg-emerald-200 text-emerald-900 ring-1 ring-emerald-300">✅ FIXED</span>
+            <span class="text-zinc-900">v6 query-side axis ERD 보강 — 총 10컬럼 추가</span>
+          </span>
+          <span class="text-[11px] text-zinc-500 mono">2026-05-12</span>
+        </summary>
+        <div class="px-4 pb-4 text-[13px] text-zinc-700 space-y-2">
+          <p><b>핵심 발견:</b> <span class="mono">analysis_items</span> 가 PAI 와 같은 axis (fabric/color/fit) 를 <b>사용자 이미지 측</b>에 사전 적재. 즉 v6 검색의 query↔doc axis matching 양쪽이 모두 DB 에 박혀있다는 사실이 기존 ERD 만 봐선 안 보였음.</p>
+          <table class="w-full mt-1 text-[12px]">
+            <thead class="text-zinc-500 text-left border-b border-zinc-200">
+              <tr><th class="py-1 pr-3">테이블</th><th class="py-1 pr-3">추가 컬럼</th><th class="py-1">의미</th></tr>
+            </thead>
+            <tbody class="divide-y divide-zinc-100">
+              <tr><td class="py-1.5 pr-3 mono">analysis_sessions</td><td class="py-1.5 pr-3 mono text-emerald-800">gender</td><td class="py-1.5">세션 시작 시 사용자 성별</td></tr>
+              <tr><td class="py-1.5 pr-3 mono">analyses</td><td class="py-1.5 pr-3 mono text-emerald-800">mood_summary, mood_vibe, style_fit, style_aesthetic, detected_gender</td><td class="py-1.5">Vision 결과의 broad axis</td></tr>
+              <tr><td class="py-1.5 pr-3 mono">analysis_items</td><td class="py-1.5 pr-3 mono text-emerald-800">item_id(text), name, detail, fabric, color, fit</td><td class="py-1.5">PAI 와 대응되는 item-level axis</td></tr>
+            </tbody>
+          </table>
+          <p class="text-[12px] text-amber-900 bg-amber-100/60 border border-amber-200 rounded px-2 py-1.5"><b>이름 충돌 callout 박제:</b> <span class="mono">analysis_items.item_id</span> (text 외부식별자) vs <span class="mono">item_search_results.item_id</span> (uuid FK). md + html 본문에 주의문 박음.</p>
+        </div>
+      </details>
+
+      <details class="rounded-lg border border-emerald-200 bg-emerald-50/60 overflow-hidden">
+        <summary class="px-4 py-3 flex items-center justify-between hover:bg-emerald-100/60 transition">
+          <span class="flex items-center gap-2 text-[14px]">
+            <span class="pill bg-emerald-200 text-emerald-900 ring-1 ring-emerald-300">✅ FIXED</span>
+            <span class="text-zinc-900">L369 본문 보강 — query-side axis 설명 + item_id 충돌 callout</span>
+          </span>
+          <span class="text-[11px] text-zinc-500 mono">2026-05-12</span>
+        </summary>
+        <div class="px-4 pb-4 text-[12px] text-zinc-700">"검색 쿼리만 박혀있다" 표기에서 "PAI 와 같은 axis (fabric/color/fit) 를 query 측에 사전 적재한다" 로 보강. v6 새 설계의 query 노드 명시화.</div>
+      </details>
+    </div>
+  </section>
+
+  <section>
+    <div class="flex items-baseline gap-3 mb-4">
+      <span class="text-[11px] uppercase tracking-widest text-zinc-500">next</span>
+      <h2 class="text-lg font-medium text-zinc-900">다음 단계</h2>
+    </div>
+    <ol class="space-y-2 text-[14px] text-zinc-700 list-decimal list-inside marker:text-zinc-400">
+      <li class="line-through text-zinc-400">§1 헤더 fix — P1~P7 완료 + P8 pause 반영 ✓</li>
+      <li class="line-through text-zinc-400">§1.3 (4 user) 정정 + crawler_user 행 제거 ✓</li>
+      <li class="line-through text-zinc-400">§5.2 PAI created_at + 인덱스 + 백필 메모 ✓</li>
+      <li class="line-through text-zinc-400">§3 전체 ERD sanity check ✓</li>
+      <li class="line-through text-zinc-400">§4.1 상품 카탈로그 — ERD 보강 + 본문 stale 3건 ✓</li>
+      <li class="line-through text-zinc-400">§4.2 브랜드 그래프 — L320 admin UI 정정 ✓</li>
+      <li class="line-through text-zinc-400">§4.3 분석 워크플로 — query-side axis 10컬럼 보강 ✓</li>
+      <li class="line-through text-zinc-400">§4.4 검색 품질 — search_quality_logs query_style_node + item_search_results drop 확정 표기 ✓</li>
+      <li class="line-through text-zinc-400">§4.5 어드민 — 정정 0건, P3 후 상태 본문 정확 ✓</li>
+      <li class="line-through text-zinc-400">§4.6 인스타 수집 — 정정 0건 ✓</li>
+      <li class="line-through text-zinc-400">§4.7 평가 — eval_golden_set axis expected_* 4컬럼 보강 + v5 부재 callout ✓</li>
+      <li class="line-through text-zinc-400">§4.8 운영 로깅 — "폐기 가능" → "보수 정리 유지" 정정 ✓</li>
+      <li class="line-through text-zinc-400">§5 컬럼 사전 sweep — 20 테이블 ✓ EC2 완전 일치, §5.10 drop 표기 강화, 메타 컬럼 16행 일괄 추가 ✓</li>
+      <li class="line-through text-zinc-400">§6 인덱스 — idx_item_search_results_selected drop 표기 강화 ✓</li>
+      <li class="line-through text-zinc-400">§7 함수 — drop 3종 (set_hnsw_ef_search, handle_new_admin_user, rls_auto_enable) 표기 ✅ 확정 ✓</li>
+      <li class="line-through text-zinc-400">§8 라이프사이클 — mermaid Modal participant → 로컬 embed batch (g5 Spot) 일괄 정정 ✓</li>
+      <li class="line-through text-zinc-400">§9 운영 메모 — 9.1 권한 (4 user) / 9.2 임베딩 99.43% / 9.3 drop catalog 5종 표 + 보수 정리 유지 표 분리 / 9.4 drop ✅ 확정 / §10 v6 진입 명시 ✓</li>
+      <li class="line-through text-zinc-400">Migration 044 작성 — <span class="mono">044_drop_legacy_objects.sql</span> ✓ (auth.users 트리거 DO 블록 가드 적용)</li>
+      <li><b>Migration 044 dev-app 적용 + 검증</b></li>
+      <li>(별도 세션) AWS Bedrock batch authorization → PAI 백필 80k 실행</li>
+      <li>v6 새 설계 진입 — axis 추가 결정 + SPEC 작성</li>
+    </ol>
+  </section>
+
+  <footer class="pt-6 mt-10 border-t border-zinc-200 text-[11px] text-zinc-500 flex justify-between">
+    <span class="mono">docs/_tmp/db-review.html</span>
+    <span>작업 끝나면 <span class="mono text-zinc-600">rm -rf docs/_tmp/</span></span>
+  </footer>
+
+</main>
+
+<script>
+  document.querySelectorAll(".filter-btn").forEach(b => {
+    b.addEventListener("click", () => {
+      const f = b.dataset.filter;
+      document.querySelectorAll("section[data-tag]").forEach(s => {
+        s.style.display = (f === "all" || s.dataset.tag === f) ? "" : "none";
+      });
+      document.querySelectorAll(".filter-btn").forEach(x => x.classList.remove("active"));
+      b.classList.add("active");
+    });
+  });
+</script>
+</body>
+</html>
