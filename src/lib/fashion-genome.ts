@@ -1,10 +1,14 @@
 /**
- * Fashion Genome — Style Node & Sensitivity Tag 정의
+ * @deprecated 2026-05-13 (SPEC-NODE-REDESIGN-001 P3)
  *
- * 동료가 관리하는 Fashion_genome_root.xlsx (Style_DB, Node_Criteria)를
- * 코드에서 사용할 수 있도록 정규화한 것.
+ * Style Node 정의는 DB (`style_nodes` 테이블) 로 이전됨.
+ * 새 코드는 `@/lib/style-nodes-db` 의 `fetchActiveStyleNodes` / `buildNodeReference` 사용.
  *
- * 노드 추가/수정 시 이 파일만 변경하면 AI 프롬프트에 자동 반영됨.
+ * 본 파일은 다음 용도로만 남겨둠 (SPEC 5 v6 cutover 시점에 제거 예정):
+ *   - SENSITIVITY_TAGS (`brands.sensitivity_tags` deprecate 시까지 임시 유지)
+ *   - StyleNodeId / STYLE_NODES (`src/lib/enums/style-adjacency.ts` legacy 의존성)
+ *
+ * 새 코드는 본 파일을 import 하지 말 것.
  */
 
 // ─── Style Nodes ────────────────────────────────────────────

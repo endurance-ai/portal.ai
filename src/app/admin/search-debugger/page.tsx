@@ -1,10 +1,12 @@
 "use client"
 
-import {useCallback, useState} from "react"
+import {useCallback, useEffect, useState} from "react"
 import {SearchDebuggerResults} from "@/components/admin/search-debugger-results"
-import {STYLE_NODE_IDS, STYLE_NODES, type StyleNodeId} from "@/lib/fashion-genome"
 import {ChevronDown, Loader2, Play} from "lucide-react"
 import {cn} from "@/lib/utils"
+
+type StyleNodeLite = {code: string; name_en: string; name_ko: string}
+type StyleNodeId = string
 
 type DebugResult = {
   id: string
@@ -50,6 +52,17 @@ export default function SearchDebuggerPage() {
   const [results, setResults] = useState<DebugResult[] | null>(null)
   const [meta, setMeta] = useState<SearchMeta | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [styleNodes, setStyleNodes] = useState<StyleNodeLite[]>([])
+
+  useEffect(() => {
+    fetch("/api/style-nodes")
+      .then((r) => r.json())
+      .then((d) => setStyleNodes(d.nodes ?? []))
+      .catch(() => setStyleNodes([]))
+  }, [])
+
+  const nodeByCode = (code: string | null) =>
+    code ? styleNodes.find((n) => n.code === code) : undefined
 
   const handleRun = useCallback(async () => {
     if (!query.trim()) return
@@ -195,27 +208,27 @@ export default function SearchDebuggerPage() {
             className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5 hover:text-foreground transition-colors"
           >
             스타일 노드
-            {selectedNode && (
+            {selectedNode && nodeByCode(selectedNode) && (
               <span className="normal-case tracking-normal text-foreground">
-                — {selectedNode} {STYLE_NODES[selectedNode].name}
+                — {selectedNode} {nodeByCode(selectedNode)!.name_ko}
               </span>
             )}
             <ChevronDown className={cn("size-3 transition-transform", nodeOpen && "rotate-180")} />
           </button>
           {nodeOpen && (
             <div className="flex flex-wrap gap-1.5">
-              {STYLE_NODE_IDS.map((id) => (
+              {styleNodes.map((n) => (
                 <button
-                  key={id}
-                  onClick={() => setSelectedNode(selectedNode === id ? null : id)}
+                  key={n.code}
+                  onClick={() => setSelectedNode(selectedNode === n.code ? null : n.code)}
                   className={cn(
                     "rounded-full px-2.5 py-1 text-[11px] border transition-colors",
-                    selectedNode === id
+                    selectedNode === n.code
                       ? "bg-muted border-muted-foreground/30 text-foreground"
                       : "bg-transparent border-border text-muted-foreground hover:border-muted-foreground/30"
                   )}
                 >
-                  {id} {STYLE_NODES[id].name}
+                  {n.code} {n.name_ko}
                 </button>
               ))}
             </div>

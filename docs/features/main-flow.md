@@ -193,7 +193,7 @@ const useLiteLLM =
 핵심 파일:
 - `src/app/api/find/analyze-post/route.ts` — 단일 슬라이드 모드, 입력 검증
 - `src/lib/analyze/run-vision.ts` — 단일 이미지 Buffer → Vision 호출, `isApparel` 게이트, `items[]` 다중 검출
-- `src/lib/prompts/analyze.ts` — 시스템 프롬프트 (다중 아이템 검출 + enum 강제 + searchQuery 자동 생성)
+- `src/lib/prompts/analyze.ts` — `getAnalyzeSystemPrompt()` async fn (DB에서 active node taxonomy fetch 후 템플릿 조립 — 다중 아이템 검출 + enum 강제 + searchQuery 자동 생성)
 
 ---
 

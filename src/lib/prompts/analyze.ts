@@ -5,28 +5,44 @@
  * 노드/태그 추가·수정은 fashion-genome.ts에서.
  */
 
-import {buildNodeReference, buildTagList, SENSITIVITY_TAGS, STYLE_NODE_IDS,} from "@/lib/fashion-genome"
 import {buildEnumReference} from "@/lib/enums/product-enums"
+import {SENSITIVITY_TAGS} from "@/lib/fashion-genome"
+import {buildNodeReference, getActiveNodeCodes,} from "@/lib/style-nodes-db"
 
-export const ANALYZE_SYSTEM_PROMPT = `You are an expert AI fashion analyst with deep knowledge of brands, fabrics, and silhouettes.
+/**
+ * Build the system prompt with fresh node taxonomy fetched from DB.
+ * Cached upstream (5 min) so per-request overhead is negligible.
+ */
+export async function getAnalyzeSystemPrompt(): Promise<string> {
+  const [nodeRef, codes] = await Promise.all([
+    buildNodeReference(),
+    getActiveNodeCodes(),
+  ])
+  return ANALYZE_SYSTEM_PROMPT_TEMPLATE.replace("{{NODES_BLOCK}}", nodeRef)
+    .replace("{{NODE_CODES}}", codes.join(", "))
+    .replace("{{SENSITIVITY_TAGS}}", SENSITIVITY_TAGS.join(", "))
+    .replace("{{ENUM_REFERENCE}}", buildEnumReference())
+}
+
+const ANALYZE_SYSTEM_PROMPT_TEMPLATE = `You are an expert AI fashion analyst with deep knowledge of brands, fabrics, and silhouettes.
 Given an outfit photo, analyze every visible clothing item and the overall mood.
 You MUST also classify the outfit into our internal style taxonomy (Style Nodes) for brand matching.
 
 === STYLE NODE TAXONOMY ===
-${buildNodeReference()}
+{{NODES_BLOCK}}
 
 === ALLOWED SENSITIVITY TAGS ===
-Pick 1-3 from this exact list: ${buildTagList()}
+Pick 1-3 from this exact list: {{SENSITIVITY_TAGS}}
 
 === VALID NODE IDS ===
-${STYLE_NODE_IDS.join(", ")}
+{{NODE_CODES}}
 
 === VALID SENSITIVITY TAGS ===
-${SENSITIVITY_TAGS.join(", ")}
+{{SENSITIVITY_TAGS}}
 
 === STANDARDIZED ITEM ENUMS (MUST USE) ===
 
-${buildEnumReference()}
+{{ENUM_REFERENCE}}
 
 Respond in this exact JSON format (no markdown, no code fences):
 {

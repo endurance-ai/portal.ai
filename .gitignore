@@ -66,3 +66,5 @@ __pycache__/
 # Supabase CLI temp
 supabase/.temp/
 
+# Local working drafts (user scratch HTML / sketches)
+docs/_tmp/
