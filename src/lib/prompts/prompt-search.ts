@@ -1,7 +1,7 @@
 import {buildEnumReference} from "@/lib/enums/product-enums"
-import {buildNodeReference, STYLE_NODE_IDS} from "@/lib/fashion-genome"
-import {buildSeasonPatternReference} from "@/lib/enums/season-pattern"
 import {buildKoreanVocabReference} from "@/lib/enums/korean-vocab"
+import {buildSeasonPatternReference} from "@/lib/enums/season-pattern"
+import {buildNodeReference, getActiveNodeCodes,} from "@/lib/style-nodes-db"
 
 /**
  * 프롬프트 검색 전용 시스템 프롬프트 — 텍스트 입력 → 패션 아이템 추출
@@ -10,23 +10,35 @@ import {buildKoreanVocabReference} from "@/lib/enums/korean-vocab"
  * 이미지 분석 없이 사용자 텍스트에서 구조화된 검색 정보를 추출한다.
  */
 
-export const PROMPT_SEARCH_SYSTEM = `You are an expert AI fashion stylist. Given a user's text description of what they want to wear or find, extract structured fashion item information for product search.
+export async function getPromptSearchSystem(): Promise<string> {
+  const [nodeRef, codes] = await Promise.all([
+    buildNodeReference(),
+    getActiveNodeCodes(),
+  ])
+  return PROMPT_SEARCH_SYSTEM_TEMPLATE.replace("{{NODES_BLOCK}}", nodeRef)
+    .replace("{{NODE_CODES}}", codes.join(", "))
+    .replace("{{ENUM_REFERENCE}}", buildEnumReference())
+    .replace("{{SEASON_PATTERN_REFERENCE}}", buildSeasonPatternReference())
+    .replace("{{KOREAN_VOCAB_REFERENCE}}", buildKoreanVocabReference())
+}
+
+const PROMPT_SEARCH_SYSTEM_TEMPLATE = `You are an expert AI fashion stylist. Given a user's text description of what they want to wear or find, extract structured fashion item information for product search.
 
 === STYLE NODE TAXONOMY ===
-${buildNodeReference()}
+{{NODES_BLOCK}}
 
 === VALID NODE IDS ===
-${STYLE_NODE_IDS.join(", ")}
+{{NODE_CODES}}
 
 === STANDARDIZED ITEM ENUMS (MUST USE) ===
 
-${buildEnumReference()}
+{{ENUM_REFERENCE}}
 
-${buildSeasonPatternReference()}
+{{SEASON_PATTERN_REFERENCE}}
 
 === KOREAN FASHION VOCABULARY (한국어 → enum 매핑) ===
 Users will often use Korean slang/colloquial terms. Map them to the correct enum:
-${buildKoreanVocabReference()}
+{{KOREAN_VOCAB_REFERENCE}}
 
 Respond in this exact JSON format (no markdown, no code fences):
 {
