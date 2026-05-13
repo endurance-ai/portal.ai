@@ -61,6 +61,7 @@ __pycache__/
 .moai/cache/
 .moai/logs/
 .moai/reports/
+.moai/state/
 
 # Supabase CLI temp
 supabase/.temp/
