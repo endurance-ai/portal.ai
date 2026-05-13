@@ -6,6 +6,8 @@
 -- Related: scripts/local/pai_backfill/prompt.txt v2 (8 axis 출력)
 -- 검증: kikoai dev-app PG, 기존 PAI 컬럼 패턴과 동일 (free text, check 제약 없음)
 
+BEGIN;
+
 -- ── 컬럼 추가 ────────────────────────────────────────────────
 ALTER TABLE product_ai_analysis
   ADD COLUMN IF NOT EXISTS neckline   text,
@@ -37,3 +39,5 @@ COMMENT ON COLUMN product_ai_analysis.texture    IS 'v6 axis: matte/glossy/pearl
 COMMENT ON COLUMN product_ai_analysis.decoration IS 'v6 axis: embroidery/print/patch/ribbon/chain/beads/fringe/sequin/studs/lace/none/n/a';
 COMMENT ON COLUMN product_ai_analysis.silhouette IS 'v6 axis: boxy/slim/a-line/h-line/balloon/cocoon/mermaid/drape/straight/fitted/n/a';
 COMMENT ON COLUMN product_ai_analysis.formality  IS 'v6 axis: casual/smart-casual/semi-formal/formal/beach/loungewear/athletic/workwear';
+
+COMMIT;

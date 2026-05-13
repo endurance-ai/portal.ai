@@ -9,6 +9,8 @@
 -- =========================================================================
 -- 5.1 products — 상품 카탈로그 본체
 -- =========================================================================
+BEGIN;
+
 COMMENT ON TABLE products IS '상품 카탈로그 — 크롤러가 적재, 검색 RPC가 소비하는 핵심 테이블 (697 브랜드 / 81k SKU)';
 
 COMMENT ON COLUMN products.id              IS 'PK uuid';
@@ -421,3 +423,5 @@ COMMENT ON COLUMN product_embedding_coverage.total            IS 'platform별 ro
 COMMENT ON COLUMN product_embedding_coverage.embedded         IS 'embedding NOT NULL 수';
 COMMENT ON COLUMN product_embedding_coverage.pct_embedded     IS '임베딩 백분율';
 COMMENT ON COLUMN product_embedding_coverage.last_embedded_at IS '최근 임베딩 시각';
+
+COMMIT;
