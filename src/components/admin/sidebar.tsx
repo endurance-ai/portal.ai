@@ -2,10 +2,26 @@
 
 import Link from "next/link"
 import {usePathname} from "next/navigation"
-import {BarChart3, Database, FlaskConical, ListChecks, MessageCircle, Network, Search, ShoppingBag} from "lucide-react"
+import {
+    BarChart3,
+    Database,
+    FlaskConical,
+    ListChecks,
+    MessageCircle,
+    Network,
+    Palette,
+    Search,
+    ShoppingBag
+} from "lucide-react"
 import {cn} from "@/lib/utils"
 
 const NAV_ITEMS = [
+  {
+    href: "/admin/style-nodes",
+    label: "스타일 노드",
+    description: "감도 taxonomy 관리",
+    icon: Palette,
+  },
   {
     href: "/admin/genome",
     label: "브랜드 DB",
