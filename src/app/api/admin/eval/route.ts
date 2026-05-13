@@ -159,7 +159,6 @@ export async function DELETE(request: NextRequest) {
   // Delete related records first (cascade safety)
   await supabase.from("eval_reviews").delete().in("analysis_id", ids)
   await supabase.from("analysis_items").delete().in("analysis_id", ids)
-  await supabase.from("eval_golden_set").delete().in("analysis_id", ids)
 
   const { error } = await supabase.from("analyses").delete().in("id", ids)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

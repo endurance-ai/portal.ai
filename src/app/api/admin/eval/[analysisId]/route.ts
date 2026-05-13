@@ -21,7 +21,6 @@ export async function GET(
 
   let reviews: unknown[] = []
   let items: unknown[] = []
-  let goldenSet: unknown = null
 
   try {
     const { data } = await supabase
@@ -35,13 +34,7 @@ export async function GET(
     if (data) items = data
   } catch { /* table may not exist */ }
 
-  try {
-    const { data } = await supabase
-      .from("eval_golden_set").select("id, added_by, created_at").eq("analysis_id", analysisId).maybeSingle()
-    goldenSet = data
-  } catch { /* table may not exist */ }
-
-  return NextResponse.json({ analysis: analysisRes.data, reviews, items, goldenSet })
+  return NextResponse.json({ analysis: analysisRes.data, reviews, items })
 }
 
 export async function POST(
@@ -55,15 +48,13 @@ export async function POST(
   const { analysisId } = await params
   if (!UUID_RE.test(analysisId)) return NextResponse.json({ error: "invalid id" }, { status: 400 })
   const body = await request.json()
-  const { verdict, comment, addToGoldenSet, prompt_version } = body
+  const { verdict, comment, prompt_version } = body
 
   const VALID_VERDICTS = ["pass", "fail", "partial"]
   if (!verdict || !VALID_VERDICTS.includes(verdict)) {
     return NextResponse.json({ error: "invalid verdict" }, { status: 400 })
   }
 
-  // Build insert payload — only include columns that exist in DB
-  // prompt_version / is_pinned require migration 015
   const insertPayload: Record<string, unknown> = {
     analysis_id: analysisId,
     reviewer_email: user.email,
@@ -78,24 +69,6 @@ export async function POST(
   if (reviewError) {
     console.error("eval_reviews insert error:", reviewError)
     return NextResponse.json({ error: reviewError.message }, { status: 500 })
-  }
-
-  if (addToGoldenSet) {
-    const { data: analysis } = await supabase
-      .from("analyses")
-      .select("style_node_primary, style_node_secondary, items, image_url")
-      .eq("id", analysisId).single()
-
-    if (analysis) {
-      await supabase.from("eval_golden_set").insert({
-        analysis_id: analysisId,
-        image_url: analysis.image_url || "",
-        expected_node_primary: analysis.style_node_primary,
-        expected_node_secondary: analysis.style_node_secondary,
-        expected_items: analysis.items,
-        added_by: user.email,
-      })
-    }
   }
 
   return NextResponse.json({ success: true, review: newReview })

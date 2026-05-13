@@ -7,18 +7,29 @@ import {toast} from "sonner"
 import {Badge} from "@/components/ui/badge"
 import {Button} from "@/components/ui/button"
 import {Textarea} from "@/components/ui/textarea"
-import {Checkbox} from "@/components/ui/checkbox"
 import {Label} from "@/components/ui/label"
 import {Card, CardContent} from "@/components/ui/card"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
 } from "@/components/ui/dialog"
-import {AlertCircle, ArrowLeft, CheckCircle, Loader2, Pencil, Pin, PinOff, Plus, Search, Star, Trash2, XCircle} from "lucide-react"
+import {
+    AlertCircle,
+    ArrowLeft,
+    CheckCircle,
+    Loader2,
+    Pencil,
+    Pin,
+    PinOff,
+    Plus,
+    Search,
+    Trash2,
+    XCircle
+} from "lucide-react"
 import {cn} from "@/lib/utils"
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -26,7 +37,6 @@ interface Props {
   analysis: any
   items: any[]
   reviews: any[]
-  goldenSet: { id: string; added_by: string; created_at: string } | null
 }
 
 type Verdict = "pass" | "fail" | "partial"
@@ -197,14 +207,13 @@ function ReviewRow({ review, analysisId, onUpdate, onDelete }: {
   )
 }
 
-export function EvalReviewDetail({ analysis, items, reviews: initialReviews, goldenSet }: Props) {
+export function EvalReviewDetail({ analysis, items, reviews: initialReviews }: Props) {
   const router = useRouter()
   const [reviews, setReviews] = useState<any[]>(initialReviews)
   const [showNewForm, setShowNewForm] = useState(initialReviews.length === 0)
   const [newVerdict, setNewVerdict] = useState<Verdict | null>(null)
   const [newComment, setNewComment] = useState("")
   const [newVersion, setNewVersion] = useState("")
-  const [addToGoldenSet, setAddToGoldenSet] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [pinned, setPinned] = useState<boolean>(analysis.is_pinned ?? false)
 
@@ -246,7 +255,7 @@ export function EvalReviewDetail({ analysis, items, reviews: initialReviews, gol
       const res = await fetch(`/api/admin/eval/${analysis.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ verdict: newVerdict, comment: newComment, addToGoldenSet, prompt_version: newVersion }),
+        body: JSON.stringify({ verdict: newVerdict, comment: newComment, prompt_version: newVersion }),
       })
       if (res.ok) {
         const data = await res.json()
@@ -308,12 +317,6 @@ export function EvalReviewDetail({ analysis, items, reviews: initialReviews, gol
               )}
               {analysis.style_node_secondary && <Badge variant="outline">{analysis.style_node_secondary}</Badge>}
               {analysis.detected_gender && <Badge variant="outline">{analysis.detected_gender}</Badge>}
-              {goldenSet && (
-                <Badge className="gap-1 bg-turquoise/10 text-turquoise border-turquoise/30">
-                  <Star className="size-3 fill-turquoise" />
-                  Golden Set
-                </Badge>
-              )}
             </div>
 
             {analysis.prompt_text && (
@@ -512,18 +515,6 @@ export function EvalReviewDetail({ analysis, items, reviews: initialReviews, gol
                     onChange={(e) => setNewVersion(e.target.value)}
                     className="flex h-7 w-24 rounded-md border border-input bg-transparent px-2 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-turquoise"
                   />
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="golden-set"
-                    checked={addToGoldenSet}
-                    onCheckedChange={(checked) => setAddToGoldenSet(checked === true)}
-                  />
-                  <Label htmlFor="golden-set" className="text-sm cursor-pointer flex items-center gap-1.5">
-                    <Star className="size-3.5 text-turquoise" />
-                    Golden Set에 추가
-                  </Label>
                 </div>
 
                 <div className="flex gap-2">
