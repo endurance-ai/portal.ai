@@ -31,7 +31,7 @@
 | | `instagram_post_scrape_images` | 028 | 슬라이드별 R2 URL + tagged_users + is_video |
 | **스타일 노드** | `style_nodes` | 049 + 050 | Fashion Genome taxonomy DB 관리 (20 nodes A~T, admin CRUD). `src/lib/style-nodes-db.ts` 로 fetch (5 min cache). `fashion-genome.ts` 의 hardcoded 15-node 대체 |
 | | `style_node_adjacency` | 051 | 스타일 노드 간 관계 그래프 (빈 테이블 — SPEC-BRAND-EMBED-001 이 채울 예정) |
-| **프롬프트 레지스트리** | `prompts` | 052 + 053 | VLM/Text prompt DB 관리. situation 별 active 1개 유지 (partial unique index). `src/lib/prompts/registry.ts` 로 fetch (5 min cache + in-flight dedup). Admin 편집 가능 (/admin/prompts) |
+| **프롬프트 레지스트리** | `prompts` | 052 + 053 + **059** | VLM/Text prompt DB 관리. situation 별 active 1개 유지 (partial unique index). `src/lib/prompts/registry.ts` 로 fetch (5 min cache + in-flight dedup). Admin 편집 가능 (/admin/prompts). 059: brand-vlm v1 row 추가 (gpt-4o-mini, 5-image multimodal, NODES_BLOCK/NODE_CODES/BRAND_NAME placeholders) |
 | **API 로깅** | `api_access_logs` | — | 외부 API 호출 추적 |
 
 ---
@@ -95,6 +95,8 @@ CREATE INDEX idx_products_embedding_pending
 | ~~`set_hnsw_ef_search(ef int)`~~ | — | **044 드랍** — 호출 0 hits, A/B 실험용 잔재 |
 | `get_product_filter_counts()` | returns table | 어드민 상품 필터 옵션 (10min CDN cache) |
 | `activate_prompt(p_id bigint)` | returns prompts | **054** — atomic activate: 동일 situation 의 기존 active row deactivate + 대상 row activate 를 단일 트랜잭션으로 처리. race 조건(unique partial index 위반) 방지. SECURITY DEFINER. `app_user` EXECUTE 권한 부여됨 |
+| `classify_brand_acquire(p_brand_id bigint, p_force boolean)` | returns table (id, brand_name, primary_node_id, skip_reason) | **060** — `/api/internal/classify-brand` 진입 가드. SELECT FOR UPDATE + conditional UPDATE sentinel(node_assigned_at). skip_reason NULL=진행 / 'already_classified' / 'recently_assigned'(60초 내). `app_user` EXECUTE 권한 부여됨 |
+| `enqueue_brand_review(p_brand_id bigint, p_reason text, p_vlm_output jsonb)` | returns bigint | **060** — brand_node_review_queue atomic upsert. partial unique index (brand_id WHERE resolved_at IS NULL) 와 함께 open row 1건 보장. `app_user` EXECUTE 권한 부여됨 |
 
 ### 모니터링 뷰
 
@@ -174,6 +176,8 @@ FROM products GROUP BY platform ORDER BY total DESC;
 | **054** | **`activate_prompt(bigint)` PL/pgSQL 함수** — SECURITY DEFINER, atomic activate (siblings deactivate + self activate). `app_user` EXECUTE 권한 부여 |
 | **055** | **`brand_nodes` 노드 매핑 컬럼 추가** — primary_node_id / secondary_node_id (FK → style_nodes.id), node_confidence numeric(3,2), node_assigned_at, node_assigned_model, representative_image_urls text[]. 인덱스: idx_brand_nodes_primary/secondary. **`brand_node_review_queue` 신설** — reason enum(insufficient_images/low_confidence/multi_node_conflict/vlm_failed), partial unique open 1건 per brand. SPEC-BRAND-NODE-001 P2a |
 | **056** | **`brand_nodes.id` uuid → bigserial 전환** — brand_similar/brand_attribute_proposals/brand_node_review_queue FK 동기 bigint swap. `pg_trgm` CREATE EXTENSION (crawler alias fuzzy match). sequence rename (id_new_seq → id_seq). review_queue.reason 에 `alias_candidate` 추가. SPEC-BRAND-NODE-001 PR-X |
+| **059** | **`prompts` brand-vlm v1 seed** — situation='brand-vlm', model='gpt-4o-mini', max_tokens=800, temperature=0.0. system 2,275자 (5-image 브랜드 감도 분류 + taxonomy 주입). placeholders: NODES_BLOCK(style_nodes), NODE_CODES(style_nodes), BRAND_NAME(runtime). SPEC-BRAND-NODE-001 P2b |
+| **060** | **classify_brand_acquire + enqueue_brand_review PL/pgSQL 함수** — `classify_brand_acquire(bigint, boolean)`: SELECT FOR UPDATE + 60초 mutex sentinel. `enqueue_brand_review(bigint, text, jsonb)`: partial unique upsert. 양 함수 `app_user` EXECUTE 권한 부여. SPEC-BRAND-NODE-001 P3' |
 
 ---
 
