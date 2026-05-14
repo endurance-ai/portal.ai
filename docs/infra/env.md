@@ -24,7 +24,7 @@
 | 키 | 용도 | 기본 동작 |
 |---|---|---|
 | `APIFY_TOKEN` | Instagram post 스크래핑 (`apify/instagram-post-scraper` actor) | 미설정 시 fetch-post 실패 — 메인 플로우 v2 진입점에서 필수가 될 예정 |
-| `LITELLM_BASE_URL` | LiteLLM 프록시 base URL (`54.116.116.225:4000`). 메인 플로우(analyze-post) + 브랜드 메타 추론 배치(fill_brand_meta.py) 공통 | 미설정 시 OpenAI 직접 호출 |
+| `LITELLM_BASE_URL` | LiteLLM 프록시 base URL (`54.116.116.225:4000`). 메인 플로우(analyze-post) + 브랜드 메타 추론 배치(fill_brand_meta.py) + brand-VLM 분류(`/api/internal/classify-brand`) 공통 | 미설정 시 OpenAI 직접 호출 |
 | `LITELLM_API_KEY` | 프록시 인증 | OPENAI_API_KEY로 폴백 |
 | `LITELLM_MODEL` | 프록시 모델 명시 | (현재 코드는 항상 `gpt-4o-mini`) |
 | `LITELLM_DISABLED` | `true` 로 두면 즉시 OpenAI direct 폴백 | 프록시 죽었을 때 비상 스위치 |

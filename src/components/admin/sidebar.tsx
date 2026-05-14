@@ -3,16 +3,17 @@
 import Link from "next/link"
 import {usePathname} from "next/navigation"
 import {
-    BarChart3,
-    Database,
-    FileText,
-    FlaskConical,
-    ListChecks,
-    MessageCircle,
-    Network,
-    Palette,
-    Search,
-    ShoppingBag
+  BarChart3,
+  Database,
+  FileText,
+  FlaskConical,
+  Inbox,
+  ListChecks,
+  MessageCircle,
+  Network,
+  Palette,
+  Search,
+  ShoppingBag
 } from "lucide-react"
 import {cn} from "@/lib/utils"
 
@@ -40,6 +41,12 @@ const NAV_ITEMS = [
     label: "브랜드 그래프",
     description: "유사도 네트워크 시각화",
     icon: Network,
+  },
+  {
+    href: "/admin/brand-node-review",
+    label: "브랜드 노드 검수",
+    description: "Brand-VLM 분류 검수 대기열",
+    icon: Inbox,
   },
   {
     href: "/admin/brand-proposals",
