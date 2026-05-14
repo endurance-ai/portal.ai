@@ -5,6 +5,7 @@ import {usePathname} from "next/navigation"
 import {
     BarChart3,
     Database,
+    FileText,
     FlaskConical,
     ListChecks,
     MessageCircle,
@@ -21,6 +22,12 @@ const NAV_ITEMS = [
     label: "스타일 노드",
     description: "감도 taxonomy 관리",
     icon: Palette,
+  },
+  {
+    href: "/admin/prompts",
+    label: "프롬프트",
+    description: "VLM/Text prompt registry",
+    icon: FileText,
   },
   {
     href: "/admin/genome",
