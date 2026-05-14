@@ -40,6 +40,8 @@ type RequestBody = {
 }
 
 const CONFIDENCE_THRESHOLD = 0.7
+const MIN_IMAGES = 1   // 5 → 1 완화 (2026-05-14, test 운영 편의). brand-VLM 정확도 trade-off — 운영 안정화 후 다시 올리기.
+const MAX_IMAGES = 5   // OpenAI 비용·context 한도. 1~5장 범위.
 
 // LiteLLM 프록시 토글 (analyze/route.ts 와 동일 패턴).
 // LITELLM_BASE_URL 설정 + LITELLM_DISABLED !== "true" 일 때만 LiteLLM 경유.
@@ -102,23 +104,26 @@ export async function POST(request: NextRequest) {
     })
   }
 
-  // 2) representative 이미지 5장
+  // 2) representative 이미지 (MIN_IMAGES~MAX_IMAGES 범위)
   const {data: reps, error: repsErr} = await supabase
     .from("products")
     .select("image_url")
     .eq("brand_node_id", brandId)
     .eq("is_brand_representative", true)
     .not("image_url", "is", null)
-    .limit(5)
+    .limit(MAX_IMAGES)
   if (repsErr) {
+    await releaseLock(brandId)
     return NextResponse.json({ok: false, error: repsErr.message}, {status: 500})
   }
 
   const imageUrls = (reps ?? []).map((r) => r.image_url as string).filter(Boolean)
-  if (imageUrls.length < 5) {
+  if (imageUrls.length < MIN_IMAGES) {
     await enqueueReview(brandId, "insufficient_images", {
       reps_found: imageUrls.length,
+      min_required: MIN_IMAGES,
     })
+    await releaseLock(brandId)
     return NextResponse.json({
       ok: true,
       brand_id: brandId,
@@ -134,6 +139,7 @@ export async function POST(request: NextRequest) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
     await enqueueReview(brandId, "vlm_failed", {error: `prompt build: ${msg}`})
+    await releaseLock(brandId)
     return NextResponse.json({ok: false, error: `prompt build: ${msg}`}, {status: 500})
   }
 
@@ -174,6 +180,7 @@ export async function POST(request: NextRequest) {
     const masked = `[${via}_error] status=${status ?? "?"} code=${code ?? "?"}`
     logger.error(`[classify-brand] LLM failed brand=${brandId}: ${masked}`)
     await enqueueReview(brandId, "vlm_failed", {error: masked})
+    await releaseLock(brandId)
     return NextResponse.json(
       {ok: false, error: masked, brand_id: brandId, result: "queued", queued_reason: "vlm_failed"},
       {status: 502},
@@ -187,6 +194,7 @@ export async function POST(request: NextRequest) {
       error: "openai_finish_reason_length",
       raw: raw.slice(0, 500),
     })
+    await releaseLock(brandId)
     return NextResponse.json({
       ok: false,
       brand_id: brandId,
@@ -198,6 +206,7 @@ export async function POST(request: NextRequest) {
 
   if (!raw.trim()) {
     await enqueueReview(brandId, "vlm_failed", {error: "openai_empty_content", finish_reason: finishReason})
+    await releaseLock(brandId)
     return NextResponse.json({
       ok: false,
       brand_id: brandId,
@@ -219,6 +228,7 @@ export async function POST(request: NextRequest) {
     parsed = JSON.parse(raw)
   } catch {
     await enqueueReview(brandId, "vlm_failed", {error: "json_parse_failed", raw: raw.slice(0, 500)})
+    await releaseLock(brandId)
     return NextResponse.json(
       {ok: false, brand_id: brandId, result: "queued", queued_reason: "vlm_failed", error: "json parse failed"},
     )
@@ -233,6 +243,7 @@ export async function POST(request: NextRequest) {
       error: "missing primary_node or confidence",
       vlm_output: parsed,
     })
+    await releaseLock(brandId)
     return NextResponse.json({
       ok: false,
       brand_id: brandId,
@@ -249,6 +260,7 @@ export async function POST(request: NextRequest) {
       error: `unknown primary_node code: ${primaryCode}`,
       vlm_output: parsed,
     })
+    await releaseLock(brandId)
     return NextResponse.json({
       ok: false,
       brand_id: brandId,
@@ -276,6 +288,7 @@ export async function POST(request: NextRequest) {
       latency_ms: latencyMs,
       secondary_warn: secondaryWarn,
     })
+    await releaseLock(brandId)
     return NextResponse.json({
       ok: true,
       brand_id: brandId,
@@ -314,6 +327,22 @@ export async function POST(request: NextRequest) {
     model_id: built.model_id ?? "gpt-4o-mini",
     latency_ms: latencyMs,
   })
+}
+
+/**
+ * 실패 경로 lock 해제.
+ * classify_brand_acquire 가 sentinel 로 박은 node_assigned_at 을 NULL 로 복원.
+ * 60s 대기 없이 즉시 재시도 가능해진다.
+ * classified UPDATE 성공 경로는 node_assigned_at 을 실제 분류 시각으로 덮어쓰므로 호출 X.
+ */
+async function releaseLock(brandId: number): Promise<void> {
+  const {error} = await supabase
+    .from("brand_nodes")
+    .update({node_assigned_at: null})
+    .eq("id", brandId)
+  if (error) {
+    logger.warn(`[classify-brand] lock release 실패 brand=${brandId}: ${error.message}`)
+  }
 }
 
 /** review_queue 에 atomic upsert (PL/pgSQL RPC). */
