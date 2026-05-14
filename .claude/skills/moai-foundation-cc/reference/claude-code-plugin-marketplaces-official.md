@@ -222,7 +222,7 @@ claude plugin validate .    # CLI
   },
   "mcpServers": {
     "enterprise-db": {
-      "command": "${CLAUDE_PLUGIN_ROOT}/servers/db-server",
+      "command": "${CLAUDE_PLUGIN_ROOT}/servers/database-server",
       "args": ["--config", "${CLAUDE_PLUGIN_ROOT}/config.json"]
     }
   },

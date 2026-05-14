@@ -8,7 +8,7 @@
 # 사전 조건:
 #   - AWS CLI + ~/.aws/credentials에 'kiko.ai' 프로필
 #   - .env.local에 SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY
-#   - supabase/migrations/027 적용 완료
+#   - database/migrations/027 적용 완료
 #
 # 완료는 Supabase product_embedding_coverage 뷰로 확인.
 set -euo pipefail

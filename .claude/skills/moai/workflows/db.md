@@ -1,5 +1,5 @@
 ---
-name: moai-workflow-db
+name: moai-workflow-database
 description: >
   Database metadata workflow for MoAI projects. Manages schema, migrations, and seeds
   through four subcommands: init (interactive setup), refresh (rescan migrations),
@@ -22,7 +22,7 @@ progressive_disclosure:
 
 # MoAI Extension: Triggers
 triggers:
-  keywords: ["db", "database", "schema", "migration", "migrations", "seeds"]
+  keywords: ["database", "database", "schema", "migration", "migrations", "seeds"]
   agents: ["manager-spec", "expert-backend"]
   phases: ["run"]
 ---

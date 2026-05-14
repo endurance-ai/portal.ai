@@ -69,7 +69,7 @@ public/
 - [ ] **Step 1: 의존성 설치**
 
 ```bash
-pnpm add @supabase/ssr recharts
+pnpm add @database/ssr recharts
 ```
 
 - [ ] **Step 2: shadcn 컴포넌트 설치**
@@ -81,10 +81,10 @@ pnpm dlx shadcn@latest add table input badge tabs sheet dialog dropdown-menu sep
 - [ ] **Step 3: Supabase 브라우저 클라이언트 작성**
 
 ```ts
-// src/lib/supabase-browser.ts
+// src/lib/database-browser.ts
 "use client"
 
-import { createBrowserClient } from "@supabase/ssr"
+import { createBrowserClient } from "@database/ssr"
 
 export function createSupabaseBrowser() {
   return createBrowserClient(
@@ -97,9 +97,9 @@ export function createSupabaseBrowser() {
 - [ ] **Step 4: Supabase 서버 클라이언트 작성 (쿠키 기반)**
 
 ```ts
-// src/lib/supabase-server.ts
+// src/lib/database-server.ts
 import "server-only"
-import { createServerClient } from "@supabase/ssr"
+import { createServerClient } from "@database/ssr"
 import { cookies } from "next/headers"
 
 export async function createSupabaseServer() {
@@ -146,7 +146,7 @@ Expected: 빌드 성공 (기존 코드 영향 없음)
 - [ ] **Step 7: 커밋**
 
 ```bash
-git add src/lib/supabase-server.ts src/lib/supabase-browser.ts package.json pnpm-lock.yaml src/components/ui/
+git add src/lib/database-server.ts src/lib/database-browser.ts package.json pnpm-lock.yaml src/components/ui/
 git commit -m "chore: Supabase SSR/browser 클라이언트 + shadcn 컴포넌트 + recharts 설치"
 ```
 
@@ -161,7 +161,7 @@ git commit -m "chore: Supabase SSR/browser 클라이언트 + shadcn 컴포넌트
 - [ ] **Step 1: 어드민 테이블 마이그레이션 작성**
 
 ```sql
--- supabase/migrations/009_admin_tables.sql
+-- database/migrations/009_admin_tables.sql
 -- 어드민: 품질 평가 + API 접근 로그
 
 -- 1. 분석 결과 평가
@@ -210,7 +210,7 @@ CREATE INDEX idx_api_access_logs_endpoint ON api_access_logs(endpoint);
 - [ ] **Step 2: brand_attributes 마이그레이션 작성**
 
 ```sql
--- supabase/migrations/010_brand_attributes.sql
+-- database/migrations/010_brand_attributes.sql
 -- brand_nodes에 attributes JSONB 컬럼 추가
 
 ALTER TABLE brand_nodes
@@ -229,7 +229,7 @@ CREATE INDEX IF NOT EXISTS idx_brand_nodes_attributes
 - [ ] **Step 4: 커밋**
 
 ```bash
-git add supabase/migrations/009_admin_tables.sql supabase/migrations/010_brand_attributes.sql
+git add database/migrations/009_admin_tables.sql database/migrations/010_brand_attributes.sql
 git commit -m "feat: 어드민 DB 마이그레이션 — eval_reviews, golden_set, api_access_logs, brand_attributes"
 ```
 
@@ -245,7 +245,7 @@ git commit -m "feat: 어드민 DB 마이그레이션 — eval_reviews, golden_se
 
 ```ts
 // src/middleware.ts
-import { createServerClient } from "@supabase/ssr"
+import { createServerClient } from "@database/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 
 export async function middleware(request: NextRequest) {
@@ -414,7 +414,7 @@ import { useRouter } from "next/navigation"
 import { Moon, Sun, LogOut } from "lucide-react"
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
-import { createSupabaseBrowser } from "@/lib/supabase-browser"
+import { createSupabaseBrowser } from "@/lib/database-browser"
 
 export function Header({ email }: { email?: string }) {
   const router = useRouter()
@@ -455,7 +455,7 @@ export function Header({ email }: { email?: string }) {
 
 ```tsx
 // src/app/admin/layout.tsx
-import { createSupabaseServer } from "@/lib/supabase-server"
+import { createSupabaseServer } from "@/lib/database-server"
 import { Sidebar } from "@/components/admin/sidebar"
 import { Header } from "@/components/admin/header"
 import { ThemeProvider } from "@/components/admin/theme-provider"
@@ -514,7 +514,7 @@ export default function AdminIndex() {
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { createSupabaseBrowser } from "@/lib/supabase-browser"
+import { createSupabaseBrowser } from "@/lib/database-browser"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -600,7 +600,7 @@ export default function LoginPage() {
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { createSupabaseBrowser } from "@/lib/supabase-browser"
+import { createSupabaseBrowser } from "@/lib/database-browser"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -729,7 +729,7 @@ git commit -m "feat: 어드민 레이아웃 + 로그인/회원가입 + 사이드
 ```ts
 // src/app/api/admin/brands/route.ts
 import { NextRequest, NextResponse } from "next/server"
-import { createSupabaseServer } from "@/lib/supabase-server"
+import { createSupabaseServer } from "@/lib/database-server"
 
 export async function GET(request: NextRequest) {
   const supabase = await createSupabaseServer()
@@ -767,7 +767,7 @@ export async function GET(request: NextRequest) {
 ```ts
 // src/app/api/admin/brands/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server"
-import { createSupabaseServer } from "@/lib/supabase-server"
+import { createSupabaseServer } from "@/lib/database-server"
 
 export async function PATCH(
   request: NextRequest,
@@ -807,7 +807,7 @@ export async function PATCH(
 ```ts
 // src/app/api/admin/brands/export/route.ts
 import { NextResponse } from "next/server"
-import { createSupabaseServer } from "@/lib/supabase-server"
+import { createSupabaseServer } from "@/lib/database-server"
 import * as XLSX from "xlsx"
 
 export async function GET() {
@@ -1303,7 +1303,7 @@ git commit -m "feat: Genome 페이지 — 브랜드 테이블 + 필터 + 인라�
 ```ts
 // src/app/api/admin/analytics/route.ts
 import { NextRequest, NextResponse } from "next/server"
-import { createSupabaseServer } from "@/lib/supabase-server"
+import { createSupabaseServer } from "@/lib/database-server"
 
 export async function GET(request: NextRequest) {
   const supabase = await createSupabaseServer()
@@ -1670,7 +1670,7 @@ git commit -m "feat: Analytics 페이지 — 분석 로그 테이블 + 활동 �
 ```ts
 // src/app/api/admin/eval/route.ts
 import { NextRequest, NextResponse } from "next/server"
-import { createSupabaseServer } from "@/lib/supabase-server"
+import { createSupabaseServer } from "@/lib/database-server"
 
 export async function GET(request: NextRequest) {
   const supabase = await createSupabaseServer()
@@ -1741,7 +1741,7 @@ export async function GET(request: NextRequest) {
 ```ts
 // src/app/api/admin/eval/[analysisId]/route.ts
 import { NextRequest, NextResponse } from "next/server"
-import { createSupabaseServer } from "@/lib/supabase-server"
+import { createSupabaseServer } from "@/lib/database-server"
 
 export async function GET(
   _request: NextRequest,
@@ -2176,7 +2176,7 @@ export default function EvalPage() {
 
 ```tsx
 // src/app/admin/eval/[analysisId]/page.tsx
-import { createSupabaseServer } from "@/lib/supabase-server"
+import { createSupabaseServer } from "@/lib/database-server"
 import { EvalReviewDetail } from "@/components/admin/eval-review-detail"
 import { redirect } from "next/navigation"
 

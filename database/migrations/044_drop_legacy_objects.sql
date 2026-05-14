@@ -12,8 +12,8 @@
 --      가 대체.
 --
 -- SPEC 추적: SPEC-INFRA-MIGRATE-001 P7 cutover 후속 정리.
--- 검증 doc: ~/Desktop/aws-infra/docs/kikoai-dev/26-05-07-db-reference.md §9.3
--- 검토 보드: docs/_tmp/db-review.html (drop catalog 섹션)
+-- 검증 doc: ~/Desktop/aws-infra/docs/kikoai-dev/26-05-07-database-reference.md §9.3
+-- 검토 보드: docs/_tmp/database-review.html (drop catalog 섹션)
 
 BEGIN;
 

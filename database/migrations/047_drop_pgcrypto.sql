@@ -5,7 +5,7 @@
 --      모든 테이블 DEFAULT 의 gen_random_uuid() 는 core 함수를 가리키므로
 --      pgcrypto 와 무관.
 --   2. pg_depend(refobjid = pgcrypto.oid) 결과 0 rows — 의존 객체 없음.
---   3. 코드 grep (kikoai/app/src + supabase/migrations + kikoai/ai):
+--   3. 코드 grep (kikoai/app/src + database/migrations + kikoai/ai):
 --      digest / crypt / encrypt / gen_salt / pgp_sym / hmac SQL 호출 0건.
 --   4. 모든 hash/암호화는 app-level (Python hashlib, Node bcryptjs) 처리.
 --

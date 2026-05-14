@@ -1,12 +1,12 @@
 "use client"
 
 import {useCallback, useEffect, useMemo, useState} from "react"
-import {Check, X, ChevronLeft, ChevronRight} from "lucide-react"
+import {Check, ChevronLeft, ChevronRight, X} from "lucide-react"
 import {Skeleton} from "@/components/ui/skeleton"
 
 interface ProposalRow {
   id: string
-  brand_id: string
+  brand_id: number
   brand_name: string
   field: string
   proposed_values: string[]

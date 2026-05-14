@@ -238,7 +238,7 @@ git commit -m "refactor: 프롬프트 enum을 product-enums.ts 모듈로 통합 
 - [ ] **Step 1: 마이그레이션 SQL 작성**
 
 ```sql
--- supabase/migrations/012_create_product_ai_analysis.sql
+-- database/migrations/012_create_product_ai_analysis.sql
 -- 상품 이미지 AI 분석 결과 테이블
 -- products와 1:N 관계 (버전별 분석 결과 저장)
 
@@ -306,7 +306,7 @@ Expected: 18개 컬럼 (id ~ created_at)
 - [ ] **Step 3: 커밋**
 
 ```bash
-git add supabase/migrations/012_create_product_ai_analysis.sql
+git add database/migrations/012_create_product_ai_analysis.sql
 git commit -m "feat: product_ai_analysis 마이그레이션 (012)"
 ```
 
@@ -599,7 +599,7 @@ infra/.env
  *   npx tsx scripts/analyze-products.ts --version v1 --retry-failed
  */
 
-import {createClient} from "@supabase/supabase-js"
+import {createClient} from "@database/database-js"
 import * as fs from "fs"
 import * as path from "path"
 import {

@@ -93,7 +93,7 @@ Run: `npx supabase db push` 또는 Supabase 대시보드에서 SQL 직접 실행
 - [ ] **Step 3: 커밋**
 
 ```bash
-git add supabase/migrations/021_session_feedback.sql
+git add database/migrations/021_session_feedback.sql
 git commit -m "feat: add analysis_sessions + user_feedbacks tables"
 ```
 
@@ -1082,7 +1082,7 @@ git commit -m "feat: feedback flow component (thumbs, tags, text, email)"
 
 ```typescript
 import {NextRequest, NextResponse} from "next/server"
-import {supabase} from "@/lib/supabase"
+import {supabase} from "@/lib/database"
 import {logger} from "@/lib/logger"
 import type {FeedbackTagId} from "@/lib/feedback-tags"
 
@@ -1460,7 +1460,7 @@ git commit -m "feat: session state management + refine + feedback integration"
 
 ```typescript
 import {NextRequest, NextResponse} from "next/server"
-import {supabase} from "@/lib/supabase"
+import {supabase} from "@/lib/database"
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)

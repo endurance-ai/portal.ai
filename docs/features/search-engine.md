@@ -68,7 +68,7 @@ interface SearchRequest {
 
 ## v5 전환 인프라 (적용 완료, 미가동)
 
-마이그레이션 `supabase/migrations/027_product_embeddings_and_pgroonga.sql` 가 다음을 추가:
+마이그레이션 `database/migrations/027_product_embeddings_and_pgroonga.sql` 가 다음을 추가:
 
 ### 컬럼
 

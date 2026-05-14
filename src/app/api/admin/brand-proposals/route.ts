@@ -6,7 +6,7 @@ export const revalidate = 0
 
 interface ProposalRow {
   id: string
-  brand_id: string
+  brand_id: number
   brand_name: string
   field: string
   proposed_values: string[]
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
 
   // brand 검색 시: 먼저 brand_nodes 에서 매치되는 id 목록 받아서 .in() 으로 필터
   // → 카운트가 정확해지고 페이지네이션이 올바름.
-  let brandIdFilter: string[] | null = null
+  let brandIdFilter: number[] | null = null
   if (brandQ) {
     const {data: matchedBrands, error: bErr} = await supabase
       .from("brand_nodes")

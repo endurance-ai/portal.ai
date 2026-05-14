@@ -8,7 +8,7 @@
 
 새 플랫폼 추가가 kiko.ai 의 DB 스키마 변경을 동반하면 (예: 새 컬럼, 새 enum 값):
 
-1. kiko.ai 에서 `supabase/migrations/NNN_*.sql` 작성 + 적용
+1. kiko.ai 에서 `database/migrations/NNN_*.sql` 작성 + 적용
 2. kiko.ai 의 검색·어드민 코드를 신규 컬럼 대응
 3. crawler 리포에서 `supabase gen types` 재실행 후 PR
 4. 두 리포 모두 머지된 후 크롤 실행

@@ -336,7 +336,7 @@ function createHttpClient(config: UserConfig): AxiosInstance {
 # CORRECT: Safe, documented script
 
 # Backup database with compression
-# Usage: ./backup-db.sh [database_name] [output_directory]
+# Usage: ./backup-database.sh [database_name] [output_directory]
 
 set -euo pipefail # Strict error handling
 

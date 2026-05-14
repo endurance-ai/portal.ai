@@ -13,7 +13,7 @@ import {buildNodeReference, getActiveNodeCodes,} from "@/lib/style-nodes-db"
  * 노드 정의는 style_nodes 테이블, prompt 본문은 prompts 테이블에서 fetch.
  *
  * 캐시: 모듈 in-memory 5분 TTL + in-flight promise dedup
- *       (style-nodes-db.ts 와 동일 패턴).
+ *       (style-nodes-database.ts 와 동일 패턴).
  */
 
 // ─── 타입 / 상수 ──────────────────────────────────────────────
