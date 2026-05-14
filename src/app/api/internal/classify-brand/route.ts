@@ -160,7 +160,11 @@ export async function POST(request: NextRequest) {
               (url) =>
                 ({
                   type: "image_url" as const,
-                  image_url: {url, detail: "auto" as const},
+                  // detail="low": 512x512 thumbnail-equivalent, 고정 85토큰/이미지.
+                  // brand 정체성 (mood/silhouette/color palette) 분류엔 충분.
+                  // 옛 "auto"는 Shopify 세로 긴 fashion 이미지에서 1장당 30k+ 토큰
+                  // 폭발 → TPM exhaustion 으로 429 빈발. 약 360x 토큰 절감.
+                  image_url: {url, detail: "low" as const},
                 }),
             ),
           ],
