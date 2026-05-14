@@ -1,5 +1,8 @@
 import {NextRequest, NextResponse} from "next/server"
 import OpenAI from "openai"
+
+export const dynamic = "force-dynamic"
+export const runtime = "nodejs"
 import {requireInternalKey} from "@/lib/auth/internal"
 import {supabase} from "@/lib/supabase"
 import {logger} from "@/lib/logger"
@@ -38,7 +41,14 @@ type RequestBody = {
 
 const CONFIDENCE_THRESHOLD = 0.7
 
-const openai = new OpenAI({apiKey: process.env.OPENAI_API_KEY})
+// Lazy init — Next.js build 시 OPENAI_API_KEY 없어도 module load 통과
+let openaiClient: OpenAI | null = null
+function getOpenAI(): OpenAI {
+  if (!openaiClient) {
+    openaiClient = new OpenAI({apiKey: process.env.OPENAI_API_KEY})
+  }
+  return openaiClient
+}
 
 export async function POST(request: NextRequest) {
   const gate = requireInternalKey(request)
@@ -120,7 +130,7 @@ export async function POST(request: NextRequest) {
   let raw: string
   let finishReason: string | null = null
   try {
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAI().chat.completions.create({
       model: built.model_id ?? "gpt-4o-mini",
       messages: [
         {role: "system", content: built.system},
