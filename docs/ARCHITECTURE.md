@@ -146,7 +146,7 @@ graph TB
 2. `src/app/admin/layout.tsx` — RSC에서 `requireApprovedAdmin()` 재확인
 3. `/api/admin/*` 라우트 핸들러 — 동일 헬퍼로 한번 더 검증
 
-대시보드: Genome / Analytics / Eval / Search Debugger / Products / User Voice / Pipeline Health / Crawl Coverage / **Brand Graph** / **Brand Proposals** / **Style Nodes**.
+대시보드: Genome / Analytics / Eval / Search Debugger / Products / User Voice / Pipeline Health / Crawl Coverage / **Brand Graph** / **Brand Proposals** / **Style Nodes** / **프롬프트**.
 
 Eval 모듈: migration 048 (2026-05-13) 로 eval_golden_queries / eval_golden_set / eval_judgments / eval_runs 4 테이블 + 관련 API 7개 드랍. `/admin/eval` 은 queue-only 단일 탭으로 단순화. `eval_reviews` 만 유지. 상세: `docs/features/search-engine.md` 의 "Evaluation Infrastructure" 섹션.
 
@@ -183,6 +183,16 @@ Eval 모듈: migration 048 (2026-05-13) 로 eval_golden_queries / eval_golden_se
 - `src/app/api/admin/style-nodes/[code]/route.ts` — `GET` / `PATCH` / `DELETE` (soft)
 - `src/app/api/style-nodes/route.ts` — `GET` (admin-gated, taxonomy 공개 노출)
 - `src/lib/style-nodes-db.ts` — DB fetch wrapper (5 min cache + in-flight dedup, `fetchActiveStyleNodes` / `buildNodeReference` / `getActiveNodeCodes`)
+
+프롬프트 레지스트리 신규 (SPEC-PROMPT-REGISTRY-001, 2026-05-14):
+- `src/app/admin/prompts/page.tsx` — situation 별 grouped 리스트 (Server Component)
+- `src/app/admin/prompts/[id]/page.tsx` — 편집 + activate/deactivate (Client)
+- `src/app/admin/prompts/new/page.tsx` — 신규 생성 / clone (Client)
+- `src/app/api/admin/prompts/route.ts` — `GET` / `POST` (requireApprovedAdmin gate)
+- `src/app/api/admin/prompts/[id]/route.ts` — `GET` / `PATCH` / `DELETE` (soft)
+- `src/lib/prompts/registry.ts` — DB fetch + 5 min cache + in-flight dedup + placeholder resolver (style_nodes / static / enums / runtime 4종)
+- `src/lib/prompts/analyze.ts` — thin wrapper → `buildPrompt("vision-analyze")`
+- `src/lib/prompts/prompt-search.ts` — thin wrapper → `buildPrompt("prompt-search")`
 
 ---
 
@@ -238,6 +248,7 @@ SPEC: SPEC-V6-EVAL (완료→드랍), SPEC-V6-EVAL-V2 (완료→드랍)
 |---|---|
 | 2026-05-10 | **Auth.js v5 마이그 (SPEC-INFRA-MIGRATE-001 P3)** — Supabase Auth 제거 → Auth.js Credentials Provider + bcryptjs + pg Pool. 신규: `src/auth.ts`, `src/lib/db.ts`, `src/middleware.ts`, `/api/auth/[...nextauth]`. 삭제: `src/proxy.ts`, `src/lib/supabase-browser.ts`, `src/lib/supabase-server.ts`, `@supabase/ssr` |
 | 2026-05-10 | **PostgREST 자체 호스팅 (SPEC-INFRA-MIGRATE-001 P6)** — dev-app EC2 내부에 PostgREST + nginx shim 구성. Supabase.com REST 엔드포인트 대체 (aws-infra 리포 반영됨) |
+| 2026-05-14 | **Prompt Registry (SPEC-PROMPT-REGISTRY-001)** — `prompts` 테이블 (052) + seed 2 row (053: vision-analyze v1 / prompt-search v1) + `activate_prompt(bigint)` PL/pgSQL RPC (054, atomic activate). `src/lib/prompts/analyze.ts` + `prompt-search.ts` 하드코딩 170+ 라인 → thin wrapper. `PROMPT_SEARCH_USER` sync export 제거 → `getPromptSearchUser()` async. 어드민 프롬프트 CRUD 3 페이지 + API 4 라우트. |
 | 2026-05-13 | **Style Node taxonomy DB 이전 (SPEC-NODE-REDESIGN-001)** — `style_nodes` 테이블 (049, A~T 20 node seed via 050) + `style_node_adjacency` (051, 빈 테이블 — SPEC-BRAND-EMBED-001 가 채울 예정). `fashion-genome.ts` STYLE_NODES const → DB fetch wrapper (`style-nodes-db.ts`). Prompt builder 시그니처 const → async fn. 어드민 style-nodes CRUD 3 페이지 + API 4 라우트. |
 | 2026-05-13 | **DB cleanup (migrations 044~048)** — legacy 5종 drop (item_search_results, set_hnsw_ef_search, rls_auto_enable, handle_new_admin_user, brand_nodes.platform), PAI v6 axis 8 컬럼 추가 (045), 테이블/컬럼 한글 COMMENT (046), pgcrypto extension drop (047), eval 4 테이블 drop + admin/eval queue-only 단순화 (048) |
 | 2026-05-10 | **브랜드 유사도 그래프** — 마이그레이션 037~043 (brand_similar/embedding/proposals/aliases/UMAP/SKU 카운트) + 어드민 2 페이지 + 5 API 라우트 + 배치 스크립트 3종. EC2 self-host CI/CD (Dockerfile + deploy-dev.yml, SPEC-INFRA-MIGRATE-001 P5) |

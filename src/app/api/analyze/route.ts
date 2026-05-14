@@ -3,7 +3,7 @@ import OpenAI from "openai"
 import {supabase} from "@/lib/supabase"
 import {logger} from "@/lib/logger"
 import {ANALYZE_USER_PROMPT, getAnalyzeSystemPrompt,} from "@/lib/prompts/analyze"
-import {getPromptSearchSystem, PROMPT_SEARCH_USER,} from "@/lib/prompts/prompt-search"
+import {getPromptSearchSystem, getPromptSearchUser,} from "@/lib/prompts/prompt-search"
 import {getStyleNodeByCode} from "@/lib/style-nodes-db"
 import {uploadImage} from "@/lib/r2"
 
@@ -180,13 +180,16 @@ RULES:
 
       // 리파인 컨텍스트 삽입 (누적 히스토리)
       const refinementContext = buildRefinementContext(refinementPrompt || prompt)
-      const promptSearchSystem = await getPromptSearchSystem()
+      const [promptSearchSystem, promptSearchUser] = await Promise.all([
+        getPromptSearchSystem(),
+        getPromptSearchUser(prompt, effectiveGender),
+      ])
 
       const response = await openai.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
           { role: "system", content: promptSearchSystem + refinementContext },
-          { role: "user", content: PROMPT_SEARCH_USER(prompt, effectiveGender) },
+          { role: "user", content: promptSearchUser },
         ],
         max_tokens: 1200,
         temperature: 0.3,
