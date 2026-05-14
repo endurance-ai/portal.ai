@@ -30,6 +30,7 @@
 | | `instagram_post_scrape_images` | 028 | 슬라이드별 R2 URL + tagged_users + is_video |
 | **스타일 노드** | `style_nodes` | 049 + 050 | Fashion Genome taxonomy DB 관리 (20 nodes A~T, admin CRUD). `src/lib/style-nodes-db.ts` 로 fetch (5 min cache). `fashion-genome.ts` 의 hardcoded 15-node 대체 |
 | | `style_node_adjacency` | 051 | 스타일 노드 간 관계 그래프 (빈 테이블 — SPEC-BRAND-EMBED-001 이 채울 예정) |
+| **프롬프트 레지스트리** | `prompts` | 052 + 053 | VLM/Text prompt DB 관리. situation 별 active 1개 유지 (partial unique index). `src/lib/prompts/registry.ts` 로 fetch (5 min cache + in-flight dedup). Admin 편집 가능 (/admin/prompts) |
 | **API 로깅** | `api_access_logs` | — | 외부 API 호출 추적 |
 
 ---
@@ -92,6 +93,7 @@ CREATE INDEX idx_products_embedding_pending
 | `bulk_update_product_embeddings(payload jsonb)` | returns int | `scripts/aws/embed_products.py` 가 배치 인코딩 결과를 한 번에 upsert |
 | ~~`set_hnsw_ef_search(ef int)`~~ | — | **044 드랍** — 호출 0 hits, A/B 실험용 잔재 |
 | `get_product_filter_counts()` | returns table | 어드민 상품 필터 옵션 (10min CDN cache) |
+| `activate_prompt(p_id bigint)` | returns prompts | **054** — atomic activate: 동일 situation 의 기존 active row deactivate + 대상 row activate 를 단일 트랜잭션으로 처리. race 조건(unique partial index 위반) 방지. SECURITY DEFINER. `app_user` EXECUTE 권한 부여됨 |
 
 ### 모니터링 뷰
 
@@ -166,6 +168,9 @@ FROM products GROUP BY platform ORDER BY total DESC;
 | **049** | **`style_nodes` 테이블** — code(PK), name_en, name_ko, mood, include_rule, exclude_rule, keywords_en[], keywords_ko[], is_active, created_at, updated_at |
 | **050** | **`style_nodes` 20-node seed** — A~T 코드 초기 데이터 삽입 (Fashion Genome taxonomy 이전) |
 | **051** | **`style_node_adjacency` 테이블** — source_code, target_code, weight (빈 테이블 — SPEC-BRAND-EMBED-001 이 채울 예정) |
+| **052** | **`prompts` 테이블** — situation/version (composite natural key), is_active (partial unique index: 1 active per situation), system_md, user_md, placeholders jsonb, model_id, max_tokens, temperature, notes, created_by, updated_at. `style_nodes_set_updated_at()` 트리거 재사용 |
+| **053** | **`prompts` 초기 seed** — vision-analyze v1 (이미지 분석) + prompt-search v1 (텍스트 검색) 2 row active 삽입. 옛 analyze.ts / prompt-search.ts 하드코딩 template 이전 |
+| **054** | **`activate_prompt(bigint)` PL/pgSQL 함수** — SECURITY DEFINER, atomic activate (siblings deactivate + self activate). `app_user` EXECUTE 권한 부여 |
 
 ---
 
