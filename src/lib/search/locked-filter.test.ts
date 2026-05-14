@@ -39,7 +39,7 @@ describe("passesLockedFilter", () => {
     ).toBe(true)
   })
 
-  it("camelCase key correctly maps to snake_case db column", () => {
+  it("camelCase key correctly maps to snake_case database column", () => {
     // colorFamily → color_family, fabric → fabric
     expect(passesLockedFilter(baseRow, { colorFamily: "black" })).toBe(true)
     expect(passesLockedFilter(baseRow, { colorFamily: "red" })).toBe(false)

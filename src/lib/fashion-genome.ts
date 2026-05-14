@@ -2,7 +2,7 @@
  * @deprecated 2026-05-13 (SPEC-NODE-REDESIGN-001 P3)
  *
  * Style Node 정의는 DB (`style_nodes` 테이블) 로 이전됨.
- * 새 코드는 `@/lib/style-nodes-db` 의 `fetchActiveStyleNodes` / `buildNodeReference` 사용.
+ * 새 코드는 `@/lib/style-nodes-database` 의 `fetchActiveStyleNodes` / `buildNodeReference` 사용.
  *
  * 본 파일은 다음 용도로만 남겨둠 (SPEC 5 v6 cutover 시점에 제거 예정):
  *   - SENSITIVITY_TAGS (`brands.sensitivity_tags` deprecate 시까지 임시 유지)

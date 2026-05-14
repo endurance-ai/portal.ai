@@ -20,7 +20,7 @@ endurance-ai/kiko.ai-app (Vercel)  ← 이 리포
 
 ## DB 스키마 owner
 
-`supabase/migrations/` 는 kiko.ai 가 owner. 스키마 변경 시:
+`database/migrations/` 는 kiko.ai 가 owner. 스키마 변경 시:
 
 1. kiko.ai 에서 마이그레이션 작성 / 적용
 2. crawler 리포에서 `supabase gen types` 재실행 후 PR

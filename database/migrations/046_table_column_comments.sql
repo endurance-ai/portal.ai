@@ -2,7 +2,7 @@
 -- 모든 활성 public 테이블/뷰/matview에 한글 COMMENT 부여.
 -- 메타데이터는 DB 단일 진실원. psql `\d+ <table>` 또는 information_schema.columns.col_description() 로 즉시 조회.
 --
--- Source: ~/Desktop/aws-infra/docs/kikoai-dev/26-05-07-db-reference.md §5
+-- Source: ~/Desktop/aws-infra/docs/kikoai-dev/26-05-07-database-reference.md §5
 -- Author: pai-sync-backfill session (2026-05-12)
 -- Idempotent: COMMENT ON 은 멱등 — 재실행 안전.
 

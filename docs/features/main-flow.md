@@ -285,7 +285,7 @@ const res = await searchProductsPost(req)
 - `src/app/api/find/search/route.ts` — AI 서버 우선 + v4 폴백 라우팅
 - `src/lib/find/resolve-brands.ts` — @handle → brand name resolver
 - `src/app/api/search-products/route.ts` — v4 검색 엔진 (폴백 전용, 상세는 `search-engine.md`)
-- `supabase/migrations/030_search_products_v5.sql` — v5 RPC (AI 서버가 호출)
+- `database/migrations/030_search_products_v5.sql` — v5 RPC (AI 서버가 호출)
 
 ---
 

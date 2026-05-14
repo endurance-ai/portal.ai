@@ -115,7 +115,7 @@ dev-app 에 ssh 로 접속해서 직접 변경 (또는 Drizzle migration):
 
 ```bash
 ssh -i ~/Desktop/aws-infra/portal-ai-key.pem ec2-user@54.116.104.193 \
-  'sudo docker exec db psql -U postgres -d portal -c "ALTER TABLE admin_profiles ADD COLUMN password_hash text"'
+  'sudo docker exec database psql -U postgres -d portal -c "ALTER TABLE admin_profiles ADD COLUMN password_hash text"'
 ```
 
 **2) 기존 admin 4명에게 임시 password 발급**:
@@ -137,7 +137,7 @@ import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import { DrizzleAdapter } from "@auth/drizzle-adapter"
 import bcrypt from "bcryptjs"
-import { db } from "@/lib/db"
+import { db } from "@/lib/database"
 import { sql } from "drizzle-orm"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -207,9 +207,9 @@ dev-app 의 `.env` (서버 `~/kikoai-app/env/.env`) 와 동기화. APP_USER_PASS
 ### E. @supabase/* 패키지 제거 (마지막, 10분)
 
 ```bash
-pnpm remove @supabase/ssr @supabase/supabase-js
-# src/lib/supabase*.ts 파일 삭제
-# 검색해서 import { createClient } from "@/lib/supabase/..." 사용처 모두 교체
+pnpm remove @database/ssr @database/database-js
+# src/lib/database*.ts 파일 삭제
+# 검색해서 import { createClient } from "@/lib/database/..." 사용처 모두 교체
 ```
 
 ---

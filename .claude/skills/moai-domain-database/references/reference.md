@@ -266,9 +266,9 @@ performance:
 
 replication:
   read_replicas:
-    - host: replica1.db.local
+    - host: replica1.database.local
       port: 5432
-    - host: replica2.db.local
+    - host: replica2.database.local
       port: 5432
   load_balance: round_robin
 ```

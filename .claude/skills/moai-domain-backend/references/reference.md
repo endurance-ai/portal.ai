@@ -166,7 +166,7 @@ server:
 
 database:
   postgresql:
-    url: "postgresql+asyncpg://user:pass@localhost/db"
+    url: "postgresql+asyncpg://user:pass@localhost/database"
     pool_size: 20
     max_overflow: 30
     pool_pre_ping: true

@@ -74,7 +74,7 @@ Run: `npx supabase db push` (또는 Supabase Dashboard에서 SQL 실행)
 - [ ] **Step 3: Commit**
 
 ```bash
-git add supabase/migrations/011_add_product_detail_columns.sql
+git add database/migrations/011_add_product_detail_columns.sql
 git commit -m "feat: products 테이블 상세 크롤링 컬럼 추가 (description, color, material, subcategory 등)"
 ```
 

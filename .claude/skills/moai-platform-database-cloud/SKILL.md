@@ -6,7 +6,7 @@ description: >
   Use when choosing or setting up cloud databases.
 license: Apache-2.0
 compatibility: Designed for Claude Code
-allowed-tools: Read, Write, Bash(psql:*), Bash(npm:*), Bash(npx:*), Bash(neonctl:*), Bash(firebase:*), Bash(supabase:*), Grep, Glob, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
+allowed-tools: Read, Write, Bash(psql:*), Bash(npm:*), Bash(npx:*), Bash(neonctl:*), Bash(firebase:*), Bash(database:*), Grep, Glob, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
 user-invocable: false
 metadata:
   version: "2.0.0"
@@ -26,7 +26,7 @@ progressive_disclosure:
 
 # MoAI Extension: Triggers
 triggers:
-  keywords: ["neon", "supabase", "firestore", "cloud database", "serverless postgresql", "real-time database", "offline sync", "pgvector", "rls", "database branching", "vector database", "nosql", "mobile database"]
+  keywords: ["neon", "database", "firestore", "cloud database", "serverless postgresql", "real-time database", "offline sync", "pgvector", "rls", "database branching", "vector database", "nosql", "mobile database"]
   agents: ["expert-backend", "expert-devops", "manager-spec"]
   phases: ["plan", "run"]
   languages: ["typescript", "javascript", "python", "go"]

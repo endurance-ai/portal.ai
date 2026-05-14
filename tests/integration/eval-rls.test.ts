@@ -14,7 +14,7 @@
  *   pnpm test tests/integration/eval-rls.test.ts
  */
 
-import {describe, it, expect} from "vitest"
+import {describe, expect, it} from "vitest"
 import {createClient} from "@supabase/supabase-js"
 
 const TEST_URL = process.env.SUPABASE_TEST_URL

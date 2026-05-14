@@ -37,5 +37,5 @@ if (process.env.NODE_ENV !== "production" && !isBuildPhase) {
 
 // idle client 에러는 uncaughtException 으로 프로세스 종료할 수 있음 (pg 공식 권고)
 pool.on("error", (err) => {
-  console.error("[db] idle client error", err)
+  console.error("[database] idle client error", err)
 })

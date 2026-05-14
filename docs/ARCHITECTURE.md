@@ -146,7 +146,7 @@ graph TB
 2. `src/app/admin/layout.tsx` — RSC에서 `requireApprovedAdmin()` 재확인
 3. `/api/admin/*` 라우트 핸들러 — 동일 헬퍼로 한번 더 검증
 
-대시보드: Genome / Analytics / Eval / Search Debugger / Products / User Voice / Pipeline Health / Crawl Coverage / **Brand Graph** / **Brand Proposals** / **Style Nodes** / **프롬프트**.
+대시보드: Genome / Analytics / Eval / Search Debugger / Products / User Voice / Pipeline Health / Crawl Coverage / **Brand Graph** / **Brand Proposals** / **Brand Node Review** / **Style Nodes** / **프롬프트**.
 
 Eval 모듈: migration 048 (2026-05-13) 로 eval_golden_queries / eval_golden_set / eval_judgments / eval_runs 4 테이블 + 관련 API 7개 드랍. `/admin/eval` 은 queue-only 단일 탭으로 단순화. `eval_reviews` 만 유지. 상세: `docs/features/search-engine.md` 의 "Evaluation Infrastructure" 섹션.
 
@@ -201,7 +201,7 @@ Eval 모듈: migration 048 (2026-05-13) 로 eval_golden_queries / eval_golden_se
 브랜드 유사도 그래프 + 메타 자율 추론 인프라. 검색 품질 향상의 사전 준비.
 
 토폴로지:
-- DB: 마이그레이션 037~043 — `brand_nodes.embedding` (BGE-m3 1024-dim), `brand_similar` 그래프(42k edges), `brand_attribute_proposals` 검수큐, aliases, x_umap/y_umap, `brand_sku_counts` materialized view
+- DB: 마이그레이션 037~043 + 055~056 — `brand_nodes.embedding` (BGE-m3 1024-dim), `brand_similar` 그래프(42k edges), `brand_attribute_proposals` 검수큐, aliases, x_umap/y_umap, `brand_sku_counts` materialized view. **brand_nodes.id bigserial** (056), primary/secondary_node_id FK + review_queue (055), pg_trgm (056)
 - 배치: `scripts/fill_brand_meta.py` (gpt-4o-mini via LiteLLM 메타 추론), `scripts/umap_brand_layout.py` (1024D → 2D UMAP 투영), `scripts/register_unmatched_brands.ts`
 - API: 5 라우트 (`/api/admin/brand-graph`, `neighbors`, `detail`, `/api/admin/brand-proposals`, `bulk`)
 - UI: `/admin/brand-graph` (SVG 그래프), `/admin/brand-proposals` (검수큐)
@@ -248,6 +248,7 @@ SPEC: SPEC-V6-EVAL (완료→드랍), SPEC-V6-EVAL-V2 (완료→드랍)
 |---|---|
 | 2026-05-10 | **Auth.js v5 마이그 (SPEC-INFRA-MIGRATE-001 P3)** — Supabase Auth 제거 → Auth.js Credentials Provider + bcryptjs + pg Pool. 신규: `src/auth.ts`, `src/lib/db.ts`, `src/middleware.ts`, `/api/auth/[...nextauth]`. 삭제: `src/proxy.ts`, `src/lib/supabase-browser.ts`, `src/lib/supabase-server.ts`, `@supabase/ssr` |
 | 2026-05-10 | **PostgREST 자체 호스팅 (SPEC-INFRA-MIGRATE-001 P6)** — dev-app EC2 내부에 PostgREST + nginx shim 구성. Supabase.com REST 엔드포인트 대체 (aws-infra 리포 반영됨) |
+| 2026-05-14 | **Brand Node Redesign schema (SPEC-BRAND-NODE-001 PR-X)** — brand_nodes 에 primary/secondary_node_id FK + node_confidence + representative_image_urls (055). brand_nodes.id uuid → bigserial 전환 + 4 FK bigint swap (brand_similar/brand_attribute_proposals/brand_node_review_queue) + pg_trgm extension (056). `brand_node_review_queue` 신설. 4 admin TS 파일 brand_id 타입 string → number. `supabase/migrations/` → `database/migrations/` 디렉토리 rename (50+ 파일). |
 | 2026-05-14 | **Prompt Registry (SPEC-PROMPT-REGISTRY-001)** — `prompts` 테이블 (052) + seed 2 row (053: vision-analyze v1 / prompt-search v1) + `activate_prompt(bigint)` PL/pgSQL RPC (054, atomic activate). `src/lib/prompts/analyze.ts` + `prompt-search.ts` 하드코딩 170+ 라인 → thin wrapper. `PROMPT_SEARCH_USER` sync export 제거 → `getPromptSearchUser()` async. 어드민 프롬프트 CRUD 3 페이지 + API 4 라우트. |
 | 2026-05-13 | **Style Node taxonomy DB 이전 (SPEC-NODE-REDESIGN-001)** — `style_nodes` 테이블 (049, A~T 20 node seed via 050) + `style_node_adjacency` (051, 빈 테이블 — SPEC-BRAND-EMBED-001 가 채울 예정). `fashion-genome.ts` STYLE_NODES const → DB fetch wrapper (`style-nodes-db.ts`). Prompt builder 시그니처 const → async fn. 어드민 style-nodes CRUD 3 페이지 + API 4 라우트. |
 | 2026-05-13 | **DB cleanup (migrations 044~048)** — legacy 5종 drop (item_search_results, set_hnsw_ef_search, rls_auto_enable, handle_new_admin_user, brand_nodes.platform), PAI v6 axis 8 컬럼 추가 (045), 테이블/컬럼 한글 COMMENT (046), pgcrypto extension drop (047), eval 4 테이블 drop + admin/eval queue-only 단순화 (048) |

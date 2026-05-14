@@ -4,7 +4,7 @@
  * `price` column. Used by admin product list/detail and any other
  * surface that renders product prices.
  *
- * Migration: see supabase/migrations/036_add_source_currency_to_products.sql
+ * Migration: see database/migrations/036_add_source_currency_to_products.sql
  */
 
 const CURRENCY_SYMBOL: Record<string, string> = {

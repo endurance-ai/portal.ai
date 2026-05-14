@@ -64,7 +64,7 @@ __pycache__/
 .moai/state/
 
 # Supabase CLI temp
-supabase/.temp/
+database/.temp/
 
 # Local working drafts (user scratch HTML / sketches)
 docs/_tmp/

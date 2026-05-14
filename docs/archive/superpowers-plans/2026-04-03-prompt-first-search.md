@@ -559,13 +559,13 @@ ALTER TABLE analyses ADD COLUMN IF NOT EXISTS prompt_text text;
 
 ```bash
 # 로컬 개발이면 Supabase 대시보드에서 SQL 실행, 또는:
-# supabase db push (만약 CLI 설정되어 있으면)
+# database database push (만약 CLI 설정되어 있으면)
 ```
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add supabase/migrations/011_add_prompt_text.sql
+git add database/migrations/011_add_prompt_text.sql
 git commit -m "feat: add prompt_text column to analyses table"
 ```
 

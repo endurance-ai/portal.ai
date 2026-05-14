@@ -1797,13 +1797,13 @@ http://localhost:3400/about — 에세이 레이아웃 표시.
 - [ ] **Step 1: 현재 analyses 스키마 확인**
 
 ```bash
-grep -l "analyses" /Users/hansangho/Desktop/fashion-ai/src/lib/supabase*.ts
+grep -l "analyses" /Users/hansangho/Desktop/fashion-ai/src/lib/database*.ts
 ```
 
 `supabase` 서버 클라이언트로 `analyses` 테이블에서 최근 20개 읽기. 스키마 확인:
 
 ```bash
-grep -A 20 "analyses" /Users/hansangho/Desktop/fashion-ai/supabase/migrations/*.sql | head -60
+grep -A 20 "analyses" /Users/hansangho/Desktop/fashion-ai/database/migrations/*.sql | head -60
 ```
 
 - [ ] **Step 2: Archive 페이지 RSC 작성**
@@ -1811,7 +1811,7 @@ grep -A 20 "analyses" /Users/hansangho/Desktop/fashion-ai/supabase/migrations/*.
 ```tsx
 import type {Metadata} from "next"
 import Image from "next/image"
-import {supabaseServer} from "@/lib/supabase"
+import {supabaseServer} from "@/lib/database"
 import {Header} from "@/components/layout/header"
 import {Footer} from "@/components/layout/footer"
 import {SectionMarker} from "@/components/ui/section-marker"

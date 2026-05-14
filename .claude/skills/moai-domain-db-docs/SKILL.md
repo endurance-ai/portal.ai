@@ -1,5 +1,5 @@
 ---
-name: moai-domain-db-docs
+name: moai-domain-database-docs
 description: >
   Parses DB migration files (Prisma, Alembic, Rails, raw SQL) and keeps
   .moai/project/db/schema.md, erd.mmd, migrations.md in sync. Powers the
@@ -13,10 +13,10 @@ metadata:
   category: "domain"
   status: "active"
   updated: "2026-04-20"
-  tags: "db, schema, migration, documentation, sync, drift"
+  tags: "database, schema, migration, documentation, sync, drift"
 
 triggers:
-  keywords: ["db docs", "schema sync", "migration parse", "erd update"]
+  keywords: ["database docs", "schema sync", "migration parse", "erd update"]
   agents: ["expert-backend"]
   phases: ["run", "sync"]
 ---

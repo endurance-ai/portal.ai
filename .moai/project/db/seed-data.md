@@ -46,9 +46,9 @@ Options:
 
 <!--
 Example:
-| Development | db/seeds/dev/     | SQL + YAML | Full dataset for local testing |
-| Test / CI   | db/seeds/test/    | YAML       | Minimal deterministic fixtures |
-| Staging     | db/seeds/staging/ | Script     | Anonymized production snapshot |
+| Development | database/seeds/dev/     | SQL + YAML | Full dataset for local testing |
+| Test / CI   | database/seeds/test/    | YAML       | Minimal deterministic fixtures |
+| Staging     | database/seeds/staging/ | Script     | Anonymized production snapshot |
 -->
 
 ---

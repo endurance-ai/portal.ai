@@ -5,7 +5,7 @@ import {ExternalLink, X} from "lucide-react"
 
 interface BrandDetail {
   brand: {
-    id: string
+    id: number
     name: string
     cluster: string
     sensitivity_tags: string[] | null
@@ -34,7 +34,7 @@ interface BrandDetail {
   categories: Array<{label: string; count: number; percent: number}>
   genders: Array<{label: string; count: number; percent: number}>
   similar: Array<{
-    id: string
+    id: number
     name: string
     similarity: number
     cluster: string
@@ -85,9 +85,9 @@ export function BrandDetailPanel({
   onClose,
   onSelectSimilar,
 }: {
-  brandId: string | null
+  brandId: number | null
   onClose: () => void
-  onSelectSimilar: (id: string) => void
+  onSelectSimilar: (id: number) => void
 }) {
   const [detail, setDetail] = useState<BrandDetail | null>(null)
   const [loading, setLoading] = useState(false)

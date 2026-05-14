@@ -89,8 +89,8 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
 // src/app/api/admin/products/route.ts
 
 import {NextRequest, NextResponse} from "next/server"
-import {createSupabaseServer} from "@/lib/supabase-server"
-import {supabase} from "@/lib/supabase"
+import {createSupabaseServer} from "@/lib/database-server"
+import {supabase} from "@/lib/database"
 
 const PAGE_SIZE = 20
 
@@ -263,8 +263,8 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
 // src/app/api/admin/products/[id]/route.ts
 
 import {NextRequest, NextResponse} from "next/server"
-import {createSupabaseServer} from "@/lib/supabase-server"
-import {supabase} from "@/lib/supabase"
+import {createSupabaseServer} from "@/lib/database-server"
+import {supabase} from "@/lib/database"
 
 export async function GET(
   request: NextRequest,
@@ -438,7 +438,7 @@ Server component (like existing `eval/[analysisId]/page.tsx` pattern). Fetches d
 **Server component** (`page.tsx`):
 ```typescript
 import { notFound } from "next/navigation"
-import { supabase } from "@/lib/supabase"
+import { supabase } from "@/lib/database"
 import { ProductDetail } from "@/components/admin/product-detail"
 
 export default async function ProductDetailPage({

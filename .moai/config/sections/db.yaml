@@ -1,16 +1,16 @@
 # Database Documentation Configuration
-# Controls /moai db workflow, auto-sync hook, and schema documentation policy.
+# Controls /moai database workflow, auto-sync hook, and schema documentation policy.
 #
-# Structure: 8 keys directly under `db:` (REQ-010)
+# Structure: 8 keys directly under `database:` (REQ-010)
 #   - 5 system-fixed keys: enabled, dir, auto_sync, migration_patterns, engine
-#   - 3 interview-input keys: orm, multi_tenant, migration_tool (filled by `/moai db init`)
+#   - 3 interview-input keys: orm, multi_tenant, migration_tool (filled by `/moai database init`)
 
 db:
-  # [System] Enabled when /moai db init has run. Default false until user opts in.
+  # [System] Enabled when /moai database init has run. Default false until user opts in.
   enabled: false
 
   # [System] Documentation folder (relative to project root)
-  dir: ".moai/project/db"
+  dir: ".moai/project/database"
 
   # [System] Automatic schema sync on migration file changes
   auto_sync:
@@ -18,7 +18,7 @@ db:
     debounce_seconds: 10
     require_user_approval: true
     excluded_patterns:
-      - ".moai/project/db/**"
+      - ".moai/project/database/**"
       - ".moai/cache/**"
       - "**/*.lock"
 
@@ -26,19 +26,19 @@ db:
   migration_patterns:
     - "prisma/schema.prisma"
     - "alembic/versions/**/*.py"
-    - "db/migrate/**/*.rb"
+    - "database/migrate/**/*.rb"
     - "migrations/**/*.sql"
-    - "supabase/migrations/**/*.sql"
+    - "database/migrations/**/*.sql"
     - "sql/migrations/**/*.sql"
 
-  # [System] Primary database engine (set during /moai db init interview)
+  # [System] Primary database engine (set during /moai database init interview)
   engine: "_TBD_"
 
-  # [Interview] ORM/ODM (set during /moai db init interview)
+  # [Interview] ORM/ODM (set during /moai database init interview)
   orm: "_TBD_"
 
-  # [Interview] Multi-tenant strategy (set during /moai db init interview)
+  # [Interview] Multi-tenant strategy (set during /moai database init interview)
   multi_tenant: "none"
 
-  # [Interview] Migration tool (set during /moai db init interview)
+  # [Interview] Migration tool (set during /moai database init interview)
   migration_tool: "_TBD_"

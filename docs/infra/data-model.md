@@ -13,10 +13,11 @@
 | **상품** | `products` | 004 + 005 + 006 + 011 + 027 | 크롤로 들어온 모든 SKU. 임베딩 컬럼 추가됨 (027) |
 | | `product_reviews` | 019 | 상품 리뷰 |
 | | `product_ai_analysis` | 012 | v4 검색이 INNER JOIN 하는 LLM 분석 산출물. **v5 검증 후 드랍 예정** |
-| **브랜드** | `brand_nodes` | 002 + 007 + 037 + 040 + 041 + 042 | Fashion Genome v2: 15 style nodes + brand DNA + embedding(1024-dim BGE-m3) + aliases + UMAP 2D cache |
+| **브랜드** | `brand_nodes` | 002 + 007 + 037 + 040 + 041 + 042 + **055** + **056** | Fashion Genome v2: 15 style nodes + brand DNA + embedding(1024-dim BGE-m3) + aliases + UMAP 2D cache. **id bigserial** (056, 옛 uuid 전환). primary_node_id / secondary_node_id FK + node_confidence + representative_image_urls (055) |
 | | `brand_attributes` | 010 | 어드민에서 채우는 브랜드 속성 |
-| | `brand_similar` | 038 | 브랜드 간 유사도 그래프 (top-20 edges per brand, cosine similarity) |
-| | `brand_attribute_proposals` | 039 | LLM 추론 브랜드 속성 검수큐 (confidence ≥ 0.85 자동/0.7~0.85 pending/< 0.7 폐기) |
+| | `brand_similar` | 038 + **056** | 브랜드 간 유사도 그래프 (top-20 edges per brand, cosine similarity). brand_id bigint 전환 (056) |
+| | `brand_attribute_proposals` | 039 + **056** | LLM 추론 브랜드 속성 검수큐 (confidence ≥ 0.85 자동/0.7~0.85 pending/< 0.7 폐기). brand_id bigint 전환 (056) |
+| | `brand_node_review_queue` | **055** + **056** | Brand-VLM 분류 실패/저신뢰/충돌/image 부족 admin 수동 검수 큐. open 1건 per brand (partial unique). reason: insufficient_images/low_confidence/multi_node_conflict/vlm_failed/alias_candidate |
 | | `brand_sku_counts` | 043 | 브랜드별 SKU 카운트 MATERIALIZED VIEW (perf 캐시) |
 | **검색 품질** | `search_quality_logs` | 014 | 검색 호출당 score breakdown (어드민 디버거 시각화) |
 | **평가** | `eval_reviews` | 013 + 015 | 평가 대기열 리뷰 핀 (유일하게 유지) |
@@ -171,6 +172,8 @@ FROM products GROUP BY platform ORDER BY total DESC;
 | **052** | **`prompts` 테이블** — situation/version (composite natural key), is_active (partial unique index: 1 active per situation), system_md, user_md, placeholders jsonb, model_id, max_tokens, temperature, notes, created_by, updated_at. `style_nodes_set_updated_at()` 트리거 재사용 |
 | **053** | **`prompts` 초기 seed** — vision-analyze v1 (이미지 분석) + prompt-search v1 (텍스트 검색) 2 row active 삽입. 옛 analyze.ts / prompt-search.ts 하드코딩 template 이전 |
 | **054** | **`activate_prompt(bigint)` PL/pgSQL 함수** — SECURITY DEFINER, atomic activate (siblings deactivate + self activate). `app_user` EXECUTE 권한 부여 |
+| **055** | **`brand_nodes` 노드 매핑 컬럼 추가** — primary_node_id / secondary_node_id (FK → style_nodes.id), node_confidence numeric(3,2), node_assigned_at, node_assigned_model, representative_image_urls text[]. 인덱스: idx_brand_nodes_primary/secondary. **`brand_node_review_queue` 신설** — reason enum(insufficient_images/low_confidence/multi_node_conflict/vlm_failed), partial unique open 1건 per brand. SPEC-BRAND-NODE-001 P2a |
+| **056** | **`brand_nodes.id` uuid → bigserial 전환** — brand_similar/brand_attribute_proposals/brand_node_review_queue FK 동기 bigint swap. `pg_trgm` CREATE EXTENSION (crawler alias fuzzy match). sequence rename (id_new_seq → id_seq). review_queue.reason 에 `alias_candidate` 추가. SPEC-BRAND-NODE-001 PR-X |
 
 ---
 
@@ -187,15 +190,22 @@ FROM products GROUP BY platform ORDER BY total DESC;
 
 ---
 
-## Brand Graph 테이블 (2026-05-10, migrations 037~043)
+## Brand Graph 테이블 (2026-05-10, migrations 037~043 + 055~056)
 
 ### brand_nodes (신규 컬럼)
 
 | 컬럼 | 타입 | 설명 |
 |---|---|---|
+| **id** | **bigserial** | **PK — 056 에서 uuid → bigserial 전환 (2026-05-14)** |
 | embedding | vector(1024) | BGE-m3 텍스트 임베딩 — HNSW 인덱스 (ip ops) |
 | aliases | text[] | 브랜드 별칭 배열 (정규화 매칭용) |
 | x_umap / y_umap | float8 | UMAP 2D 투영 좌표 캐시 (어드민 그래프 UI용) |
+| primary_node_id | bigint | FK → style_nodes.id. brand 1차 감도 (055, VLM 배정) |
+| secondary_node_id | bigint | FK → style_nodes.id. brand 2차 감도 (055) |
+| node_confidence | numeric(3,2) | VLM 출력 confidence 0-1 (< 0.7 이면 review queue 자동 분기) (055) |
+| node_assigned_at | timestamptz | VLM 배정 시각 (055) |
+| node_assigned_model | text | VLM 모델 ID 추적 (055) |
+| representative_image_urls | text[] | 분류에 사용된 image URL 배열 (최대 5장) (055) |
 
 ### brand_similar
 
@@ -221,6 +231,23 @@ top-20 per brand 기준 약 42,000 edges. `(brand_id, similar_brand_id)` UNIQUE.
 | created_at | timestamptz | — |
 
 RLS admin-only. 어드민 `/admin/brand-proposals` 에서 일괄 승인/거절.
+
+### brand_node_review_queue (migration 055)
+
+VLM 분류 실패/저신뢰/충돌/image 부족 케이스를 admin 수동 검수로 보내는 큐.
+
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| id | bigserial | PK |
+| brand_id | bigint | FK → brand_nodes.id ON DELETE CASCADE (056 에서 uuid → bigint 전환) |
+| reason | text | `insufficient_images` / `low_confidence` / `multi_node_conflict` / `vlm_failed` / `alias_candidate` |
+| vlm_output | jsonb | VLM raw response (있으면) |
+| admin_note | text | 관리자 메모 |
+| resolved_at | timestamptz | NULL이면 미처리 open |
+| resolved_by | text | 처리자 |
+| created_at | timestamptz | — |
+
+open(resolved_at NULL) 1건 한도 per brand (partial unique). resolved row 는 이력 보존.
 
 ### brand_sku_counts (MATERIALIZED VIEW, migration 043)
 

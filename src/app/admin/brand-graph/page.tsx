@@ -86,7 +86,7 @@ function useSvgPanZoom(initial: {x: number; y: number; w: number; h: number}) {
 }
 
 interface NodeData {
-  id: string
+  id: number
   name: string
   hasMeta: boolean
   cluster: string
@@ -96,7 +96,7 @@ interface NodeData {
 }
 
 interface NeighborData {
-  id: string
+  id: number
   name: string
   similarity: number
   cluster: string
