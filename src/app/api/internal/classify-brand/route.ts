@@ -41,13 +41,25 @@ type RequestBody = {
 
 const CONFIDENCE_THRESHOLD = 0.7
 
-// Lazy init — Next.js build 시 OPENAI_API_KEY 없어도 module load 통과
-let openaiClient: OpenAI | null = null
-function getOpenAI(): OpenAI {
-  if (!openaiClient) {
-    openaiClient = new OpenAI({apiKey: process.env.OPENAI_API_KEY})
+// LiteLLM 프록시 토글 (analyze/route.ts 와 동일 패턴).
+// LITELLM_BASE_URL 설정 + LITELLM_DISABLED !== "true" 일 때만 LiteLLM 경유.
+// 프록시 다운 시 .env 에 LITELLM_DISABLED=true 추가로 OpenAI direct 폴백.
+const useLiteLLM =
+  !!process.env.LITELLM_BASE_URL && process.env.LITELLM_DISABLED !== "true"
+
+// Lazy init — Next.js build 시 키 없어도 module load 통과
+let llmClient: OpenAI | null = null
+function getLLM(): OpenAI {
+  if (!llmClient) {
+    const apiKey = useLiteLLM
+      ? process.env.LITELLM_API_KEY || process.env.OPENAI_API_KEY
+      : process.env.OPENAI_API_KEY
+    llmClient = new OpenAI({
+      apiKey,
+      baseURL: useLiteLLM ? `${process.env.LITELLM_BASE_URL}/v1` : undefined,
+    })
   }
-  return openaiClient
+  return llmClient
 }
 
 export async function POST(request: NextRequest) {
@@ -130,7 +142,7 @@ export async function POST(request: NextRequest) {
   let raw: string
   let finishReason: string | null = null
   try {
-    const response = await getOpenAI().chat.completions.create({
+    const response = await getLLM().chat.completions.create({
       model: built.model_id ?? "gpt-4o-mini",
       messages: [
         {role: "system", content: built.system},
@@ -155,11 +167,12 @@ export async function POST(request: NextRequest) {
     raw = response.choices[0]?.message?.content ?? ""
     finishReason = response.choices[0]?.finish_reason ?? null
   } catch (e) {
-    // OpenAI error 메시지는 URL/request ID 일부 포함 가능 → 마스킹
+    // OpenAI/LiteLLM error 메시지는 URL/request ID 일부 포함 가능 → 마스킹
     const status = (e as {status?: number})?.status
     const code = (e as {code?: string})?.code
-    const masked = `[openai_error] status=${status ?? "?"} code=${code ?? "?"}`
-    logger.error(`[classify-brand] OpenAI failed brand=${brandId}: ${masked}`)
+    const via = useLiteLLM ? "litellm" : "openai_direct"
+    const masked = `[${via}_error] status=${status ?? "?"} code=${code ?? "?"}`
+    logger.error(`[classify-brand] LLM failed brand=${brandId}: ${masked}`)
     await enqueueReview(brandId, "vlm_failed", {error: masked})
     return NextResponse.json(
       {ok: false, error: masked, brand_id: brandId, result: "queued", queued_reason: "vlm_failed"},
@@ -287,7 +300,7 @@ export async function POST(request: NextRequest) {
   }
 
   logger.info(
-    `[classify-brand] brand=${brandId} (${lockRow.brand_name}) → ${primaryCode}/${secondaryCode ?? "-"} conf=${primaryConf} (${latencyMs}ms)`,
+    `[classify-brand] brand=${brandId} (${lockRow.brand_name}) → ${primaryCode}/${secondaryCode ?? "-"} conf=${primaryConf} (${latencyMs}ms via ${useLiteLLM ? "litellm" : "openai_direct"})`,
   )
 
   return NextResponse.json({
