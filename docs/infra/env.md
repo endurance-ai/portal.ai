@@ -11,6 +11,7 @@
 | `DB_TOKEN` | PostgREST service JWT — DB 쓰기/관리 (구 SUPABASE_SERVICE_ROLE_KEY) | 서버 전용 |
 | `DATABASE_URL` | pg Pool 직접 접속 (Auth.js admin_profiles 조회용, P3) — `postgresql://user:pass@host:5432/db` 형식 | 서버 전용 |
 | `AUTH_SECRET` | Auth.js JWT 서명 비밀키 (`openssl rand -hex 32`) | 서버 전용 |
+| `INTERNAL_API_KEY` | `/api/internal/*` 보호 키 (크롤러 → kiko.ai 호출용). 양쪽 동일 값 (`openssl rand -hex 32`). 최소 16자 | 서버 전용 |
 | `NEXTAUTH_URL` | Auth.js 콜백 베이스 URL (dev: `http://localhost:3400`, prod: 도메인) | 서버 전용 |
 | `R2_ACCOUNT_ID` | Cloudflare R2 endpoint 합성용 | 서버 전용 |
 | `R2_ACCESS_KEY_ID` | R2 S3-compat key | 서버 전용 |

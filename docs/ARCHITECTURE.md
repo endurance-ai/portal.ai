@@ -1,7 +1,7 @@
 # kiko.ai — 아키텍처 (Overview)
 
 > 시스템 전체 그림 + 도메인별 doc 매핑. 깊은 내용은 각 `features/*` / `infra/*` 참조.
-> 최종 업데이트: 2026-05-10 (브랜드 그래프 인프라 + EC2 self-host CI/CD)
+> 최종 업데이트: 2026-05-14 (Brand-VLM 분류 endpoint + crawler → kiko.ai 내부 API)
 
 ## 한 줄 요약
 
@@ -46,6 +46,7 @@ graph TB
         API_FIND_S["/api/find/search<br/>(AI server first → v4 fallback)"]
         API_SEARCH["/api/search-products<br/>v4 search engine (fallback)"]
         API_ADMIN["/api/admin/*<br/>+ brand-graph/brand-proposals"]
+        API_INTERNAL["/api/internal/classify-brand<br/>(X-Internal-Key, brand VLM)"]
     end
 
     subgraph External["🌐 External Services"]
@@ -86,6 +87,9 @@ graph TB
     API_ADMIN --> SB
 
     CRAWL --> SB
+    CRAWL -->|POST X-Internal-Key| API_INTERNAL
+    API_INTERNAL --> OAI
+    API_INTERNAL --> SB
     EMBED --> SB
     BRANDSCRIPTS --> SB
 
@@ -94,7 +98,7 @@ graph TB
     classDef data fill:#2e7d32,stroke:#1b5e20,color:#fff
     classDef batch fill:#f57f17,stroke:#e65100,color:#fff
 
-    class MW,API_SEARCH,API_IG,API_FIND_AN,API_FIND_S,API_ADMIN vercel
+    class MW,API_SEARCH,API_IG,API_FIND_AN,API_FIND_S,API_ADMIN,API_INTERNAL vercel
     class APIFY,OAI,LITELLM,AISERVER ext
     class SB,R2 data
     class CRAWL,EMBED,BRANDSCRIPTS batch
@@ -111,7 +115,7 @@ graph TB
 | **PostgREST + nginx shim** | dev-app EC2 자체 호스팅 — Supabase.com REST 대신 로컬 PostgREST 라우팅 (SPEC-INFRA-MIGRATE-001 P6) | aws-infra 리포 |
 | Cloudflare R2 | 이미지 저장 (단일 버킷, prefix 분리) | [infra/deployment.md](infra/deployment.md#cloudflare-r2--이미지-저장) |
 | **Apify** (`instagram-post-scraper`) | Instagram 포스트 단발 스크래핑 — `run-sync-get-dataset-items`, ~5-10s, $0.0023/post | [features/main-flow.md](features/main-flow.md#step-1--instagram-포스트-스크래핑) |
-| OpenAI | GPT-4o-mini Vision (단일 슬라이드 분석) + 브랜드 메타 추론 (`fill_brand_meta.py` via LiteLLM) | [features/main-flow.md](features/main-flow.md#step-2--슬라이드별-vision-분석) |
+| OpenAI | GPT-4o-mini Vision (단일 슬라이드 분석) + 브랜드 메타 추론 (`fill_brand_meta.py` via LiteLLM) + **brand-VLM 분류** (`/api/internal/classify-brand`, 5-image multimodal) | [features/main-flow.md](features/main-flow.md#step-2--슬라이드별-vision-분석) |
 | **AI Server** ([endurance-ai/ai-server](https://github.com/endurance-ai/ai-server)) | v5 검색 오케스트레이션 (Modal embed + dev-app PostgREST RPC + 다양성 캡). `/api/find/search` 가 호출 | [features/search-engine.md](features/search-engine.md) |
 | **Modal serverless** | FashionSigLIP `/embed` (이미지 임베딩, T4 GPU, scale-to-zero) — AI 서버가 호출 | (ai-server repo) |
 | LiteLLM proxy | LLM 라우팅 + Langfuse callback (AI 서버 EC2 컨테이너, `54.116.116.225:4000`). 브랜드 메타 추론 배치에서도 사용 | [infra/deployment.md](infra/deployment.md) |
@@ -194,6 +198,10 @@ Eval 모듈: migration 048 (2026-05-13) 로 eval_golden_queries / eval_golden_se
 - `src/lib/prompts/analyze.ts` — thin wrapper → `buildPrompt("vision-analyze")`
 - `src/lib/prompts/prompt-search.ts` — thin wrapper → `buildPrompt("prompt-search")`
 
+Brand-VLM 분류 endpoint (SPEC-BRAND-NODE-001 P2b + P3', 2026-05-14):
+- `src/app/api/internal/classify-brand/route.ts` — `POST` (X-Internal-Key 인증). 흐름: classify_brand_acquire RPC → is_brand_representative 이미지 5장 → buildPrompt('brand-vlm') → OpenAI multimodal → confidence ≥ 0.7 → brand_nodes UPDATE / 미만 → review_queue. 응답: `{ ok, result: 'classified' | 'queued' | 'skipped' }`
+- `src/lib/auth/internal.ts` — `requireInternalKey()` 헬퍼 (crypto.timingSafeEqual, 최소 16자)
+
 ---
 
 ## Brand Graph Infra (2026-05-10)
@@ -248,6 +256,7 @@ SPEC: SPEC-V6-EVAL (완료→드랍), SPEC-V6-EVAL-V2 (완료→드랍)
 |---|---|
 | 2026-05-10 | **Auth.js v5 마이그 (SPEC-INFRA-MIGRATE-001 P3)** — Supabase Auth 제거 → Auth.js Credentials Provider + bcryptjs + pg Pool. 신규: `src/auth.ts`, `src/lib/db.ts`, `src/middleware.ts`, `/api/auth/[...nextauth]`. 삭제: `src/proxy.ts`, `src/lib/supabase-browser.ts`, `src/lib/supabase-server.ts`, `@supabase/ssr` |
 | 2026-05-10 | **PostgREST 자체 호스팅 (SPEC-INFRA-MIGRATE-001 P6)** — dev-app EC2 내부에 PostgREST + nginx shim 구성. Supabase.com REST 엔드포인트 대체 (aws-infra 리포 반영됨) |
+| 2026-05-14 | **Brand-VLM 분류 endpoint (SPEC-BRAND-NODE-001 P2b + P3')** — migration 059 (brand-vlm v1 prompt seed, gpt-4o-mini multimodal 5-image). migration 060 (PL/pgSQL 2 함수: `classify_brand_acquire` SELECT FOR UPDATE + 60초 mutex, `enqueue_brand_review` partial unique upsert). `POST /api/internal/classify-brand` 신규 (X-Internal-Key, 크롤러 전용). `src/lib/auth/internal.ts` requireInternalKey (timingSafeEqual). crawler → kiko.ai 내부 API 채널 개통. |
 | 2026-05-14 | **Brand Node Redesign schema (SPEC-BRAND-NODE-001 PR-X)** — brand_nodes 에 primary/secondary_node_id FK + node_confidence + representative_image_urls (055). brand_nodes.id uuid → bigserial 전환 + 4 FK bigint swap (brand_similar/brand_attribute_proposals/brand_node_review_queue) + pg_trgm extension (056). `brand_node_review_queue` 신설. 4 admin TS 파일 brand_id 타입 string → number. `supabase/migrations/` → `database/migrations/` 디렉토리 rename (50+ 파일). |
 | 2026-05-14 | **Prompt Registry (SPEC-PROMPT-REGISTRY-001)** — `prompts` 테이블 (052) + seed 2 row (053: vision-analyze v1 / prompt-search v1) + `activate_prompt(bigint)` PL/pgSQL RPC (054, atomic activate). `src/lib/prompts/analyze.ts` + `prompt-search.ts` 하드코딩 170+ 라인 → thin wrapper. `PROMPT_SEARCH_USER` sync export 제거 → `getPromptSearchUser()` async. 어드민 프롬프트 CRUD 3 페이지 + API 4 라우트. |
 | 2026-05-13 | **Style Node taxonomy DB 이전 (SPEC-NODE-REDESIGN-001)** — `style_nodes` 테이블 (049, A~T 20 node seed via 050) + `style_node_adjacency` (051, 빈 테이블 — SPEC-BRAND-EMBED-001 가 채울 예정). `fashion-genome.ts` STYLE_NODES const → DB fetch wrapper (`style-nodes-db.ts`). Prompt builder 시그니처 const → async fn. 어드민 style-nodes CRUD 3 페이지 + API 4 라우트. |

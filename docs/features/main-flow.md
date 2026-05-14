@@ -279,7 +279,7 @@ const res = await searchProductsPost(req)
 |---|---|---|
 | `AI_SERVER_URL` | AI 서버 base URL (예: `http://<EIP>:8000`) | 미설정 시 v4 직행 |
 | `AI_SERVER_TIMEOUT_MS` | AI 서버 호출 타임아웃 | 8000 |
-| `INTERNAL_API_TOKEN` | AI 서버 인증 헤더 (`X-Internal-Token`) | (백로그 — 헤더 송출 코드 미반영) |
+| `INTERNAL_API_TOKEN` | AI 서버 인증 헤더 (`X-Internal-Token`) — `/api/find/search` → ai-server 호출 전용 | (백로그 — 헤더 송출 코드 미반영) |
 
 핵심 파일:
 - `src/app/api/find/search/route.ts` — AI 서버 우선 + v4 폴백 라우팅
