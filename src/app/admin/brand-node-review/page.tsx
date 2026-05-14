@@ -75,9 +75,9 @@ export default async function BrandNodeReviewPage({
   if (brandIds.length > 0) {
     const {data: brands} = await supabase
       .from("brand_nodes")
-      .select("id, brand_name, primary_node_id, node_confidence")
+      .select("id, brand_name, primary_style_node_id, style_node_confidence")
       .in("id", brandIds)
-    const styleIds = (brands ?? []).map((b) => b.primary_node_id).filter(Boolean) as number[]
+    const styleIds = (brands ?? []).map((b) => b.primary_style_node_id).filter(Boolean) as number[]
     let styleMap = new Map<number, string>()
     if (styleIds.length > 0) {
       const {data: styles} = await supabase
@@ -89,8 +89,8 @@ export default async function BrandNodeReviewPage({
     for (const b of brands ?? []) {
       brandMap.set(b.id, {
         name: b.brand_name,
-        primary_code: b.primary_node_id ? styleMap.get(b.primary_node_id) ?? null : null,
-        confidence: b.node_confidence,
+        primary_code: b.primary_style_node_id ? styleMap.get(b.primary_style_node_id) ?? null : null,
+        confidence: b.style_node_confidence,
       })
     }
   }

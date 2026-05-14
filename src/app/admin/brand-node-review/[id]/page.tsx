@@ -19,11 +19,11 @@ type QueueRow = {
 type BrandRow = {
   id: number
   brand_name: string
-  primary_node_id: number | null
-  secondary_node_id: number | null
-  node_confidence: number | null
-  node_assigned_at: string | null
-  node_assigned_model: string | null
+  primary_style_node_id: number | null
+  secondary_style_node_id: number | null
+  style_node_confidence: number | null
+  style_node_assigned_at: string | null
+  style_node_assigned_model: string | null
   representative_image_urls: string[] | null
   primary_code: string | null
   secondary_code: string | null
@@ -157,12 +157,12 @@ export default function BrandReviewDetailPage() {
               {brand?.secondary_code ?? <span className="text-muted-foreground">—</span>}
             </Row>
             <Row label="confidence">
-              {brand?.node_confidence != null
-                ? brand.node_confidence.toFixed(2)
+              {brand?.style_node_confidence != null
+                ? brand.style_node_confidence.toFixed(2)
                 : <span className="text-muted-foreground">—</span>}
             </Row>
             <Row label="model">
-              {brand?.node_assigned_model ?? <span className="text-muted-foreground">—</span>}
+              {brand?.style_node_assigned_model ?? <span className="text-muted-foreground">—</span>}
             </Row>
             <Row label="rep_count">{brand?.representative_image_urls?.length ?? 0}</Row>
             <Row label="price">{brand?.price_band ?? <span className="text-muted-foreground">—</span>}</Row>
@@ -311,7 +311,7 @@ export default function BrandReviewDetailPage() {
           {/* Rerun */}
           <div className="flex items-center justify-between gap-3">
             <div className="text-sm">
-              <strong>Rerun</strong> — node_assigned_at sentinel 해제. 크롤러/cron 다음
+              <strong>Rerun</strong> — style_node_assigned_at sentinel 해제. 크롤러/cron 다음
               호출 시 재분류
             </div>
             <button

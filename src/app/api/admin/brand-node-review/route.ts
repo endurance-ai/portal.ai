@@ -47,15 +47,15 @@ export async function GET(request: NextRequest) {
     const {data: brands} = await supabase
       .from("brand_nodes")
       .select(
-        "id, brand_name, primary_node_id, secondary_node_id, node_confidence, representative_image_urls",
+        "id, brand_name, primary_style_node_id, secondary_style_node_id, style_node_confidence, representative_image_urls",
       )
       .in("id", brandIds)
 
     // style_node code 조인
     const styleIds = new Set<number>()
     for (const b of brands ?? []) {
-      if (b.primary_node_id) styleIds.add(b.primary_node_id)
-      if (b.secondary_node_id) styleIds.add(b.secondary_node_id)
+      if (b.primary_style_node_id) styleIds.add(b.primary_style_node_id)
+      if (b.secondary_style_node_id) styleIds.add(b.secondary_style_node_id)
     }
     let styleMap = new Map<number, string>()
     if (styleIds.size > 0) {
@@ -71,9 +71,9 @@ export async function GET(request: NextRequest) {
         b.id,
         {
           name: b.brand_name,
-          primary_code: b.primary_node_id ? styleMap.get(b.primary_node_id) ?? null : null,
-          secondary_code: b.secondary_node_id ? styleMap.get(b.secondary_node_id) ?? null : null,
-          confidence: b.node_confidence,
+          primary_code: b.primary_style_node_id ? styleMap.get(b.primary_style_node_id) ?? null : null,
+          secondary_code: b.secondary_style_node_id ? styleMap.get(b.secondary_style_node_id) ?? null : null,
+          confidence: b.style_node_confidence,
           rep_count: (b.representative_image_urls ?? []).length,
         } as never,
       ]),

@@ -32,22 +32,22 @@ export async function GET(_request: NextRequest, ctx: Ctx) {
   const {data: brand} = await supabase
     .from("brand_nodes")
     .select(
-      "id, brand_name, primary_node_id, secondary_node_id, node_confidence, node_assigned_at, node_assigned_model, representative_image_urls, price_band, category_type, gender_scope, brand_keywords, aliases",
+      "id, brand_name, primary_style_node_id, secondary_style_node_id, style_node_confidence, style_node_assigned_at, style_node_assigned_model, representative_image_urls, price_band, category_type, gender_scope, brand_keywords, aliases",
     )
     .eq("id", row.brand_id)
     .maybeSingle()
 
   let primaryCode: string | null = null
   let secondaryCode: string | null = null
-  if (brand?.primary_node_id || brand?.secondary_node_id) {
-    const ids = [brand.primary_node_id, brand.secondary_node_id].filter(Boolean) as number[]
+  if (brand?.primary_style_node_id || brand?.secondary_style_node_id) {
+    const ids = [brand.primary_style_node_id, brand.secondary_style_node_id].filter(Boolean) as number[]
     const {data: styles} = await supabase
       .from("style_nodes")
       .select("id, code, name_en")
       .in("id", ids)
     const map = new Map((styles ?? []).map((s) => [s.id, s]))
-    if (brand.primary_node_id) primaryCode = map.get(brand.primary_node_id)?.code ?? null
-    if (brand.secondary_node_id) secondaryCode = map.get(brand.secondary_node_id)?.code ?? null
+    if (brand.primary_style_node_id) primaryCode = map.get(brand.primary_style_node_id)?.code ?? null
+    if (brand.secondary_style_node_id) secondaryCode = map.get(brand.secondary_style_node_id)?.code ?? null
   }
 
   return NextResponse.json({
@@ -75,7 +75,7 @@ type ActionBody =
  *  - approve: vlm_output 의 primary/secondary 그대로 brand_nodes 박음 + queue resolve.
  *  - manual:  admin 이 직접 primary_code / secondary_code 지정 + brand_nodes 박음 + queue resolve.
  *  - dismiss: brand_nodes 안 건드림. queue 만 resolve (admin_note 와 함께).
- *  - rerun:   classify_brand_acquire 의 sentinel 만 reset (node_assigned_at=null) + queue resolve.
+ *  - rerun:   classify_brand_acquire 의 sentinel 만 reset (style_node_assigned_at=null) + queue resolve.
  *             크롤러 / cron 이 다음 호출 시 force=false 로 다시 처리.
  */
 export async function PATCH(request: NextRequest, ctx: Ctx) {
@@ -188,11 +188,11 @@ async function applyBrandNode(
   await supabase
     .from("brand_nodes")
     .update({
-      primary_node_id: primaryId,
-      secondary_node_id: secondaryId,
-      node_confidence: confidence,
-      node_assigned_at: new Date().toISOString(),
-      node_assigned_model: source,
+      primary_style_node_id: primaryId,
+      secondary_style_node_id: secondaryId,
+      style_node_confidence: confidence,
+      style_node_assigned_at: new Date().toISOString(),
+      style_node_assigned_model: source,
     })
     .eq("id", brandId)
 }

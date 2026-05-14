@@ -1,13 +1,13 @@
 import {NextRequest, NextResponse} from "next/server"
 import OpenAI from "openai"
-
-export const dynamic = "force-dynamic"
-export const runtime = "nodejs"
 import {requireInternalKey} from "@/lib/auth/internal"
 import {supabase} from "@/lib/supabase"
 import {logger} from "@/lib/logger"
 import {buildPrompt} from "@/lib/prompts/registry"
 import {getStyleNodeByCode} from "@/lib/style-nodes-db"
+
+export const dynamic = "force-dynamic"
+export const runtime = "nodejs"
 
 /**
  * POST /api/internal/classify-brand
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
   const lockRow = acquired[0] as {
     id: number
     brand_name: string
-    primary_node_id: number | null
+    primary_style_node_id: number | null
     skip_reason: string | null
   }
   if (lockRow.skip_reason) {
@@ -301,11 +301,11 @@ export async function POST(request: NextRequest) {
   const {error: updateErr} = await supabase
     .from("brand_nodes")
     .update({
-      primary_node_id: primaryNode.id,
-      secondary_node_id: secondaryNodeId,
-      node_confidence: primaryConf,
-      node_assigned_at: new Date().toISOString(),
-      node_assigned_model: built.model_id ?? "gpt-4o-mini",
+      primary_style_node_id: primaryNode.id,
+      secondary_style_node_id: secondaryNodeId,
+      style_node_confidence: primaryConf,
+      style_node_assigned_at: new Date().toISOString(),
+      style_node_assigned_model: built.model_id ?? "gpt-4o-mini",
     })
     .eq("id", brandId)
   if (updateErr) {
@@ -331,14 +331,14 @@ export async function POST(request: NextRequest) {
 
 /**
  * 실패 경로 lock 해제.
- * classify_brand_acquire 가 sentinel 로 박은 node_assigned_at 을 NULL 로 복원.
+ * classify_brand_acquire 가 sentinel 로 박은 style_node_assigned_at 을 NULL 로 복원.
  * 60s 대기 없이 즉시 재시도 가능해진다.
- * classified UPDATE 성공 경로는 node_assigned_at 을 실제 분류 시각으로 덮어쓰므로 호출 X.
+ * classified UPDATE 성공 경로는 style_node_assigned_at 을 실제 분류 시각으로 덮어쓰므로 호출 X.
  */
 async function releaseLock(brandId: number): Promise<void> {
   const {error} = await supabase
     .from("brand_nodes")
-    .update({node_assigned_at: null})
+    .update({style_node_assigned_at: null})
     .eq("id", brandId)
   if (error) {
     logger.warn(`[classify-brand] lock release 실패 brand=${brandId}: ${error.message}`)
