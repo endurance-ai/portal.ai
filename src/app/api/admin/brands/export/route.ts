@@ -17,7 +17,8 @@ export async function GET() {
   const rows = brands.map((b) => ({
     brand_name: b.brand_name,
     brand_name_normalized: b.brand_name_normalized,
-    style_node: b.style_node,
+    primary_style_node_id: b.primary_style_node_id,
+    secondary_style_node_id: b.secondary_style_node_id,
     category_type: b.category_type,
     price_band: b.price_band,
     gender_scope: (b.gender_scope || []).join(", "),

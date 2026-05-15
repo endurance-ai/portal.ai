@@ -9,14 +9,13 @@ import { Button } from "@/components/ui/button"
 import { BrandFilters } from "@/components/admin/brand-filters"
 import { BrandEditPanel } from "@/components/admin/brand-edit-panel"
 import { Download, Loader2, ChevronLeft, ChevronRight } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { STYLE_NODE_CONFIG, NODE_COLOR_CLASSES } from "@/lib/style-nodes"
 
 interface Brand {
   id: string
   brand_name: string
   brand_name_normalized: string
-  style_node: string
+  primary_style_node_id: number | null
+  secondary_style_node_id: number | null
   category_type: string
   price_band: string
   gender_scope: string[]
@@ -25,22 +24,14 @@ interface Brand {
   [key: string]: unknown
 }
 
-function NodeCell({ nodeId }: { nodeId: string }) {
-  const cfg = STYLE_NODE_CONFIG[nodeId]
-  if (!cfg) {
-    return <span className="text-sm text-muted-foreground">{nodeId || "—"}</span>
+// P0 fix: 옛 brand_nodes.style_node (15 코드 text) 가 062 에서 DROP →
+// primary_style_node_id (bigint FK) 표시로 임시 폴백.
+// 어드민 reskin PR 에서 style_nodes 테이블 fetch + code/name_en 으로 교체 예정.
+function NodeCell({ nodeId }: { nodeId: number | null }) {
+  if (nodeId == null) {
+    return <span className="text-sm text-muted-foreground">—</span>
   }
-  const colors = NODE_COLOR_CLASSES[cfg.color]
-  // Short label: first word only keeps the cell compact
-  const shortLabel = cfg.label.split(" ")[0]
-
-  return (
-    <div className="flex items-center gap-1.5">
-      <span className={cn("size-2 shrink-0 rounded-full", colors.dot)} />
-      <span className="text-sm font-medium tabular-nums">{nodeId}</span>
-      <span className="text-sm text-muted-foreground hidden lg:inline">{shortLabel}</span>
-    </div>
-  )
+  return <span className="text-sm font-medium tabular-nums text-muted-foreground">#{nodeId}</span>
 }
 
 export function BrandTable() {
@@ -198,7 +189,7 @@ export function BrandTable() {
                 >
                   <TableCell className="py-3 text-sm font-medium">{b.brand_name}</TableCell>
                   <TableCell className="py-3">
-                    <NodeCell nodeId={b.style_node} />
+                    <NodeCell nodeId={b.primary_style_node_id} />
                   </TableCell>
                   <TableCell className="hidden md:table-cell py-3">
                     <div className="flex flex-wrap gap-1">

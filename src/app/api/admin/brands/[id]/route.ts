@@ -12,8 +12,12 @@ export async function PATCH(
   const { id } = await params
   const body = await request.json()
 
+  // 옛 brand_nodes.style_node (text) 는 062 에서 DROP. 새 primary_style_node_id (bigint FK) 로 마이그됨.
+  // edit panel 옛 dropdown (15 코드) 은 새 컬럼으로 직접 매핑 불가 → P0 fix 에서 style_node 수용 제거.
+  // 어드민 reskin 시 primary_style_node_id 받는 dropdown 으로 교체 예정.
   const allowed = [
-    "style_node", "category_type", "price_band", "gender_scope",
+    "primary_style_node_id", "secondary_style_node_id",
+    "category_type", "price_band", "gender_scope",
     "sensitivity_tags", "brand_keywords", "source_platforms", "attributes",
   ]
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() }

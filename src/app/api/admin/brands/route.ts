@@ -22,7 +22,17 @@ export async function GET(request: NextRequest) {
     .order("brand_name_normalized")
     .range(page * limit, (page + 1) * limit - 1)
 
-  if (node && node !== "ALL") query = query.eq("style_node", node)
+  // node 필터: 옛 brand_nodes.style_node (text) 는 062 에서 DROP.
+  // 새 primary_style_node_id (bigint FK) 로 마이그 필요. URL param=code → style_nodes.id 조회 2-step 필요.
+  // 본 P0 fix 에서는 filter 임시 무효화 (어드민 본격 reskin PR 에서 복원 예정).
+  if (node && node !== "ALL") {
+    const {data: snRow} = await supabase
+      .from("style_nodes")
+      .select("id")
+      .eq("code", node)
+      .maybeSingle()
+    if (snRow?.id) query = query.eq("primary_style_node_id", snRow.id)
+  }
   if (category) query = query.eq("category_type", category)
   if (gender) query = query.contains("gender_scope", [gender])
   if (search) query = query.ilike("brand_name_normalized", `%${search}%`)
