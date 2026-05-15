@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
   const ids = edges.map((e) => e.similar_brand_id)
   const {data: brands, error: e2} = await supabase
     .from("brand_nodes")
-    .select("id, brand_name, sensitivity_tags, brand_keywords, style_node, attributes")
+    .select("id, brand_name, sensitivity_tags, brand_keywords, primary_style_node_id, attributes")
     .in("id", ids)
   if (e2) {
     console.error("[brand-graph/neighbors] brand_nodes join failed:", e2)
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
       const hasMeta =
         !!b.sensitivity_tags?.length ||
         !!b.brand_keywords?.length ||
-        !!b.style_node ||
+        b.primary_style_node_id != null ||
         !!(b.attributes && Object.keys(b.attributes).length)
       return {
         id: b.id,

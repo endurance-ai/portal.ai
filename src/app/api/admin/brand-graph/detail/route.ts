@@ -13,7 +13,7 @@ interface BrandDetail {
     sensitivity_tags: string[] | null
     brand_keywords: string[] | null
     attributes: Record<string, string[]> | null
-    style_node: string | null
+    primary_style_node_id: number | null
     gender_scope: string[] | null
     price_band: string | null
     category_type: string | null
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
   // 1. brand_nodes — 기본 정보 (embedding 벡터 / UMAP 좌표 등 패널에서 안 쓰는 컬럼 제외)
   const {data: brand, error: bErr} = await supabase
     .from("brand_nodes")
-    .select("id, brand_name, sensitivity_tags, brand_keywords, attributes, style_node, gender_scope, price_band, category_type, source_platforms, aliases")
+    .select("id, brand_name, sensitivity_tags, brand_keywords, attributes, primary_style_node_id, gender_scope, price_band, category_type, source_platforms, aliases")
     .eq("id", id)
     .single()
   if (bErr || !brand) {
@@ -232,7 +232,7 @@ export async function GET(request: NextRequest) {
       sensitivity_tags: brand.sensitivity_tags,
       brand_keywords: brand.brand_keywords,
       attributes: brand.attributes,
-      style_node: brand.style_node,
+      primary_style_node_id: brand.primary_style_node_id,
       gender_scope: brand.gender_scope,
       price_band: brand.price_band,
       category_type: brand.category_type,

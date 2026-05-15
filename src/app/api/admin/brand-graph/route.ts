@@ -44,14 +44,14 @@ export async function GET() {
       brand_name: string
       sensitivity_tags: string[] | null
       brand_keywords: string[] | null
-      style_node: string | null
+      primary_style_node_id: number | null
       attributes: Record<string, unknown> | null
       x_umap: number | null
       y_umap: number | null
     }>(() =>
       supabase
         .from("brand_nodes")
-        .select("id, brand_name, sensitivity_tags, brand_keywords, style_node, attributes, x_umap, y_umap")
+        .select("id, brand_name, sensitivity_tags, brand_keywords, primary_style_node_id, attributes, x_umap, y_umap")
         .not("embedding", "is", null)
         .order("brand_name")
     ),
@@ -67,7 +67,7 @@ export async function GET() {
     const hasMeta =
       !!b.sensitivity_tags?.length ||
       !!b.brand_keywords?.length ||
-      !!b.style_node ||
+      b.primary_style_node_id != null ||
       !!(b.attributes && Object.keys(b.attributes).length)
     return {
       id: b.id,

@@ -9,19 +9,11 @@ import {
   SheetDescription,
   SheetFooter,
 } from "@/components/ui/sheet"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { STYLE_NODE_IDS, STYLE_NODE_CONFIG, NODE_COLOR_CLASSES } from "@/lib/style-nodes"
 
 const ATTR_ENUMS: Record<string, { values: string[]; label: string; description: string }> = {
   silhouette: {
@@ -58,7 +50,8 @@ interface Brand {
   id: string
   brand_name: string
   brand_name_normalized: string
-  style_node: string
+  primary_style_node_id: number | null
+  secondary_style_node_id: number | null
   category_type: string
   price_band: string
   gender_scope: string[]
@@ -75,13 +68,11 @@ interface BrandEditPanelProps {
 }
 
 export function BrandEditPanel({ brand, open, onOpenChange, onSaved }: BrandEditPanelProps) {
-  const [styleNode, setStyleNode] = useState("")
   const [attrs, setAttrs] = useState<Record<string, string[]>>({})
   const [saving, setSaving] = useState(false)
 
   // Sync state when brand changes
   const syncState = (b: Brand) => {
-    setStyleNode(b.style_node || "")
     setAttrs(b.attributes || {})
   }
 
@@ -109,7 +100,7 @@ export function BrandEditPanel({ brand, open, onOpenChange, onSaved }: BrandEdit
       const res = await fetch(`/api/admin/brands/${brand.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ style_node: styleNode, attributes: attrs }),
+        body: JSON.stringify({ attributes: attrs }),
       })
       if (res.ok) {
         const { brand: updated } = await res.json()
@@ -123,9 +114,6 @@ export function BrandEditPanel({ brand, open, onOpenChange, onSaved }: BrandEdit
 
   if (!brand) return null
 
-  const selectedNodeCfg = styleNode ? STYLE_NODE_CONFIG[styleNode] : null
-  const selectedNodeColors = selectedNodeCfg ? NODE_COLOR_CLASSES[selectedNodeCfg.color] : null
-
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="overflow-y-auto sm:max-w-md">
@@ -135,39 +123,19 @@ export function BrandEditPanel({ brand, open, onOpenChange, onSaved }: BrandEdit
         </SheetHeader>
 
         <div className="flex-1 space-y-6 px-4">
-          {/* Style Node */}
+          {/* Style Node (readonly) — 옛 15 코드 dropdown 은 062 마이그 후 사용 불가.
+              어드민 reskin PR 에서 style_nodes 테이블 fetch + A~T 노드 dropdown 으로 복원 예정. */}
           <div className="space-y-1.5">
             <Label>스타일 노드</Label>
-            <Select value={styleNode} onValueChange={(v) => setStyleNode(v ?? "")}>
-              <SelectTrigger className="w-full">
-                <SelectValue>
-                  {selectedNodeCfg && selectedNodeColors ? (
-                    <div className="flex items-center gap-2">
-                      <span className={cn("size-2 rounded-full shrink-0", selectedNodeColors.dot)} />
-                      <span>{styleNode}</span>
-                      <span className="text-muted-foreground">{selectedNodeCfg.label}</span>
-                    </div>
-                  ) : (
-                    styleNode || "Select node"
-                  )}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {STYLE_NODE_IDS.map((id) => {
-                  const cfg = STYLE_NODE_CONFIG[id]
-                  const colors = NODE_COLOR_CLASSES[cfg.color]
-                  return (
-                    <SelectItem key={id} value={id}>
-                      <div className="flex items-center gap-2">
-                        <span className={cn("size-2 rounded-full shrink-0", colors.dot)} />
-                        <span className="font-medium">{id}</span>
-                        <span className="text-muted-foreground">{cfg.label}</span>
-                      </div>
-                    </SelectItem>
-                  )
-                })}
-              </SelectContent>
-            </Select>
+            <div className="rounded border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+              primary #{brand.primary_style_node_id ?? "—"}
+              {brand.secondary_style_node_id != null && (
+                <span className="ml-2">/ secondary #{brand.secondary_style_node_id}</span>
+              )}
+              <p className="mt-1 text-[11px] text-muted-foreground/70">
+                노드 수정은 brand-VLM 재분류 또는 어드민 reskin PR 이후 가능.
+              </p>
+            </div>
           </div>
 
           {/* Attributes */}

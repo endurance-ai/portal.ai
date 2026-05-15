@@ -11,7 +11,7 @@ interface BrandDetail {
     sensitivity_tags: string[] | null
     brand_keywords: string[] | null
     attributes: Record<string, string[]> | null
-    style_node: string | null
+    primary_style_node_id: number | null
     gender_scope: string[] | null
     price_band: string | null
     category_type: string | null
@@ -165,8 +165,8 @@ export function BrandDetailPanel({
               <span className="text-muted-foreground tracking-wider">
                 {CLUSTER_LABEL[detail.brand.cluster] ?? detail.brand.cluster}
               </span>
-              {detail.brand.style_node && (
-                <span className="text-muted-foreground/60">· {detail.brand.style_node}</span>
+              {detail.brand.primary_style_node_id != null && (
+                <span className="text-muted-foreground/60">· node #{detail.brand.primary_style_node_id}</span>
               )}
             </div>
             <h2 className="text-lg font-bold leading-tight">{detail.brand.name}</h2>
