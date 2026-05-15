@@ -75,6 +75,7 @@ export async function GET(request: NextRequest, ctx: Ctx) {
       .select("id, brand_node_id, images")
       .in("brand_node_id", brandIds)
       .eq("is_brand_representative", true)
+      .order("brand_node_id")
       .limit(brandIds.length * 5)
     if (rErr) return NextResponse.json({error: rErr.message}, {status: 500})
     for (const r of (reps ?? []) as RepRow[]) {

@@ -43,7 +43,10 @@ export async function GET(request: NextRequest) {
   else if (status === "unclassified") query = query.is("primary_style_node_id", null)
   else if (status === "low_conf") query = query.lt("style_node_confidence", 0.7)
 
-  if (nodeId) query = query.eq("primary_style_node_id", parseInt(nodeId, 10))
+  if (nodeId) {
+    const parsed = parseInt(nodeId, 10)
+    if (Number.isFinite(parsed)) query = query.eq("primary_style_node_id", parsed)
+  }
   if (q) query = query.ilike("brand_name_normalized", `%${q.toLowerCase()}%`)
   if (minConf != null) query = query.gte("style_node_confidence", minConf)
   if (maxConf != null) query = query.lte("style_node_confidence", maxConf)
@@ -85,6 +88,7 @@ export async function GET(request: NextRequest) {
       .select("id, brand_node_id, images")
       .in("brand_node_id", brandIds)
       .eq("is_brand_representative", true)
+      .order("brand_node_id")
       .limit(brandIds.length * 5)
     for (const r of (reps ?? []) as RepRow[]) {
       const url = r.images?.[0]

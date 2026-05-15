@@ -130,7 +130,7 @@ export async function GET() {
       },
     })
   } catch (err) {
-    const message = err instanceof Error ? err.message : "unknown error"
-    return NextResponse.json({error: message}, {status: 500})
+    console.error("[ai-insights] query error:", err)
+    return NextResponse.json({error: "Internal server error"}, {status: 500})
   }
 }

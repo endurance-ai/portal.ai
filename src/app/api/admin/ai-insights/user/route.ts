@@ -18,9 +18,18 @@ export async function GET(request: NextRequest) {
   if (!userKey) return NextResponse.json({error: "missing key"}, {status: 400})
 
   try {
+    // payload 는 프론트가 쓰는 키만 추출 (data minimization — ai-server 가
+    // payload 에 민감 필드 추가해도 자동 노출 안 되게).
     const {rows} = await pool.query(
-      `SELECT id, thread_id, turn_no, event_type, payload, latency_ms,
-              to_char(created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at
+      `SELECT id, thread_id, turn_no, event_type, latency_ms,
+              to_char(created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at,
+              jsonb_build_object(
+                'text',          payload->>'text',
+                'chunk_text',    payload->>'chunk_text',
+                'callback_data', payload->>'callback_data',
+                'intent',        payload->>'intent',
+                'lang_detected', payload->>'lang_detected'
+              ) AS payload
        FROM ai.log_conversation_event
        WHERE user_key = $1
        ORDER BY created_at ASC, id ASC
@@ -29,7 +38,7 @@ export async function GET(request: NextRequest) {
     )
     return NextResponse.json({user_key: userKey, events: rows})
   } catch (err) {
-    const message = err instanceof Error ? err.message : "unknown error"
-    return NextResponse.json({error: message}, {status: 500})
+    console.error("[ai-insights/user] query error:", err)
+    return NextResponse.json({error: "Internal server error"}, {status: 500})
   }
 }

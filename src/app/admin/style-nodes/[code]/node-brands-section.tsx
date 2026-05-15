@@ -178,11 +178,11 @@ function BrandCard({brand: b, nodeId}: {brand: Brand; nodeId: number}) {
     <li className="rounded border bg-card p-3 space-y-2">
       <header className="flex items-start justify-between gap-2">
         <Link
-          href={`/admin/brand-graph?brandId=${b.id}`}
+          href={`/admin/brand-nodes?q=${encodeURIComponent(b.brand_name)}`}
           target="_blank"
           rel="noopener"
           className="group min-w-0 flex-1"
-          title="브랜드 상세로 이동"
+          title="브랜드 노드에서 보기"
         >
           <div className="truncate text-sm font-semibold group-hover:underline">
             {b.brand_name}

@@ -11,7 +11,7 @@
 | **v5 인프라** | ✅ 적용 (마이그레이션 027) | `products.embedding vector(768)` + HNSW + pgroonga + bulk RPC |
 | **v5 풀배치** | ⚠️ 테스트만, 81k 미실행 | `scripts/aws/embed_products.py` 단발 실행 필요 |
 | **v5 검색 분기** | ⬜ 미작성 | dense + sparse + RRF 통합 쿼리 + 피처 플래그 `SEARCH_ENGINE_VERSION` |
-| **브랜드 그래프 인프라 v1 (텍스트)** | ⚠️ 037 BGE-m3 텍스트 1024-dim. style_node 옛 15코드 풀 기반 → **stale**. v6 재설계 시 폐기/재임베딩 결정 | `brand_similar` (42k edges), `brand_nodes.embedding` |
+| **브랜드 그래프 인프라 v1 (텍스트)** | ❌ **037 자산 migration 067 (2026-05-15) 로 컬럼 drop 완료** — `brand_nodes.embedding`/`x_umap`/`y_umap`/`sensitivity_tags`/`brand_keywords` 등 13 컬럼 삭제. `brand_similar` 그래프(42k edges) 는 `brand_id` FK 만 남아 구조만 유지 | `brand_similar` (구조만, 037 자산 없음) |
 | **브랜드 그래프 인프라 v2 (multimodal)** | ✅ SPEC-BRAND-EMBED-001 완료 (063~066) | `brand_multimodal_embeddings` (FashionSigLIP 768) + `node_centroids` + auto `style_node_adjacency` + UMAP. crawler bulk 완료 후 풀배치 |
 | **PAI v6 axis** | ✅ 컬럼 추가 (마이그 045) | `product_ai_analysis` 에 v6 axis 8 컬럼 추가 (neckline/sleeve/length/closure/texture/decoration/silhouette/formality). 백필 스크립트: `scripts/local/pai_backfill/`. 검색 RPC 인덱스 준비됨 |
 
@@ -36,6 +36,7 @@
    - styleNode gradient 0.30 / 0.15
    - fit 0.15 / fabric 0.15 / season 0.15 / pattern 0.15
    - brandDna 0.20 / moodTags 0.05 × N
+   - ⚠️ **brandDna 로드 disable (2026-05-15)** — `brand_nodes.sensitivity_tags` migration 067 drop. `brandDnaMap` 빈 채로 진행 → brand boost = 0. SPEC-SEARCH-V6 가 새 ranking 으로 대체 예정.
 4. **한국어/색상/스타일 매핑**
    - `src/lib/enums/korean-vocab.ts` — 한국어 패션 용어 → enum (115+ 항목)
    - `src/lib/enums/color-adjacency.ts` — 16색 인접 그래프 (검색 시 유사 색상 폴백)

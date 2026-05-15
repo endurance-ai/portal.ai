@@ -33,8 +33,8 @@ export async function GET(request: NextRequest) {
       .maybeSingle()
     if (snRow?.id) query = query.eq("primary_style_node_id", snRow.id)
   }
-  // category_type 컬럼 067 에서 drop 됨. filter 비활성.
-  void category
+  // category_type 컬럼 067 에서 drop 됨. filter 비활성 (silent 방지 위해 경고).
+  if (category) console.warn("[brands/route] category 파라미터는 067 이후 무시됨:", category)
   if (gender) query = query.contains("gender_scope", [gender])
   if (search) query = query.ilike("brand_name_normalized", `%${search}%`)
 

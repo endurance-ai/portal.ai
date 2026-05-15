@@ -29,10 +29,14 @@ export default function BrandNodesPage() {
   const [error, setError] = useState<string | null>(null)
 
   // filters
+  const initialQ =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("q") ?? ""
+      : ""
   const [nodeId, setNodeId] = useState<string>("")
   const [status, setStatus] = useState<Status>("all")
-  const [search, setSearch] = useState("")
-  const [debouncedSearch, setDebouncedSearch] = useState("")
+  const [search, setSearch] = useState(initialQ)
+  const [debouncedSearch, setDebouncedSearch] = useState(initialQ)
   const [page, setPage] = useState(0)
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 

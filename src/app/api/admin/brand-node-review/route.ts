@@ -66,6 +66,7 @@ export async function GET(request: NextRequest) {
       .select("brand_node_id")
       .in("brand_node_id", brandIds)
       .eq("is_brand_representative", true)
+      .limit(brandIds.length * 10)
     const repCountMap = new Map<number, number>()
     for (const r of (repCountsRaw ?? []) as RepCountRow[]) {
       repCountMap.set(r.brand_node_id, (repCountMap.get(r.brand_node_id) ?? 0) + 1)
