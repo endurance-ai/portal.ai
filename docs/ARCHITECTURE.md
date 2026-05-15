@@ -1,7 +1,7 @@
 # kiko.ai — 아키텍처 (Overview)
 
 > 시스템 전체 그림 + 도메인별 doc 매핑. 깊은 내용은 각 `features/*` / `infra/*` 참조.
-> 최종 업데이트: 2026-05-14 (Brand-VLM 분류 endpoint + crawler → kiko.ai 내부 API)
+> 최종 업데이트: 2026-05-15 (brand_nodes 슬림화 067 + ai 스키마 GRANT 068 + admin reskin)
 
 ## 한 줄 요약
 
@@ -45,7 +45,7 @@ graph TB
         API_FIND_AN["/api/find/analyze-post<br/>(single slide, slideIndex)"]
         API_FIND_S["/api/find/search<br/>(AI server first → v4 fallback)"]
         API_SEARCH["/api/search-products<br/>v4 search engine (fallback)"]
-        API_ADMIN["/api/admin/*<br/>+ brand-graph/brand-proposals"]
+        API_ADMIN["/api/admin/*<br/>brand-nodes/ai-insights/style-nodes/[code]/brands"]
         API_INTERNAL["/api/internal/classify-brand<br/>(X-Internal-Key, brand VLM)<br/>LiteLLM 토글 (LITELLM_DISABLED 가드)"]
     end
 
@@ -57,7 +57,8 @@ graph TB
     end
 
     subgraph Data["💾 Persistence"]
-        SB["dev-app Postgres 16<br/>+ pgvector + pgroonga<br/>+ PostgREST nginx shim"]
+        SB["dev-app Postgres 16<br/>+ pgvector + pgroonga<br/>+ PostgREST nginx shim<br/>public schema (app_user)"]
+        AIDB["ai schema (ai_user 소유)<br/>card_impression / log_conversation_event<br/>user_taste_profile / user_session<br/>app_user = SELECT-only (068)"]
         R2["Cloudflare R2<br/>analyses/ + instagram-posts/"]
     end
 
@@ -85,6 +86,7 @@ graph TB
 
     U2 --> MW --> API_ADMIN
     API_ADMIN --> SB
+    API_ADMIN --> AIDB
 
     CRAWL --> SB
     CRAWL -->|POST X-Internal-Key| API_INTERNAL
@@ -101,7 +103,7 @@ graph TB
 
     class MW,API_SEARCH,API_IG,API_FIND_AN,API_FIND_S,API_ADMIN,API_INTERNAL vercel
     class APIFY,OAI,LITELLM,AISERVER ext
-    class SB,R2 data
+    class SB,R2,AIDB data
     class CRAWL,EMBED,BRANDSCRIPTS batch
 ```
 
@@ -151,7 +153,7 @@ graph TB
 2. `src/app/admin/layout.tsx` — RSC에서 `requireApprovedAdmin()` 재확인
 3. `/api/admin/*` 라우트 핸들러 — 동일 헬퍼로 한번 더 검증
 
-대시보드: Genome / Analytics / Eval / Search Debugger / Products / User Voice / Pipeline Health / Crawl Coverage / **Brand Graph** / **Brand Proposals** / **Brand Node Review** / **Style Nodes** / **프롬프트**.
+대시보드 (4섹션 카테고리화 — 2026-05-15 reskin): **분류 체계** (스타일 노드 / 브랜드 노드 / 프롬프트) / **검수 대기** (브랜드 노드 검수 / 브랜드 검수큐) / **시각화·분석** (브랜드 클러스터 / 분석 로그 / 검색 디버거) / **운영** (상품 DB / AI 인사이트 / 품질 평가 / 유저 보이스). 브라우저 탭·사이드바 타이틀 "portal.ai Admin" → **"kiko.ai Admin"** 변경.
 
 Eval 모듈: migration 048 (2026-05-13) 로 eval_golden_queries / eval_golden_set / eval_judgments / eval_runs 4 테이블 + 관련 API 7개 드랍. `/admin/eval` 은 queue-only 단일 탭으로 단순화. `eval_reviews` 만 유지. 상세: `docs/features/search-engine.md` 의 "Evaluation Infrastructure" 섹션.
 
@@ -174,11 +176,11 @@ Eval 모듈: migration 048 (2026-05-13) 로 eval_golden_queries / eval_golden_se
 - `src/app/admin/layout.tsx`, `src/app/admin/pending/page.tsx`
 
 브랜드 그래프 관련 신규 (2026-05-10):
-- `src/app/admin/brand-graph/page.tsx` — UMAP 맵(2,100 dot) + Constellation + 사이드 패널
+- ~~`src/app/admin/brand-graph/page.tsx`~~ — **067 후 redirect → `/admin/brand-clusters`** (037 BGE-m3 자산 폐기)
 - `src/app/admin/brand-proposals/page.tsx` — LLM 추론 검수큐 테이블 뷰
 - `src/app/api/admin/brand-graph/route.ts` (노드 + SKU 카운트), `neighbors/route.ts`, `detail/route.ts`
 - `src/app/api/admin/brand-proposals/route.ts`, `bulk/route.ts` (일괄 승인/거절)
-- `src/components/admin/brand-detail-panel.tsx`, `src/lib/brand-normalize.ts`
+- ~~`src/components/admin/brand-detail-panel.tsx`~~ — **삭제됨** (브랜드 그래프 페이지 폐기와 함께), `src/lib/brand-normalize.ts`
 
 스타일 노드 taxonomy 관리 신규 (SPEC-NODE-REDESIGN-001, 2026-05-13):
 - `src/app/admin/style-nodes/page.tsx` — 노드 리스트 (is_active 필터 토글)
@@ -207,6 +209,18 @@ Brand Node Review admin (SPEC-BRAND-NODE-001 P6, 2026-05-14):
 - `src/app/api/admin/brand-node-review/process-reruns/route.ts` — `POST` (admin_note='RERUN_REQUESTED' 일괄 처리, 동시성 4, max 50건, 127.0.0.1 self-fetch SSRF 가드, AbortSignal.timeout 25s)
 - `src/components/admin/process-reruns-button.tsx` — Client, POST 후 result 표시 + router.refresh
 
+브랜드 노드 관리 페이지 + AI 인사이트 신규 (2026-05-15 admin reskin):
+- `src/app/admin/brand-nodes/page.tsx` — 브랜드 노드 목록 (구 `/admin/genome` redirect 대상). 검색 + style_node 필터 + 페이지네이션. 행 클릭 시 detail drawer (brand-node-detail.tsx)
+- `src/app/admin/brand-nodes/brand-node-detail.tsx` — 브랜드 상세 Sheet. products 대표이미지 + 유사 브랜드 + price_min/max_usd
+- `src/app/admin/genome/page.tsx` — redirect → `/admin/brand-nodes`
+- `src/app/admin/ai-insights/page.tsx` — 대화형 봇 운영 통계 3탭 (추천 성과 CTR / 대화 로그 / 세션). ai 스키마 raw SQL (pg Pool). recharts 시각화
+- `src/app/api/admin/brand-nodes/route.ts` — `GET` (list, ?page&search&node_code 필터). PostgREST supabase 클라이언트 경유
+- `src/app/api/admin/ai-insights/route.ts` — `GET` (3 영역 집계). **pg Pool 직접 + ai schema-qualified SQL** (`ai.card_impression`, `ai.log_conversation_event`, `ai.user_session`)
+- `src/app/api/admin/ai-insights/user/route.ts` — `GET` (단일 user_key 전체 이벤트 시계열)
+- `src/app/api/admin/style-nodes/[code]/brands/route.ts` — `GET` (해당 노드에 분류된 brand 목록 + representatives, ?role=primary|secondary|both)
+- `src/components/admin/sidebar.tsx` — 4섹션 구조 (`NAV_SECTIONS`)로 리팩터링 + "kiko.ai Admin" 타이틀
+- `src/lib/currency-to-usd.ts` — 어드민용 정적 USD 환산 유틸 (`toUsd` / `fmtUsd`). 대상 통화: USD/KRW/GBP/EUR/JPY/CNY
+
 Brand-VLM 분류 endpoint (SPEC-BRAND-NODE-001 P2b + P3', 2026-05-14):
 - `src/app/api/internal/classify-brand/route.ts` — `POST` (X-Internal-Key 인증). 흐름: classify_brand_acquire RPC → is_brand_representative 이미지 5장 → buildPrompt('brand-vlm') → OpenAI multimodal → confidence ≥ 0.7 → brand_nodes UPDATE / 미만 → review_queue. 응답: `{ ok, result: 'classified' | 'queued' | 'skipped' }`
 - `src/lib/auth/internal.ts` — `requireInternalKey()` 헬퍼 (crypto.timingSafeEqual, 최소 16자)
@@ -218,10 +232,10 @@ Brand-VLM 분류 endpoint (SPEC-BRAND-NODE-001 P2b + P3', 2026-05-14):
 브랜드 유사도 그래프 + 메타 자율 추론 인프라. 검색 품질 향상의 사전 준비.
 
 토폴로지:
-- DB: 마이그레이션 037~043 + 055~056 — `brand_nodes.embedding` (BGE-m3 1024-dim), `brand_similar` 그래프(42k edges), `brand_attribute_proposals` 검수큐, aliases, x_umap/y_umap, `brand_sku_counts` materialized view. **brand_nodes.id bigserial** (056), primary/secondary_node_id FK + review_queue (055), pg_trgm (056)
-- 배치: `scripts/fill_brand_meta.py` (gpt-4o-mini via LiteLLM 메타 추론), `scripts/umap_brand_layout.py` (1024D → 2D UMAP 투영), `scripts/register_unmatched_brands.ts`
+- DB: 마이그레이션 037~043 + 055~056. **migration 067 (2026-05-15)** — brand_nodes.embedding/x_umap/y_umap/sensitivity_tags/brand_keywords/aliases/representative_image_urls/category_type/price_band 포함 13 컬럼 DROP + price_min_usd/price_max_usd 신규. `brand_similar` 그래프(42k edges) + `brand_attribute_proposals` 검수큐 + `brand_sku_counts` materialized view 는 유지. **brand_nodes.id bigserial** (056), primary/secondary_node_id FK + review_queue (055), pg_trgm (056)
+- 배치: `scripts/fill_brand_meta.py` (gpt-4o-mini via LiteLLM 메타 추론 — brand_keywords 067 drop으로 dead), `scripts/umap_brand_layout.py` (1024D UMAP — 037 자산 dead), `scripts/register_unmatched_brands.ts`
 - API: 5 라우트 (`/api/admin/brand-graph`, `neighbors`, `detail`, `/api/admin/brand-proposals`, `bulk`)
-- UI: `/admin/brand-graph` (SVG 그래프), `/admin/brand-proposals` (검수큐)
+- UI: ~~`/admin/brand-graph`~~ (→ redirect `/admin/brand-clusters`, 037 자산 폐기), `/admin/brand-proposals` (검수큐)
 
 상세: `HANDOFF-brand-graph.md`
 스키마: `docs/infra/data-model.md` 의 brand_similar / brand_attribute_proposals 항목
@@ -263,6 +277,7 @@ SPEC: SPEC-V6-EVAL (완료→드랍), SPEC-V6-EVAL-V2 (완료→드랍)
 
 | 날짜 | 사건 |
 |---|---|
+| 2026-05-15 | **brand_nodes 슬림화 + admin reskin** — migration 067: brand_nodes 13 컬럼 drop (037 BGE-m3 텍스트 임베딩 자산: embedding/embedding_model/embedding_text_hash/embedded_at/x_umap/y_umap/umap_at + 옛 LLM 메타: sensitivity_tags/brand_keywords/aliases/category_type/representative_image_urls + price_band) + price_min_usd/price_max_usd (numeric) 신규 + products 기준 USD backfill. migration 068: app_user → ai 스키마 SELECT-only GRANT (card_impression/log_conversation_event/user_taste_profile/user_session). 신규 admin 페이지 `/admin/brand-nodes` (구 genome rename + redirect), `/admin/ai-insights` (ai 스키마 대화형 봇 통계 3탭). 신규 admin API `/api/admin/brand-nodes`, `/api/admin/ai-insights`, `/api/admin/ai-insights/user`, `/api/admin/style-nodes/[code]/brands`. `/admin/brand-graph` → `/admin/brand-clusters` redirect. 사이드바 4섹션 + "kiko.ai Admin" rebrand + 파비콘 교체. 삭제: brand-detail-panel/edit-panel/table/filters components, `src/lib/brand-cluster.ts`. search-products v4 brandDna 로드 disable (sensitivity_tags 067 drop). `src/lib/currency-to-usd.ts` 신규. |
 | 2026-05-15 | **Brand Multimodal Embedding (SPEC-BRAND-EMBED-001)** — migration 063~066: `brand_multimodal_embeddings` (FashionSigLIP 768 halfvec, HNSW), `node_centroids`, `find_similar_brands` RPC, `brand_multimodal_umap`. 스크립트 5종 (`embed_brand_multimodal.py` / `build_node_centroids.py` / `build_adjacency_from_centroids.py` / `build_brand_umap.py` / `refresh_brand_embeddings_all.sh` wrapper). `style_node_adjacency` 자동 채움 인프라 완성 (source='embedding_derived', manual 보존). 신규 admin `/admin/brand-clusters` (UMAP 2D scatter, recharts) + `GET /api/admin/brand/[id]/similar`. `src/lib/brand-embed.ts` helper. **검색 엔진 미통합** — SPEC-SEARCH-V6 가 결합. **현재 11 brand 임베딩**, crawler bulk 완료 후 풀배치 예정. 037 BGE-m3 텍스트 임베딩은 stale (옛 15 코드 풀) — SPEC 5 정리 대상. 상세: `features/brand-embed.md`. |
 | 2026-05-10 | **Auth.js v5 마이그 (SPEC-INFRA-MIGRATE-001 P3)** — Supabase Auth 제거 → Auth.js Credentials Provider + bcryptjs + pg Pool. 신규: `src/auth.ts`, `src/lib/db.ts`, `src/middleware.ts`, `/api/auth/[...nextauth]`. 삭제: `src/proxy.ts`, `src/lib/supabase-browser.ts`, `src/lib/supabase-server.ts`, `@supabase/ssr` |
 | 2026-05-10 | **PostgREST 자체 호스팅 (SPEC-INFRA-MIGRATE-001 P6)** — dev-app EC2 내부에 PostgREST + nginx shim 구성. Supabase.com REST 엔드포인트 대체 (aws-infra 리포 반영됨) |

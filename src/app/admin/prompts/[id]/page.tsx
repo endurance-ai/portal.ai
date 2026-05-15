@@ -239,7 +239,7 @@ export default function PromptEditPage() {
       </div>
 
       <div className="space-y-5">
-        <Row label="system_md" htmlFor="f-system" hint="VLM 시스템 프롬프트 본문 (placeholder 포함)">
+        <Row label="시스템 프롬프트" htmlFor="f-system" hint="이미지 분석 모델의 시스템 프롬프트 본문 (placeholder 포함)">
           <textarea
             id="f-system"
             rows={18}

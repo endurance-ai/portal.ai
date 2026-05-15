@@ -13,7 +13,7 @@
 | **상품** | `products` | 004 + 005 + 006 + 011 + 027 | 크롤로 들어온 모든 SKU. 임베딩 컬럼 추가됨 (027) |
 | | `product_reviews` | 019 | 상품 리뷰 |
 | | `product_ai_analysis` | 012 | v4 검색이 INNER JOIN 하는 LLM 분석 산출물. **v5 검증 후 드랍 예정** |
-| **브랜드** | `brand_nodes` | 002 + 007 + 037 + 040 + 041 + 042 + **055** + **056** | Fashion Genome v2: 15 style nodes + brand DNA + embedding(1024-dim BGE-m3) + aliases + UMAP 2D cache. **id bigserial** (056, 옛 uuid 전환). primary_node_id / secondary_node_id FK + node_confidence + representative_image_urls (055) |
+| **브랜드** | `brand_nodes` | 002 + 007 + 037 + 040 + 041 + 042 + **055** + **056** + **067** | Fashion Genome v2 슬림화. **067 (2026-05-15)**: 037 BGE-m3 텍스트 임베딩 자산(embedding/x_umap/y_umap 등) + 옛 LLM 메타(sensitivity_tags/brand_keywords/aliases/category_type/representative_image_urls/price_band) 13 컬럼 DROP. price_min_usd / price_max_usd (numeric, USD) 신규 + products 기준 backfill. **id bigserial** (056). primary/secondary_node_id FK + node_confidence (055) |
 | | `brand_attributes` | 010 | 어드민에서 채우는 브랜드 속성 |
 | | `brand_similar` | 038 + **056** | 브랜드 간 유사도 그래프 (top-20 edges per brand, cosine similarity). brand_id bigint 전환 (056) |
 | | `brand_attribute_proposals` | 039 + **056** | LLM 추론 브랜드 속성 검수큐 (confidence ≥ 0.85 자동/0.7~0.85 pending/< 0.7 폐기). brand_id bigint 전환 (056) |
@@ -178,6 +178,8 @@ FROM products GROUP BY platform ORDER BY total DESC;
 | **056** | **`brand_nodes.id` uuid → bigserial 전환** — brand_similar/brand_attribute_proposals/brand_node_review_queue FK 동기 bigint swap. `pg_trgm` CREATE EXTENSION (crawler alias fuzzy match). sequence rename (id_new_seq → id_seq). review_queue.reason 에 `alias_candidate` 추가. SPEC-BRAND-NODE-001 PR-X |
 | **059** | **`prompts` brand-vlm v1 seed** — situation='brand-vlm', model='gpt-4o-mini', max_tokens=800, temperature=0.0. system 2,275자 (5-image 브랜드 감도 분류 + taxonomy 주입). placeholders: NODES_BLOCK(style_nodes), NODE_CODES(style_nodes), BRAND_NAME(runtime). SPEC-BRAND-NODE-001 P2b |
 | **060** | **classify_brand_acquire + enqueue_brand_review PL/pgSQL 함수** — `classify_brand_acquire(bigint, boolean)`: SELECT FOR UPDATE + 60초 mutex sentinel. `enqueue_brand_review(bigint, text, jsonb)`: partial unique upsert. 양 함수 `app_user` EXECUTE 권한 부여. SPEC-BRAND-NODE-001 P3' |
+| **067** | **brand_nodes 슬림화 + price USD 전환** — 13 컬럼 DROP: representative_image_urls / category_type / aliases / sensitivity_tags / brand_keywords / embedding / embedding_model / embedding_text_hash / embedded_at / x_umap / y_umap / umap_at / price_band. 관련 인덱스 cascade 삭제. price_min_usd / price_max_usd (numeric) 신규. products 기준 USD backfill (정적 FX: KRW 1/1370, GBP 1.27, EUR 1.07, JPY 1/156, CNY 1/7.2). price_band 파싱 fallback. |
+| **068** | **ai 스키마 app_user READ-ONLY GRANT** — `GRANT USAGE ON SCHEMA ai TO app_user; GRANT SELECT ON ALL TABLES IN SCHEMA ai TO app_user; ALTER DEFAULT PRIVILEGES FOR ROLE ai_user IN SCHEMA ai GRANT SELECT ON TABLES TO app_user`. ai-server(ai_user 소유) 테이블을 어드민 `/admin/ai-insights` 에서 read-only 조회. |
 
 ---
 
@@ -186,7 +188,7 @@ FROM products GROUP BY platform ORDER BY total DESC;
 | 파일 | 키/드라이버 | 사용처 |
 |---|---|---|
 | `src/lib/supabase.ts` | PostgREST service JWT (`@supabase/supabase-js` 클라이언트, 엔드포인트는 dev-app nginx shim) | API Routes — DB 쓰기/관리 작업 |
-| `src/lib/db.ts` | pg Pool (`DATABASE_URL`) | Auth.js Credentials Provider — `admin_profiles` 직접 조회 (P3, 2026-05-10) |
+| `src/lib/db.ts` | pg Pool (`DATABASE_URL`) | Auth.js Credentials Provider — `admin_profiles` 직접 조회 (P3). **ai 스키마 직접 raw SQL** — `/api/admin/ai-insights` 가 `ai.card_impression` / `ai.log_conversation_event` / `ai.user_session` 조회 (068 GRANT 후, SELECT-only) |
 | ~~`src/lib/supabase-server.ts`~~ | ~~anon (SSR 쿠키)~~ | **삭제됨** — Auth.js 전환 후 폐기 (SPEC-INFRA-MIGRATE-001 P3) |
 | ~~`src/lib/supabase-browser.ts`~~ | ~~anon (브라우저)~~ | **삭제됨** — 동일 이유 |
 
@@ -196,20 +198,28 @@ FROM products GROUP BY platform ORDER BY total DESC;
 
 ## Brand Graph 테이블 (2026-05-10, migrations 037~043 + 055~056)
 
-### brand_nodes (신규 컬럼)
+### brand_nodes (주요 컬럼 — migration 067 후 현행)
+
+> ⚠️ **067 (2026-05-15) 에서 13 컬럼 삭제됨.** 아래는 현재 존재하는 컬럼만 기재.
 
 | 컬럼 | 타입 | 설명 |
 |---|---|---|
 | **id** | **bigserial** | **PK — 056 에서 uuid → bigserial 전환 (2026-05-14)** |
-| embedding | vector(1024) | BGE-m3 텍스트 임베딩 — HNSW 인덱스 (ip ops) |
-| aliases | text[] | 브랜드 별칭 배열 (정규화 매칭용) |
-| x_umap / y_umap | float8 | UMAP 2D 투영 좌표 캐시 (어드민 그래프 UI용) |
+| ~~embedding~~ | ~~vector(1024)~~ | **067 DROP** — BGE-m3 텍스트 임베딩 (037 자산). `brand_multimodal_embeddings` 로 대체 |
+| ~~aliases~~ | ~~text[]~~ | **067 DROP** |
+| ~~x_umap / y_umap~~ | ~~float8~~ | **067 DROP** |
+| ~~sensitivity_tags~~ | ~~text[]~~ | **067 DROP** |
+| ~~brand_keywords~~ | ~~text[]~~ | **067 DROP** |
+| ~~representative_image_urls~~ | ~~text[]~~ | **067 DROP** — `products.is_brand_representative` 가 source of truth |
+| ~~category_type~~ | ~~text~~ | **067 DROP** |
+| ~~price_band~~ | ~~text~~ | **067 DROP** — price_min_usd / price_max_usd 로 대체 |
 | primary_node_id | bigint | FK → style_nodes.id. brand 1차 감도 (055, VLM 배정) |
 | secondary_node_id | bigint | FK → style_nodes.id. brand 2차 감도 (055) |
 | node_confidence | numeric(3,2) | VLM 출력 confidence 0-1 (< 0.7 이면 review queue 자동 분기) (055) |
 | node_assigned_at | timestamptz | VLM 배정 시각 (055) |
 | node_assigned_model | text | VLM 모델 ID 추적 (055) |
-| representative_image_urls | text[] | 분류에 사용된 image URL 배열 (최대 5장) (055) |
+| price_min_usd | numeric | USD 환산 최저가 (067 신규). products 기준 backfill 또는 어드민 수동 입력 |
+| price_max_usd | numeric | USD 환산 최고가 (067 신규) |
 
 ### brand_similar
 
@@ -256,6 +266,24 @@ open(resolved_at NULL) 1건 한도 per brand (partial unique). resolved row 는 
 ### brand_sku_counts (MATERIALIZED VIEW, migration 043)
 
 브랜드별 SKU 카운트 캐시. `REFRESH MATERIALIZED VIEW CONCURRENTLY brand_sku_counts` 로 갱신.
+
+---
+
+## ai 스키마 (migration 068, 2026-05-15)
+
+`ai` 스키마는 **`endurance-ai/ai-server`** (Python FastAPI + Alembic) 가 소유(`ai_user`). kiko.ai Next.js 앱은 **read-only** (`app_user` SELECT 권한, migration 068).
+
+어드민 `/admin/ai-insights` (`GET /api/admin/ai-insights`) 가 `src/lib/db.ts` pg Pool 로 ai schema-qualified SQL 직접 쿼리.
+
+| 테이블 | 역할 |
+|---|---|
+| `ai.card_impression` | 대화형 봇이 추천 카드를 노출·클릭한 이력 (CTR 통계 원본) |
+| `ai.log_conversation_event` | 대화 이벤트 시계열 (user_text/bot_text/intent_routed/search_done 등) + latency_ms |
+| `ai.user_taste_profile` | 사용자 취향 프로필 (누적 학습) |
+| `ai.user_session` | 현재 진행 중 세션 스냅샷 (chat_id PK, TTL 기반 1 row per user) |
+
+> `ai_user` 가 향후 만드는 신규 테이블도 `ALTER DEFAULT PRIVILEGES` 로 `app_user` 자동 SELECT.
+> kiko.ai 는 쓰기 경로 없음 — 어드민 통계 조회 전용.
 
 ---
 

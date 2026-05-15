@@ -4,12 +4,12 @@ import {Sidebar} from "@/components/admin/sidebar"
 import {Header} from "@/components/admin/header"
 
 export const metadata = {
-  title: "portal.ai Admin",
+  title: "kiko.ai Admin",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "portal.ai",
+    title: "kiko.ai",
   },
 }
 

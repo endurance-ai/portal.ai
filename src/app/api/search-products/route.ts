@@ -243,28 +243,11 @@ export async function POST(request: NextRequest) {
       `🔍 검색 v2 시작 — ${queries.length}개 아이템 | 성별: ${genderFilter || "전체"} | 노드: ${primaryNode || "없음"}→${secondaryNode || "없음"}${priceFilter ? ` | 가격: ${priceFilter.minPrice || 0}~${priceFilter.maxPrice || "∞"}원` : ""}${styleTolerance !== null ? ` | tolerance=${styleTolerance.toFixed(2)} → top ${targetCount}` : ""}${hasBrandFilter ? ` | 브랜드 필터: ${brandFilter!.slice(0, 5).join(", ")}${brandFilter!.length > 5 ? ` +${brandFilter!.length - 5}` : ""}` : ""}`
     )
 
-    // ─── Brand DNA 조회 (브랜드 성향 부스팅용) ───
-    // 스타일 노드/무드 태그가 없으면 매칭 기준이 없으므로 쿼리 스킵
+    // ─── Brand DNA 조회 (브랜드 성향 부스팅) ───
+    // 옛 brand_nodes.style_node (062 drop) + sensitivity_tags (067 drop) 모두 폐기.
+    // brandDnaMap 빈 채로 진행 → brand boost 0. SPEC-SEARCH-V6 가 새 ranking 으로 대체 예정.
     type BrandDna = { style_node: string; sensitivity_tags: string[] }
     const brandDnaMap = new Map<string, BrandDna>()
-    if (primaryNode || secondaryNode || (moodTags && moodTags.length > 0)) {
-      const { data: brandNodes } = await supabase
-        .from("brand_nodes")
-        .select("brand_name_normalized, style_node, sensitivity_tags")
-        .limit(500)
-      if (brandNodes) {
-        for (const bn of brandNodes) {
-          brandDnaMap.set(
-            (bn.brand_name_normalized as string).toLowerCase(),
-            {
-              style_node: bn.style_node as string,
-              sensitivity_tags: (bn.sensitivity_tags as string[]) ?? [],
-            }
-          )
-        }
-        logger.info(`   🧬 Brand DNA 로드: ${brandDnaMap.size}개 브랜드`)
-      }
-    }
 
     // 아이템 간 중복 제거용 — 같은 상품이 여러 아이템에서 나오면 먼저 나온 쪽에만 포함
     const globalSeenProducts = new Set<string>()

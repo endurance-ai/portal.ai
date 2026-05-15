@@ -3,95 +3,65 @@
 import Link from "next/link"
 import {usePathname} from "next/navigation"
 import {
-  BarChart3,
-  Database,
-  FileText,
-  FlaskConical,
-  Inbox,
-  ListChecks,
-  MessageCircle,
-  Network,
-  Palette,
-  Search,
-  ShoppingBag,
-  Sparkles
+    BarChart3,
+    Database,
+    FileText,
+    FlaskConical,
+    Inbox,
+    ListChecks,
+    MessageCircle,
+    Palette,
+    Search,
+    ShoppingBag,
+    Sparkles
 } from "lucide-react"
 import {cn} from "@/lib/utils"
 
-const NAV_ITEMS = [
+type NavItem = {
+  href: string
+  label: string
+  description: string
+  icon: typeof Palette
+}
+
+type NavSection = {title: string; items: NavItem[]}
+
+const NAV_SECTIONS: NavSection[] = [
   {
-    href: "/admin/style-nodes",
-    label: "스타일 노드",
-    description: "감도 taxonomy 관리",
-    icon: Palette,
+    title: "분류 체계",
+    items: [
+      {href: "/admin/style-nodes", label: "스타일 노드", description: "스타일 분류 체계 관리", icon: Palette},
+      {href: "/admin/brand-nodes", label: "브랜드 노드", description: "브랜드 + 분류 + 대표상품", icon: Database},
+      {href: "/admin/prompts", label: "프롬프트", description: "이미지·검색 프롬프트 관리", icon: FileText},
+    ],
   },
   {
-    href: "/admin/prompts",
-    label: "프롬프트",
-    description: "VLM/Text prompt registry",
-    icon: FileText,
+    title: "검수 대기",
+    items: [
+      {href: "/admin/brand-node-review", label: "브랜드 노드 검수", description: "브랜드 자동 분류 검수", icon: Inbox},
+      {href: "/admin/brand-proposals", label: "브랜드 검수큐", description: "AI 메타 추론 검수", icon: ListChecks},
+    ],
   },
   {
-    href: "/admin/genome",
-    label: "브랜드 DB",
-    description: "브랜드/노드 관리",
-    icon: Database,
+    title: "시각화 / 분석",
+    items: [
+      {href: "/admin/brand-clusters", label: "브랜드 클러스터", description: "이미지 임베딩 2D 지도", icon: Sparkles},
+      {href: "/admin/analytics", label: "분석 로그", description: "분석 기록 & 활동", icon: BarChart3},
+      {href: "/admin/search-debugger", label: "검색 디버거", description: "검색 점수 분석", icon: Search},
+    ],
   },
   {
-    href: "/admin/brand-graph",
-    label: "브랜드 그래프",
-    description: "유사도 네트워크 시각화",
-    icon: Network,
+    title: "운영",
+    items: [
+      {href: "/admin/products", label: "상품 DB", description: "크롤링 상품 & AI 분석", icon: ShoppingBag},
+      {href: "/admin/ai-insights", label: "AI 인사이트", description: "봇 검색 추천 성과 (CTR)", icon: BarChart3},
+      {href: "/admin/eval", label: "품질 평가", description: "품질 평가 허브", icon: FlaskConical},
+      {href: "/admin/user-voice", label: "유저 보이스", description: "피드백 & 리파인 여정", icon: MessageCircle},
+    ],
   },
-  {
-    href: "/admin/brand-clusters",
-    label: "브랜드 클러스터",
-    description: "FashionSigLIP UMAP 2D 시각화",
-    icon: Sparkles,
-  },
-  {
-    href: "/admin/brand-node-review",
-    label: "브랜드 노드 검수",
-    description: "Brand-VLM 분류 검수 대기열",
-    icon: Inbox,
-  },
-  {
-    href: "/admin/brand-proposals",
-    label: "브랜드 검수큐",
-    description: "LLM 추론 메타 검수",
-    icon: ListChecks,
-  },
-  {
-    href: "/admin/products",
-    label: "상품 DB",
-    description: "크롤링 상품 & AI 분석",
-    icon: ShoppingBag,
-  },
-  {
-    href: "/admin/analytics",
-    label: "분석 로그",
-    description: "분석 기록 & 활동",
-    icon: BarChart3,
-  },
-  {
-    href: "/admin/eval",
-    label: "품질 평가",
-    description: "품질 평가 허브",
-    icon: FlaskConical,
-  },
-  {
-    href: "/admin/user-voice",
-    label: "유저 보이스",
-    description: "피드백 & 리파인 여정",
-    icon: MessageCircle,
-  },
-  {
-    href: "/admin/search-debugger",
-    label: "검색 디버거",
-    description: "스코어 분석 & 디버깅",
-    icon: Search,
-  },
-] as const
+]
+
+const NAV_ITEMS = NAV_SECTIONS.flatMap((s) => s.items)
 
 export function Sidebar() {
   const pathname = usePathname()
@@ -104,29 +74,36 @@ export function Sidebar() {
           href="/admin"
           className="text-base font-bold tracking-tight text-sidebar-foreground mb-6 px-2"
         >
-          portal.ai{" "}
-          <span className="text-muted-foreground font-normal text-sm">admin</span>
+          kiko.ai{" "}
+          <span className="text-muted-foreground font-normal text-sm">Admin</span>
         </Link>
 
-        {NAV_ITEMS.map(({ href, label, description, icon: Icon }) => (
-          <Link
-            key={href}
-            href={href}
-            className={cn(
-              "flex items-center gap-2.5 rounded-md px-2 py-2 text-sm transition-colors",
-              pathname.startsWith(href)
-                ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
-            )}
-          >
-            <Icon className="size-4 shrink-0" />
-            <div>
-              <span className="text-sm leading-none">{label}</span>
-              <span className="block text-[11px] text-muted-foreground/70 mt-0.5 leading-none">
-                {description}
-              </span>
+        {NAV_SECTIONS.map((section, si) => (
+          <div key={section.title} className={cn("flex flex-col gap-0.5", si > 0 && "mt-4")}>
+            <div className="px-2 pb-1 text-[10px] uppercase tracking-wider text-muted-foreground/60">
+              {section.title}
             </div>
-          </Link>
+            {section.items.map(({href, label, description, icon: Icon}) => (
+              <Link
+                key={href}
+                href={href}
+                className={cn(
+                  "flex items-center gap-2.5 rounded-md px-2 py-2 text-sm transition-colors",
+                  pathname.startsWith(href)
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                    : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50",
+                )}
+              >
+                <Icon className="size-4 shrink-0" />
+                <div>
+                  <span className="text-sm leading-none">{label}</span>
+                  <span className="block text-[11px] text-muted-foreground/70 mt-0.5 leading-none">
+                    {description}
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
         ))}
       </aside>
 

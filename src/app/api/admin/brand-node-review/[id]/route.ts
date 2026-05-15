@@ -28,26 +28,56 @@ export async function GET(_request: NextRequest, ctx: Ctx) {
   if (error) return NextResponse.json({error: error.message}, {status: 500})
   if (!row) return NextResponse.json({error: "queue row not found"}, {status: 404})
 
-  // brand 상세 + style_nodes 매핑 + rep image URLs
-  const {data: brand} = await supabase
+  // brand 상세 (067 슬림화 후 컬럼 정리)
+  type BrandRow = {
+    id: number
+    brand_name: string
+    primary_style_node_id: number | null
+    secondary_style_node_id: number | null
+    style_node_confidence: number | string | null
+    style_node_assigned_at: string | null
+    style_node_assigned_model: string | null
+    gender_scope: string[] | null
+    price_min_usd: number | string | null
+    price_max_usd: number | string | null
+  }
+  const {data: brandRaw} = await supabase
     .from("brand_nodes")
     .select(
-      "id, brand_name, primary_style_node_id, secondary_style_node_id, style_node_confidence, style_node_assigned_at, style_node_assigned_model, representative_image_urls, price_band, category_type, gender_scope, brand_keywords, aliases",
+      "id, brand_name, primary_style_node_id, secondary_style_node_id, " +
+        "style_node_confidence, style_node_assigned_at, style_node_assigned_model, " +
+        "gender_scope, price_min_usd, price_max_usd",
     )
     .eq("id", row.brand_id)
     .maybeSingle()
+
+  const brand = brandRaw as unknown as BrandRow | null
 
   let primaryCode: string | null = null
   let secondaryCode: string | null = null
   if (brand?.primary_style_node_id || brand?.secondary_style_node_id) {
     const ids = [brand.primary_style_node_id, brand.secondary_style_node_id].filter(Boolean) as number[]
-    const {data: styles} = await supabase
-      .from("style_nodes")
-      .select("id, code, name_en")
-      .in("id", ids)
-    const map = new Map((styles ?? []).map((s) => [s.id, s]))
+    const {data: styles} = await supabase.from("style_nodes").select("id, code, name_en").in("id", ids)
+    const map = new Map(
+      ((styles ?? []) as Array<{id: number; code: string; name_en: string}>).map((s) => [s.id, s]),
+    )
     if (brand.primary_style_node_id) primaryCode = map.get(brand.primary_style_node_id)?.code ?? null
     if (brand.secondary_style_node_id) secondaryCode = map.get(brand.secondary_style_node_id)?.code ?? null
+  }
+
+  // 대표 이미지 — products.is_brand_representative 가 source of truth
+  let representativeImages: Array<{product_id: string; image_url: string}> = []
+  if (brand) {
+    type RepRow = {id: string; images: string[] | null}
+    const {data: reps} = await supabase
+      .from("products")
+      .select("id, images")
+      .eq("brand_node_id", brand.id)
+      .eq("is_brand_representative", true)
+      .limit(5)
+    representativeImages = ((reps ?? []) as RepRow[])
+      .map((r) => ({product_id: r.id, image_url: r.images?.[0] ?? ""}))
+      .filter((r) => r.image_url)
   }
 
   return NextResponse.json({
@@ -57,6 +87,7 @@ export async function GET(_request: NextRequest, ctx: Ctx) {
           ...brand,
           primary_code: primaryCode,
           secondary_code: secondaryCode,
+          representative_images: representativeImages,
         }
       : null,
   })
