@@ -13,7 +13,8 @@ import {
   Network,
   Palette,
   Search,
-  ShoppingBag
+  ShoppingBag,
+  Sparkles
 } from "lucide-react"
 import {cn} from "@/lib/utils"
 
@@ -41,6 +42,12 @@ const NAV_ITEMS = [
     label: "브랜드 그래프",
     description: "유사도 네트워크 시각화",
     icon: Network,
+  },
+  {
+    href: "/admin/brand-clusters",
+    label: "브랜드 클러스터",
+    description: "FashionSigLIP UMAP 2D 시각화",
+    icon: Sparkles,
   },
   {
     href: "/admin/brand-node-review",
