@@ -64,9 +64,12 @@ export default async function BrandClustersPage() {
     <div className="p-6 space-y-4">
       <header className="flex items-baseline justify-between">
         <div>
-          <h1 className="text-xl font-semibold">Brand Clusters</h1>
-          <p className="text-sm text-muted-foreground">
-            FashionSigLIP 768-dim → UMAP 2D 투영. {points.length} brand 보유.
+          <h1 className="text-xl font-semibold">브랜드 클러스터</h1>
+          <p
+            className="text-sm text-muted-foreground"
+            title="이미지 임베딩(FashionSigLIP 768차원)을 2D 평면에 투영. 가까운 점일수록 시각적으로 비슷한 브랜드. UMAP 알고리즘 사용."
+          >
+            이미지 임베딩 2D 지도 ⓘ · 브랜드 {points.length}개
           </p>
         </div>
         <div className="text-xs text-muted-foreground">
@@ -78,7 +81,7 @@ export default async function BrandClustersPage() {
 
       {points.length < 10 && (
         <div className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-          현재 brand vector {points.length} 개 — UMAP 시각화는 10개 이상에서 의미 있음. crawler bulk 완료 후 재계산 권장.
+          현재 임베딩 보유 브랜드 {points.length}개 — 2D 시각화는 10개 이상에서 의미 있음. 크롤러 분류 완료 후 재계산 권장.
         </div>
       )}
 

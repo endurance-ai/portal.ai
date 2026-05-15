@@ -56,7 +56,7 @@ export default async function PromptsPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">프롬프트</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            VLM/Text 프롬프트 레지스트리. situation 별로 active 1개 유지.
+            이미지 분류·검색 프롬프트 관리. 용도별 활성 1개 유지.
           </p>
         </div>
         <Link

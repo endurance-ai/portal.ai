@@ -33,7 +33,8 @@ export async function GET(request: NextRequest) {
       .maybeSingle()
     if (snRow?.id) query = query.eq("primary_style_node_id", snRow.id)
   }
-  if (category) query = query.eq("category_type", category)
+  // category_type 컬럼 067 에서 drop 됨. filter 비활성.
+  void category
   if (gender) query = query.contains("gender_scope", [gender])
   if (search) query = query.ilike("brand_name_normalized", `%${search}%`)
 

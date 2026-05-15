@@ -4,6 +4,7 @@ import {useCallback, useEffect, useState} from "react"
 import {useParams, useRouter} from "next/navigation"
 import Link from "next/link"
 import {ArrowLeft, Loader2, Save, Trash2} from "lucide-react"
+import {NodeBrandsSection} from "./node-brands-section"
 
 type Node = {
   id: number
@@ -123,7 +124,7 @@ export default function StyleNodeEditPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl p-6">
+    <div className="mx-auto max-w-5xl p-6">
       <div className="mb-6 flex items-center justify-between">
         <Link
           href="/admin/style-nodes"
@@ -180,7 +181,7 @@ export default function StyleNodeEditPage() {
           />
         </Row>
 
-        <Row label="mood" htmlFor="f-mood" hint="한 줄 무드 (en). VLM prompt 에 주입됨">
+        <Row label="mood" htmlFor="f-mood" hint="한 줄 무드 (영문). 분류 프롬프트에 사용">
           <input
             id="f-mood"
             type="text"
@@ -190,7 +191,7 @@ export default function StyleNodeEditPage() {
           />
         </Row>
 
-        <Row label="include_rule" htmlFor="f-include" hint="포함 기준 (en). 구체적 시그널">
+        <Row label="include_rule" htmlFor="f-include" hint="포함 기준 (영문). 구체적 시그널">
           <textarea
             id="f-include"
             rows={4}
@@ -200,7 +201,7 @@ export default function StyleNodeEditPage() {
           />
         </Row>
 
-        <Row label="exclude_rule" htmlFor="f-exclude" hint="제외 기준 + dispatch (e.g. → B). 경계 disambiguation">
+        <Row label="exclude_rule" htmlFor="f-exclude" hint="제외 기준 + 분기 (예: → B). 경계 모호성 해소">
           <textarea
             id="f-exclude"
             rows={4}
@@ -210,14 +211,14 @@ export default function StyleNodeEditPage() {
           />
         </Row>
 
-        <Row label="keywords_en" hint="VLM 매칭 단서. Enter 또는 콤마로 구분">
+        <Row label="keywords_en" hint="영문 키워드 — 분류 매칭 단서. Enter 또는 콤마로 구분">
           <TagInput
             value={form.keywords_en}
             onChange={(v) => setForm({...form, keywords_en: v})}
           />
         </Row>
 
-        <Row label="keywords_ko" hint="admin 한글 보조 (VLM 미사용)">
+        <Row label="keywords_ko" hint="한글 키워드 — 어드민 표시용 (분류 미사용)">
           <TagInput
             value={form.keywords_ko}
             onChange={(v) => setForm({...form, keywords_ko: v})}
@@ -234,6 +235,10 @@ export default function StyleNodeEditPage() {
             <span>{form.is_active ? "활성" : "비활성"}</span>
           </label>
         </Row>
+      </div>
+
+      <div className="mt-8">
+        <NodeBrandsSection code={code} />
       </div>
 
       <style jsx>{`

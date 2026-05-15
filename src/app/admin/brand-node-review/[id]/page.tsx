@@ -24,11 +24,11 @@ type BrandRow = {
   style_node_confidence: number | null
   style_node_assigned_at: string | null
   style_node_assigned_model: string | null
-  representative_image_urls: string[] | null
   primary_code: string | null
   secondary_code: string | null
-  price_band: string | null
-  category_type: string | null
+  price_min_usd: number | null
+  price_max_usd: number | null
+  representative_images: Array<{product_id: string; image_url: string}>
 }
 
 type StyleNodeLite = {code: string; name_en: string; name_ko: string}
@@ -164,10 +164,17 @@ export default function BrandReviewDetailPage() {
             <Row label="model">
               {brand?.style_node_assigned_model ?? <span className="text-muted-foreground">—</span>}
             </Row>
-            <Row label="rep_count">{brand?.representative_image_urls?.length ?? 0}</Row>
-            <Row label="price">{brand?.price_band ?? <span className="text-muted-foreground">—</span>}</Row>
-            <Row label="category">
-              {brand?.category_type ?? <span className="text-muted-foreground">—</span>}
+            <Row label="대표 이미지 수">{brand?.representative_images?.length ?? 0}</Row>
+            <Row label="가격대 (USD)">
+              {brand && (brand.price_min_usd != null || brand.price_max_usd != null) ? (
+                <span className="font-mono tabular-nums">
+                  ${brand.price_min_usd != null ? Math.round(brand.price_min_usd) : "?"}
+                  {" ~ "}
+                  ${brand.price_max_usd != null ? Math.round(brand.price_max_usd) : "?"}
+                </span>
+              ) : (
+                <span className="text-muted-foreground">—</span>
+              )}
             </Row>
           </dl>
         </section>
@@ -211,23 +218,24 @@ export default function BrandReviewDetailPage() {
         </section>
       </div>
 
-      {/* representative images — http(s) URL 만 렌더 (javascript: / data: scheme XSS 가드) */}
-      {brand?.representative_image_urls && brand.representative_image_urls.length > 0 && (
+      {/* 대표 이미지 — products.is_brand_representative 가 source. http(s) URL 만 렌더. */}
+      {brand?.representative_images && brand.representative_images.length > 0 && (
         <section className="mb-6">
           <h2 className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-3">
-            Representative Images ({brand.representative_image_urls.length})
+            대표 이미지 ({brand.representative_images.length})
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-            {brand.representative_image_urls.filter(isSafeHttpUrl).map((url, i) => (
+            {brand.representative_images.filter((r) => isSafeHttpUrl(r.image_url)).map((r, i) => (
               <a
-                key={i}
-                href={url}
+                key={r.product_id}
+                href={`/admin/products/${r.product_id}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block aspect-square rounded-md overflow-hidden bg-muted/40 hover:opacity-80"
+                title="상품 페이지로 이동"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={url} alt={`rep ${i + 1}`} className="w-full h-full object-cover" />
+                <img src={r.image_url} alt={`rep ${i + 1}`} className="w-full h-full object-cover" />
               </a>
             ))}
           </div>
