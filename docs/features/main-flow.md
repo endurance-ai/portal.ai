@@ -211,15 +211,19 @@ const useLiteLLM =
 
 ---
 
-## Step 5 — 검색 트리거 (AI 서버 v5 우선 → v4 폴백)
+## Step 5 — 검색 트리거 (현재 v5 전용 · v4 폴백 복원 예정)
 
 `POST /api/find/search` (입력: `{item, imageUrl, taggedHandles, gender, styleNode, moodTags, priceFilter, ...}`).
 
-`v3` 흐름:
-1. `taggedHandles` → `resolveIgHandlesToBrands()` 로 brand 이름 배열 산출 (기존)
-2. `AI_SERVER_URL` 설정 + `imageUrl` 있으면 → AI 서버 `POST /recommend` 우선 호출
-3. AI 서버 5xx / timeout / 미설정 시 → 기존 v4 (`/api/search-products`) in-process 폴백
-4. 응답에 `engine: "v5"` 또는 `"v4"` 포함 (디버깅용)
+> ⚠️ **현재 코드 동작 (2026-05-16 검증, `src/app/api/find/search/route.ts`)**: **v5 전용**. AI 서버 5xx/timeout/미설정 시 **HTTP 502** 반환 — v4 in-process 폴백은 제거된 상태 (route.ts:8 `v4 폴백 제거`, :202 `502 응답`). `imageUrl` 또는 `AI_SERVER_URL` 없으면 진입 거부(400). 아래 "v4 폴백" 서술은 **현재 미반영 — `SPEC-SEARCH-UNIFY-001`로 v4 thin degraded fallback + 회로차단기 형태로 복원 예정**.
+
+현재 흐름:
+1. `taggedHandles` → `resolveIgHandlesToBrands()` 로 brand 이름 배열 산출
+2. `AI_SERVER_URL` 설정 + `imageUrl` 있으면 → AI 서버 `POST /recommend` 호출
+3. AI 서버 5xx / timeout → **502** (폴백 없음). 미설정 / 이미지 없음 → 400
+4. 성공 응답에 `engine: "v5"` 포함
+
+복원 목표 흐름 (SPEC-SEARCH-UNIFY-001): v5 실패 시 회로차단기를 거쳐 v4 raw-RPC degraded 폴백 자동 진행, 응답 `engine: "v5" | "v4"`.
 
 ### AI 서버 호출
 
@@ -240,7 +244,7 @@ const res = await fetch(`${AI_SERVER_URL}/recommend`, {
 
 상세 사양: [endurance-ai/ai-server `docs/features/pipeline.md`](https://github.com/endurance-ai/ai-server/blob/dev/docs/features/pipeline.md)
 
-### v4 폴백 (기존 in-process 호출)
+### v4 폴백 (예정 — SPEC-SEARCH-UNIFY-001, 현재 코드 미반영)
 
 ```ts
 import {POST as searchProductsPost} from "@/app/api/search-products/route"
@@ -271,20 +275,20 @@ const res = await searchProductsPost(req)
 ### 보안
 
 - 내부 search-products 에러 body 클라이언트 노출 X — `{error: "Search failed", code: "SEARCH_FAILED"}` 만 반환
-- AI 서버 호출 실패 시도 동일 — 폴백 자동 진행, 브라우저는 어느 엔진을 썼는지만 `engine` 필드로 인지
+- **현재**: AI 서버 호출 실패 시 502 (폴백 없음). **복원 후**(SPEC-SEARCH-UNIFY-001): 폴백 자동 진행, 브라우저는 `engine` 필드로만 엔진 인지
 
 ### 환경변수
 
 | 키 | 의미 | 기본 |
 |---|---|---|
-| `AI_SERVER_URL` | AI 서버 base URL (예: `http://<EIP>:8000`) | 미설정 시 v4 직행 |
+| `AI_SERVER_URL` | AI 서버 base URL (예: `http://<EIP>:8000`) | 미설정 시 진입 거부(400) — v4 폴백 복원 후 v4 직행 |
 | `AI_SERVER_TIMEOUT_MS` | AI 서버 호출 타임아웃 | 8000 |
 | `INTERNAL_API_TOKEN` | AI 서버 인증 헤더 (`X-Internal-Token`) — `/api/find/search` → ai-server 호출 전용 | (백로그 — 헤더 송출 코드 미반영) |
 
 핵심 파일:
-- `src/app/api/find/search/route.ts` — AI 서버 우선 + v4 폴백 라우팅
+- `src/app/api/find/search/route.ts` — 현재 v5 전용 (실패 시 502). v4 폴백 라우팅은 SPEC-SEARCH-UNIFY-001 예정
 - `src/lib/find/resolve-brands.ts` — @handle → brand name resolver
-- `src/app/api/search-products/route.ts` — v4 검색 엔진 (폴백 전용, 상세는 `search-engine.md`)
+- `src/app/api/search-products/route.ts` — v4 검색 엔진 (현재 find/search 미호출 — SPEC-SEARCH-UNIFY-001로 폴백 재연결 예정, 상세는 `search-engine.md`)
 - `database/migrations/030_search_products_v5.sql` — v5 RPC (AI 서버가 호출)
 
 ---
