@@ -154,17 +154,16 @@ afterEach(() => {
 // --------------------------------------------------------------------------
 
 describe("EvalPage — queue tab characterization (T-003)", () => {
-  it("renders both main tabs '평가 대기열' and '골든셋', queue tab is default active", async () => {
+  it("renders 품질 평가 heading + filter tabs (queue-only since migration 048)", async () => {
     installFetchMock({ evalQueue: EMPTY_QUEUE_RESPONSE })
     render(<EvalPage />)
 
-    // Wait for initial fetch to settle
+    // CHARACTERIZATION: the legacy '평가 대기열' / '골든셋' two-tab structure was
+    // removed in migration 048 (b7df4ab — /admin/eval queue-only 단순화).
+    // Characterize the current single-view UI instead.
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "평가 대기열" })).not.toBeNull()
+      expect(screen.getByRole("heading", { name: "품질 평가" })).not.toBeNull()
     })
-
-    expect(screen.getByRole("button", { name: "골든셋" })).not.toBeNull()
-    expect(screen.getByRole("heading", { name: "품질 평가" })).not.toBeNull()
 
     // Queue tab default active → filter tabs ("전체"/"대기"/"완료") visible.
     // CHARACTERIZATION: Active tab is encoded in className only (border-turquoise),
