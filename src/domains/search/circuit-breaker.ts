@@ -103,6 +103,10 @@ export class CircuitBreaker implements SearchEngine {
   private open(): void {
     this.state = "open"
     this.openedAt = this.now()
+    // Defensive invariant: OPEN always restarts the count so a re-OPEN from
+    // half-open never carries a stale tally (mirrors close()'s reset).
+    // failureCount is only read in the CLOSED branch ⇒ this cannot regress.
+    this.failureCount = 0
     logger.warn(
       `[find/search][circuit-breaker] OPEN — v5 failures ≥ ${this.cfg.failureThreshold}; fast-failing to v4 degraded for ${this.cfg.cooldownMs}ms`,
     )

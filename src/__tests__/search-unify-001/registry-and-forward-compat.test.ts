@@ -30,6 +30,10 @@ import {
 import {CircuitBreaker} from "@/domains/search/circuit-breaker"
 import {v5Adapter} from "@/domains/search/adapters/v5-adapter"
 import {v6Adapter} from "@/domains/search/adapters/v6-adapter"
+import type {
+  RecommendRequest,
+  SearchEngine,
+} from "@/domains/search/engine-port"
 
 const ORIG_AI = process.env.AI_SERVER_URL
 const ORIG_VER = process.env.SEARCH_ENGINE_VERSION
@@ -120,5 +124,82 @@ describe("REQ-SU-006 — v6 drop-in routes with ZERO find/search caller diff", (
     const out = await futureV6.search()
     expect(out.engine).toBe("v6")
     expect(out.failed).toBe(false)
+  })
+})
+
+describe("P1-B — selectEngineByVersion('v5') is a cross-request SINGLETON", () => {
+  it("returns the SAME CircuitBreaker instance across repeated calls", () => {
+    const a = selectEngineByVersion("v5")
+    const b = selectEngineByVersion("v5")
+    const c = selectEngineByVersion("v5")
+    expect(a).toBe(b)
+    expect(b).toBe(c)
+    expect(a).toBeInstanceOf(CircuitBreaker)
+  })
+
+  it("breaker state accumulates across requests via the singleton ⇒ eventually OPENs + routes to v4", async () => {
+    // Each selectEngineByVersion('v5') resolves to the SAME breaker, so
+    // failures from independent 'requests' add up. Pre-fix (per-call
+    // `new CircuitBreaker`) this could NEVER open. We drive the singleton's
+    // injected v5 primary to fail and assert it opens after the threshold
+    // and then fast-fails to the v4 degraded fallback — the exact
+    // cross-request behavior P1-B restores (REQ-SU-005).
+    const breaker = selectEngineByVersion("v5") as CircuitBreaker
+
+    // Reach into the breaker's private cfg/now is unnecessary: it already
+    // uses the module DEFAULT_CONFIG (threshold 5, enabled). We instead
+    // exercise it through its public search() with a primary that always
+    // fails, by swapping the private `primary` with a scripted failing
+    // engine and the lazy fallback with a concrete v4-degraded engine.
+    const failingV5: SearchEngine = {
+      version: "v5",
+      async search() {
+        return {strongMatches: [], general: [], engine: "v5", failed: true}
+      },
+    }
+    const v4Degraded: SearchEngine = {
+      version: "v4-degraded",
+      async search() {
+        return {
+          strongMatches: [],
+          general: [{id: "general", products: []}],
+          engine: "v4-degraded",
+          failed: false,
+        }
+      },
+    }
+    // Private-field rewrite for deterministic isolation (the singleton is
+    // module-shared; we install controlled dependencies for this test only).
+    ;(breaker as unknown as {primary: SearchEngine}).primary = failingV5
+    ;(breaker as unknown as {fallback: SearchEngine}).fallback = v4Degraded
+    ;(breaker as unknown as {resolvedFallback: SearchEngine | null}).resolvedFallback = null
+    ;(breaker as unknown as {state: string}).state = "closed"
+    ;(breaker as unknown as {failureCount: number}).failureCount = 0
+
+    const REQ: RecommendRequest = {
+      item: {id: "i1", category: "outerwear", searchQuery: "coat"},
+      imageUrl: "https://img/x.jpg",
+      brandFilter: [],
+      strongTolerance: 0.5,
+      generalTolerance: 0.5,
+    }
+
+    // Default threshold = 5. Simulate 5 independent requests, each
+    // re-resolving the engine via the registry (same singleton).
+    let res
+    for (let i = 0; i < 5; i++) {
+      const eng = selectEngineByVersion("v5")
+      expect(eng).toBe(breaker) // same instance every request
+      res = await eng.search(REQ)
+    }
+    // After threshold consecutive failures the SHARED breaker OPENs and
+    // the last call has already fallen back to v4 degraded.
+    expect(breaker.getState()).toBe("open")
+    expect(res?.engine).toBe("v4-degraded")
+
+    // A subsequent request (still the singleton) fast-fails to v4 while open.
+    const next = await selectEngineByVersion("v5").search(REQ)
+    expect(next.engine).toBe("v4-degraded")
+    expect(breaker.getState()).toBe("open")
   })
 })

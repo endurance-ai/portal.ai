@@ -55,6 +55,17 @@ const lazyV4Engine: SearchEngine = {
   },
 }
 
+/**
+ * Module-scope SINGLETON breaker for the opt-in `v5` version. Constructed
+ * ONCE at import (import-side-effect-free: `loadV4Fallback` is only a
+ * function reference, NOT invoked here → the v4/supabase chain stays lazy).
+ * A per-call `new CircuitBreaker(...)` would reset state every request, so
+ * the breaker could never accumulate failures across requests and never
+ * OPEN in production — REQ-SU-005 cross-request state demands one instance.
+ * The DEFAULT v5-direct case below does NOT reference this (byte-identity).
+ */
+const v5Breaker = new CircuitBreaker(v5Adapter, loadV4Fallback)
+
 export function selectEngineByVersion(version: EngineVersion): SearchEngine {
   switch (version) {
     case "v5-direct":
@@ -63,7 +74,9 @@ export function selectEngineByVersion(version: EngineVersion): SearchEngine {
       return v5Adapter
     case "v5":
       // Opt-in: breaker fronts v5 with the LAZY v4 degraded fallback.
-      return new CircuitBreaker(v5Adapter, loadV4Fallback)
+      // Returns the MODULE SINGLETON so breaker state persists across
+      // requests (REQ-SU-005) — see v5Breaker comment above.
+      return v5Breaker
     case "v4":
       return lazyV4Engine
     case "v6":
