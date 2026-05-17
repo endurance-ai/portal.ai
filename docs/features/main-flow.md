@@ -38,7 +38,8 @@ flowchart TD
 
     SEARCH["Step 5 · /api/find/search<br/>{item, taggedHandles}"]
     SEARCH --> RB["resolve-brands<br/>@handle → brand names"]
-    RB --> SP["search-products handler<br/>(in-process 직접 호출)"]
+    RB --> SE["selectEngine(SEARCH_ENGINE_VERSION)<br/>SearchEngine port"]
+    SE --> SP["v5 adapter (기본)<br/>· v5 ⇒ breaker+v4-degraded · v6 seam"]
     SP --> RESULTS
 
     RESULTS(["strongMatches + general<br/>(2 sections)"])
@@ -213,49 +214,54 @@ const useLiteLLM =
 
 ---
 
-## Step 5 — 검색 트리거 (현재 v5 전용 · v4 폴백 복원 예정)
+## Step 5 — 검색 트리거 (SearchEngine port · 기본 v5-direct · v4 degraded 폴백 opt-in)
 
 `POST /api/find/search` (입력: `{item, imageUrl, taggedHandles, gender, styleNode, moodTags, priceFilter, ...}`).
 
-> ⚠️ **현재 코드 동작 (2026-05-16 검증, `src/app/api/find/search/route.ts`)**: **v5 전용**. AI 서버 5xx/timeout/미설정 시 **HTTP 502** 반환 — v4 in-process 폴백은 제거된 상태 (route.ts:8 `v4 폴백 제거`, :202 `502 응답`). `imageUrl` 또는 `AI_SERVER_URL` 없으면 진입 거부(400). 아래 "v4 폴백" 서술은 **현재 미반영 — `SPEC-SEARCH-UNIFY-001`로 v4 thin degraded fallback + 회로차단기 형태로 복원 예정**.
+> ✅ **현재 코드 동작 (2026-05-17, SPEC-SEARCH-UNIFY-001 적용 후, `src/app/api/find/search/route.ts`)**: 엔진 호출은 버전 스왑 가능한 `SearchEngine` port 뒤로 위임(`selectEngine(SEARCH_ENGINE_VERSION).search(req)`). 입력검증·handle→brand resolution·`imageUrl && AI_SERVER_URL` 게이트·HTTP 엔벨로프는 route 에 잔류. **interim banner 제거됨** — 문서가 다시 코드와 일치.
+>
+> **기본 (`SEARCH_ENGINE_VERSION` 미설정 ⇒ `v5-direct`)**: v5 어댑터 단독, 회로차단기·v4 폴백 **미개입**. AI 서버 5xx/timeout 시 **HTTP 502 `AI_SERVER_FAILED`** — #57 이후 실상과 byte-identical (특성화 13개로 고정). `imageUrl` 또는 `AI_SERVER_URL` 없으면 진입 거부(400).
+>
+> **opt-in (`SEARCH_ENGINE_VERSION=v5`, `CB_ENABLED≠false`)**: v5 실패가 임계 초과 시 회로차단기가 열리고 **v4 raw-RPC degraded 폴백** 자동 진행(`engine: "v4-degraded"`). v4 fallback 은 v5 완전 실패 시에만 발동하는 안전망 — 평시 v5 정상 경로 동작·품질·화면 불변(HARD). 단일 env 토글로 즉시 원복(`CB_ENABLED=false` ⇒ breaker bypass = 순수 v5-direct).
 
 현재 흐름:
-1. `taggedHandles` → `resolveIgHandlesToBrands()` 로 brand 이름 배열 산출
-2. `AI_SERVER_URL` 설정 + `imageUrl` 있으면 → AI 서버 `POST /recommend` 호출
-3. AI 서버 5xx / timeout → **502** (폴백 없음). 미설정 / 이미지 없음 → 400
-4. 성공 응답에 `engine: "v5"` 포함
+1. `taggedHandles` → `resolveIgHandlesToBrands()` 로 brand 이름 배열 산출 (route)
+2. `AI_SERVER_URL` 설정 + `imageUrl` 있으면 → `selectEngine(SEARCH_ENGINE_VERSION).search(req)` (port)
+   - `v5-direct`(기본) ⇒ v5 어댑터 단독 → ai `POST /recommend`
+   - `v5` ⇒ `CircuitBreaker(v5, v4-degraded)` → 평시 v5, 실패 임계 초과 시 v4 degraded
+   - `v4` ⇒ v4 degraded 강제 / `v6` ⇒ v6 드롭인 SEAM (스코프 외)
+3. 엔진 `failed` ⇒ **502 `AI_SERVER_FAILED`**. 미설정 / 이미지 없음 → 400
+4. 성공 응답에 `engine: "v5"`(기본) 또는 `"v4-degraded"`(폴백) 포함 — 브라우저는 동일 렌더, 품질 저하는 내부 메트릭
 
-복원 목표 흐름 (SPEC-SEARCH-UNIFY-001): v5 실패 시 회로차단기를 거쳐 v4 raw-RPC degraded 폴백 자동 진행, 응답 `engine: "v5" | "v4"`.
+> 상세 토폴로지·상태머신·롤백·v6 seam: [`search-engine.md` § SearchEngine port](search-engine.md#searchengine-port-spec-search-unify-001)
 
 ### AI 서버 호출
 
+> v5 어댑터(`src/domains/search/adapters/v5-adapter.ts`) 내부 — route.ts 에서 verbatim 추출.
+
 ```ts
-const res = await fetch(`${AI_SERVER_URL}/recommend`, {
+const ctl = new AbortController()
+const timer = setTimeout(() => ctl.abort(), AI_SERVER_TIMEOUT_MS)  // 기본 60000ms
+const res = await fetch(`${AI_SERVER_URL.replace(/\/$/, "")}/recommend`, {
   method: "POST",
-  headers: {
-    "content-type": "application/json",
-    "X-Internal-Token": process.env.INTERNAL_API_TOKEN,  // (예정 — 코드 추가 필요)
-  },
+  headers: {"content-type": "application/json"},   // X-Internal-Token 은 백로그 (미송출)
   body: JSON.stringify({
-    item, imageUrl, brandFilter, gender, styleNode, moodTags, priceFilter,
-    tolerance: strongMatchTolerance ?? 0.5,
+    item, imageUrl, gender, styleNode, moodTags, priceFilter,
+    brandFilter,                       // strong 호출에만 포함
+    tolerance: strongTolerance ?? 0.5, // strong | general
   }),
-  signal: AbortSignal.timeout(AI_SERVER_TIMEOUT_MS),  // 기본 8000ms
+  signal: ctl.signal,
 })
+// non-2xx / fetch throw / abort ⇒ null ⇒ (general 기준) RecommendResponse.failed
 ```
 
 상세 사양: [endurance-ai/ai-server `docs/features/pipeline.md`](https://github.com/endurance-ai/ai-server/blob/dev/docs/features/pipeline.md)
 
-### v4 폴백 (예정 — SPEC-SEARCH-UNIFY-001, 현재 코드 미반영)
+### v4 degraded 폴백 (SPEC-SEARCH-UNIFY-001, opt-in)
 
-```ts
-import {POST as searchProductsPost} from "@/app/api/search-products/route"
+`src/domains/search/adapters/v4-fallback-adapter.ts` — search-products route 핸들러를 in-process import 하지 않는다. `domains/search-v4` 의 `searchByEnums` 를 **직접** 호출(raw RPC만, scorer/ranker 재유지보수 X — REQ-SU-007), 결과를 route 엔벨로프로 정규화하고 `engine:"v4-degraded"` 표기. 회로차단기가 v5 실패 임계 초과 시에만 진입(`SEARCH_ENGINE_VERSION=v5`). v4 어댑터는 supabase 결합이라 **lazy import** — 기본 `v5-direct` 경로 로드 그래프에서 제외.
 
-const req = new NextRequest("http://internal/api/search-products", { ... })
-const res = await searchProductsPost(req)
-```
-
-**왜 in-process 호출**: HTTP fetch 안 씀 → SSRF 표면 제거 + 쿠키/host-header 포워딩 회피 + 라운드트립 제거.
+**왜 함수 직접 호출**: HTTP fetch·route 핸들러 재진입 없음 → SSRF 표면 제거 + 라운드트립 제거 + 입력검증 중복 회피.
 
 ### 두 갈래 (병렬 실행, AI/v4 공통)
 
@@ -277,20 +283,25 @@ const res = await searchProductsPost(req)
 ### 보안
 
 - 내부 search-products 에러 body 클라이언트 노출 X — `{error: "Search failed", code: "SEARCH_FAILED"}` 만 반환
-- **현재**: AI 서버 호출 실패 시 502 (폴백 없음). **복원 후**(SPEC-SEARCH-UNIFY-001): 폴백 자동 진행, 브라우저는 `engine` 필드로만 엔진 인지
+- **기본 (`v5-direct`)**: AI 서버 호출 실패 시 502 `AI_SERVER_FAILED` (폴백 없음). **opt-in (`SEARCH_ENGINE_VERSION=v5`)**: 회로차단기 경유 v4 degraded 폴백 자동 진행, 브라우저는 `engine` 필드로만 엔진 인지 (동일 렌더)
 
 ### 환경변수
 
 | 키 | 의미 | 기본 |
 |---|---|---|
-| `AI_SERVER_URL` | AI 서버 base URL (예: `http://<EIP>:8000`) | 미설정 시 진입 거부(400) — v4 폴백 복원 후 v4 직행 |
-| `AI_SERVER_TIMEOUT_MS` | AI 서버 호출 타임아웃 | 8000 |
-| `INTERNAL_API_TOKEN` | AI 서버 인증 헤더 (`X-Internal-Token`) — `/api/find/search` → ai-server 호출 전용 | (백로그 — 헤더 송출 코드 미반영) |
+| `AI_SERVER_URL` | AI 서버 base URL (예: `http://<EIP>:8000`) | 미설정 시 진입 거부(400) — route 게이트에서 차단, 엔진 미도달 |
+| `AI_SERVER_TIMEOUT_MS` | v5 어댑터 ai 호출 타임아웃 (AbortController) | 60000 |
+| `SEARCH_ENGINE_VERSION` | active 엔진 선택 (port). 미설정 ⇒ `v5-direct`(현 동작 불변) / `v5`(breaker+v4) / `v4` / `v6` | (미설정) |
+| `CB_ENABLED` | `false` ⇒ 회로차단기 bypass = 순수 v5-direct (무중단 롤백) | `true` |
+| `CB_FAILURE_THRESHOLD` | open 전환 연속 실패 임계 | 5 |
+| `CB_COOLDOWN_MS` | open → half-open 쿨다운 | 30000 |
+| `INTERNAL_API_TOKEN` | AI 서버 인증 헤더 (`X-Internal-Token`) — 백로그, 미송출 | (백로그) |
 
 핵심 파일:
-- `src/app/api/find/search/route.ts` — 현재 v5 전용 (실패 시 502). v4 폴백 라우팅은 SPEC-SEARCH-UNIFY-001 예정
+- `src/app/api/find/search/route.ts` — 입력검증·게이트·엔벨로프 + `selectEngine(...).search(req)` 위임 (SPEC-SEARCH-UNIFY-001)
+- `src/domains/search/` — `engine-port.ts` / `registry.ts` / `adapters/{v5,v4-fallback,v6}-adapter.ts` / `circuit-breaker.ts` (상세: `search-engine.md`)
 - `src/lib/find/resolve-brands.ts` — @handle → brand name resolver
-- `src/app/api/search-products/route.ts` — v4 검색 엔진 (현재 find/search 미호출 — SPEC-SEARCH-UNIFY-001로 폴백 재연결 예정, 상세는 `search-engine.md`)
+- `src/app/api/search-products/route.ts` — 어드민 search-debugger 의 v4 엔진 진입점. find/search 폴백은 이 핸들러가 아니라 `domains/search-v4` `searchByEnums` 를 v4 어댑터가 직접 호출 (상세: `search-engine.md`)
 - `database/migrations/030_search_products_v5.sql` — v5 RPC (AI 서버가 호출)
 
 ---
