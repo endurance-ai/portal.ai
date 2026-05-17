@@ -143,7 +143,64 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ok: false, error: `prompt build: ${msg}`}, {status: 500})
   }
 
-  // 4) OpenAI multimodal
+  // 4) image fetch + base64 인라인
+  //
+  // 옛 동작: OpenAI 서버가 image_url 받아서 CDN 에서 직접 다운로드.
+  //   - Shopify CDN 일부 URL 에서 OpenAI 서버가 다운로드 실패 → 5장 묶음 전체 400
+  //   - 우리는 받을 수 있지만 OpenAI 서버 IP 에서 fetch 차단/timeout
+  //
+  // 신규: 우리 (app 서버) 가 image fetch + base64 인코딩 후 data URI 로 전달.
+  //   - CDN 의존 0 (data URI 는 다운로드 없이 즉시 처리)
+  //   - detail="low" 라 토큰 변화 없음 (~85 / 이미지)
+  //   - 5장 묶음 fail 사라짐
+  //
+  // 1장 실패 시: 해당 이미지 skip + 나머지로 진행 (MIN_IMAGES=1 보장).
+  const fetched = await Promise.all(
+    imageUrls.map(async (url) => {
+      try {
+        const res = await fetch(url, {
+          headers: {
+            "User-Agent": "kiko.ai-brand-classifier/1.0",
+            Accept: "image/*",
+          },
+        })
+        if (!res.ok) {
+          logger.warn(`[classify-brand] image fetch ${res.status} ${url}`)
+          return null
+        }
+        const buf = Buffer.from(await res.arrayBuffer())
+        const mime = res.headers.get("content-type")?.split(";")[0]?.trim() || "image/jpeg"
+        return {dataUri: `data:${mime};base64,${buf.toString("base64")}`, originalUrl: url}
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        logger.warn(`[classify-brand] image fetch error ${url}: ${msg}`)
+        return null
+      }
+    }),
+  )
+  const validImages = fetched.filter((x): x is NonNullable<typeof x> => x !== null)
+  if (validImages.length < MIN_IMAGES) {
+    await enqueueReview(brandId, "insufficient_images", {
+      reps_found: imageUrls.length,
+      fetched_ok: validImages.length,
+      min_required: MIN_IMAGES,
+      reason: "image_fetch_failed",
+    })
+    await releaseLock(brandId)
+    return NextResponse.json({
+      ok: true,
+      brand_id: brandId,
+      result: "queued",
+      queued_reason: "insufficient_images",
+    })
+  }
+  if (validImages.length < imageUrls.length) {
+    logger.info(
+      `[classify-brand] brand=${brandId} image fetch ${validImages.length}/${imageUrls.length} (some CDN URLs failed, proceeding with the rest)`,
+    )
+  }
+
+  // 5) OpenAI multimodal — base64 인라인
   const t0 = Date.now()
   let raw: string
   let finishReason: string | null = null
@@ -156,15 +213,13 @@ export async function POST(request: NextRequest) {
           role: "user",
           content: [
             {type: "text", text: built.user},
-            ...imageUrls.map(
-              (url) =>
+            ...validImages.map(
+              (img) =>
                 ({
                   type: "image_url" as const,
-                  // detail="low": 512x512 thumbnail-equivalent, 고정 85토큰/이미지.
-                  // brand 정체성 (mood/silhouette/color palette) 분류엔 충분.
-                  // 옛 "auto"는 Shopify 세로 긴 fashion 이미지에서 1장당 30k+ 토큰
-                  // 폭발 → TPM exhaustion 으로 429 빈발. 약 360x 토큰 절감.
-                  image_url: {url, detail: "low" as const},
+                  // data URI base64 — OpenAI 가 직접 다운로드 안 함.
+                  // detail="low" 로 토큰 ~85/이미지 고정.
+                  image_url: {url: img.dataUri, detail: "low" as const},
                 }),
             ),
           ],
@@ -172,7 +227,9 @@ export async function POST(request: NextRequest) {
       ],
       max_tokens: built.max_tokens,
       temperature: built.temperature,
-      response_format: {type: "json_object"},
+      // response_format: {type: "json_object"} 는 Bedrock Nova 가 무시함 →
+      // plain text 또는 markdown fenced JSON 응답. prompt 의 "Output JSON only"
+      // 지시 + 아래 cleanRawJson 헬퍼로 robust parsing.
     })
     raw = response.choices[0]?.message?.content ?? ""
     finishReason = response.choices[0]?.finish_reason ?? null
@@ -228,8 +285,18 @@ export async function POST(request: NextRequest) {
     secondary_confidence?: number | null
     reasoning?: string
   }
+  // Bedrock Nova 는 종종 ```json ... ``` markdown fence 또는 reasoning prefix 와 함께
+  // JSON 을 반환. 첫 { 부터 마지막 } 까지 추출해 robust 하게 파싱.
+  const cleanRawJson = (s: string): string => {
+    const trimmed = s.replace(/```json\s*|\s*```/g, "").trim()
+    const firstBrace = trimmed.indexOf("{")
+    const lastBrace = trimmed.lastIndexOf("}")
+    return firstBrace >= 0 && lastBrace > firstBrace
+      ? trimmed.slice(firstBrace, lastBrace + 1)
+      : trimmed
+  }
   try {
-    parsed = JSON.parse(raw)
+    parsed = JSON.parse(cleanRawJson(raw))
   } catch {
     await enqueueReview(brandId, "vlm_failed", {error: "json_parse_failed", raw: raw.slice(0, 500)})
     await releaseLock(brandId)
