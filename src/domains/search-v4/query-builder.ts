@@ -1,6 +1,7 @@
 // @MX:NOTE: [AUTO] v4 3-path candidate fetch (PAI / name-text / direct) + merge — extracted verbatim from search-products/route.ts lines ~392-581 (SPEC-ARCH-APP-001 REQ-APP-004)
 // @MX:REASON: Uses the consolidated DB client via the @/lib/supabase shim → @/repositories/clients/postgrest; no second client introduced.
 // @MX:SPEC: SPEC-ARCH-APP-001
+import "server-only"
 import {supabase} from "@/lib/supabase"
 import {logger} from "@/lib/logger"
 import {SIMILAR_SUBCATEGORIES} from "@/shared/enums/subcategory-similar"

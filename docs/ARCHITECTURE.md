@@ -124,7 +124,7 @@ graph TB
 | LiteLLM proxy | LLM 라우팅 + Langfuse callback (AI 서버 EC2 컨테이너, `54.116.116.225:4000`). 브랜드 메타 추론 배치에서도 사용 | [infra/deployment.md](infra/deployment.md) |
 | Langfuse self-host | 관측성 (LLM/embed/파이프라인 trace) — AI 서버 EC2 컨테이너 | (ai-server repo) |
 
-> **AI 서버는 별도 repo.** Python FastAPI. `/api/find/search` 는 버전 스왑 가능한 `SearchEngine` port 뒤로 위임 (SPEC-SEARCH-UNIFY-001). **기본 `v5-direct`**(env 미설정): v5 5xx/timeout ⇒ HTTP 502 (폴백 없음 — #57 실상 byte-identical). **opt-in `SEARCH_ENGINE_VERSION=v5`**: 회로차단기 경유 v4 raw-RPC degraded 폴백 자동 진행. `CB_ENABLED=false` ⇒ breaker bypass(롤백). 상세: [features/search-engine.md § SearchEngine port](features/search-engine.md#searchengine-port-spec-search-unify-001).
+> **AI 서버는 별도 repo.** Python FastAPI. `/api/find/search` 는 버전 스왑 가능한 `SearchEngine` port 뒤로 위임 (SPEC-SEARCH-UNIFY-001). **기본 `v5-direct`**(env 미설정): v5 5xx/timeout ⇒ HTTP 502 (폴백 없음 — #57 실상 byte-identical). **opt-in `SEARCH_ENGINE_VERSION=v5`**: 회로차단기 경유 v4 raw-RPC degraded 폴백 자동 진행. `CB_ENABLED=false` ⇒ breaker bypass(롤백). **운영 주의**: `SEARCH_ENGINE_VERSION` 미설정/`v5-direct` = DEFAULT(차단기 없음, v5 실패 시 502 — 오늘 동작) vs `v5` = opt-in(차단기 + v4 degraded 폴백, 차단기 상태는 요청 간 누적). 상세: [features/search-engine.md § SearchEngine port](features/search-engine.md#searchengine-port-spec-search-unify-001).
 
 ---
 
