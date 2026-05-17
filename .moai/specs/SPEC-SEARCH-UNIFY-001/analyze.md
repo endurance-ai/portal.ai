@@ -341,3 +341,21 @@ the v5-success envelope is a regression and triggers immediate revert.
   so the orchestrator does not expect a pre-existing v5 client module.
 - No blockers preventing PRESERVE completion. IMPROVE is intentionally not
   started (orchestrator gate).
+
+## Post-Review Deferred Follow-ups (2026-05-17, review-fix cycle)
+
+Recorded during the post-/feature-finalize review-fix pass. Applied: P1-A,
+P1-B, P2 server-only, P2 doc. Explicitly deferred (rationale only — NOT
+done this SPEC, byte-identity + scope discipline):
+
+- **searchQuery length cap (security-auditor, v4-fallback-adapter DoS):**
+  Opt-in `v5`/`v4` path only. A route-level reject cap would introduce a
+  NEW user-visible 400 path, violating SPEC-SEARCH-UNIFY-001's
+  byte-identical HARD constraint and scope discipline. Known follow-up for
+  a SEPARATE input-hardening change (own SPEC); route.ts validation left
+  untouched here.
+- **Double `resolveEngineVersion` call (cosmetic):** `selectEngine` →
+  `selectEngineByVersion(resolveEngineVersion(...))`; minor redundancy if a
+  caller also resolves. No correctness impact. Skip — not worth churn.
+- **`toSearchProduct` DRY (cosmetic):** mapping duplicated across adapters;
+  no behavior impact. Skip — extraction is a separate refactor PR.
