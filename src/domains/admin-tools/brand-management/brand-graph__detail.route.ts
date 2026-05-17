@@ -90,12 +90,12 @@ export async function GET(request: NextRequest) {
   const inStockCount = all.filter((p) => p.in_stock).length
 
   // samples: representative 우선 → 다양한 카테고리
-  const repSamples = all.filter((p) => p.is_brand_representative).slice(0, 5)
+  const repSamples = all.filter((p) => p.is_brand_representative).slice(0, 10)
   const samples: ProductRow[] = [...repSamples]
-  if (samples.length < 5) {
+  if (samples.length < 10) {
     const seen = new Set(samples.map((s) => s.id))
     for (const p of all) {
-      if (samples.length >= 5) break
+      if (samples.length >= 10) break
       if (seen.has(p.id)) continue
       const img = p.image_url ?? p.images?.[0]
       if (!img) continue

@@ -1,7 +1,7 @@
 # kiko.ai — 아키텍처 (Overview)
 
 > 시스템 전체 그림 + 도메인별 doc 매핑. 깊은 내용은 각 `features/*` / `infra/*` 참조.
-> 최종 업데이트: 2026-05-15 (brand_nodes 슬림화 067 + ai 스키마 GRANT 068 + admin reskin)
+> 최종 업데이트: 2026-05-18 (admin brand-nodes 썸네일 쿼리 개선 + brand-graph detail 샘플 cap 10)
 
 ## 한 줄 요약
 
@@ -287,6 +287,7 @@ stack-internal 아키텍처 재설계. **언어·동작·화면 불변**, 레이
 
 | 날짜 | 사건 |
 |---|---|
+| 2026-05-18 | **admin brand-nodes 썸네일 쿼리 개선 (bugfix)** — `/api/admin/brand-nodes` 대표 이미지 조회: 단일 `IN(brandIds)+global limit` → 브랜드별 `Promise.all` 병렬 쿼리(limit 20). 이미지 소스: `images[]` 단독 → `image_url`(스칼라, 우선) + `images[0]`(fallback). `/api/admin/brand-graph/detail` 대표 샘플 cap: 5 → 10. 신규 외부 의존성·라우트·에러 코드 없음. |
 | 2026-05-15 | **brand_nodes 슬림화 + admin reskin** — migration 067: brand_nodes 13 컬럼 drop (037 BGE-m3 텍스트 임베딩 자산: embedding/embedding_model/embedding_text_hash/embedded_at/x_umap/y_umap/umap_at + 옛 LLM 메타: sensitivity_tags/brand_keywords/aliases/category_type/representative_image_urls + price_band) + price_min_usd/price_max_usd (numeric) 신규 + products 기준 USD backfill. migration 068: app_user → ai 스키마 SELECT-only GRANT (card_impression/log_conversation_event/user_taste_profile/user_session). 신규 admin 페이지 `/admin/brand-nodes` (구 genome rename + redirect), `/admin/ai-insights` (ai 스키마 대화형 봇 통계 3탭). 신규 admin API `/api/admin/brand-nodes`, `/api/admin/ai-insights`, `/api/admin/ai-insights/user`, `/api/admin/style-nodes/[code]/brands`. `/admin/brand-graph` → `/admin/brand-clusters` redirect. 사이드바 4섹션 + "kiko.ai Admin" rebrand + 파비콘 교체. 삭제: brand-detail-panel/edit-panel/table/filters components, `src/lib/brand-cluster.ts`. search-products v4 brandDna 로드 disable (sensitivity_tags 067 drop). `src/lib/currency-to-usd.ts` 신규. |
 | 2026-05-15 | **Brand Multimodal Embedding (SPEC-BRAND-EMBED-001)** — migration 063~066: `brand_multimodal_embeddings` (FashionSigLIP 768 halfvec, HNSW), `node_centroids`, `find_similar_brands` RPC, `brand_multimodal_umap`. 스크립트 5종 (`embed_brand_multimodal.py` / `build_node_centroids.py` / `build_adjacency_from_centroids.py` / `build_brand_umap.py` / `refresh_brand_embeddings_all.sh` wrapper). `style_node_adjacency` 자동 채움 인프라 완성 (source='embedding_derived', manual 보존). 신규 admin `/admin/brand-clusters` (UMAP 2D scatter, recharts) + `GET /api/admin/brand/[id]/similar`. `src/lib/brand-embed.ts` helper. **검색 엔진 미통합** — SPEC-SEARCH-V6 가 결합. **현재 11 brand 임베딩**, crawler bulk 완료 후 풀배치 예정. 037 BGE-m3 텍스트 임베딩은 stale (옛 15 코드 풀) — SPEC 5 정리 대상. 상세: `features/brand-embed.md`. |
 | 2026-05-10 | **Auth.js v5 마이그 (SPEC-INFRA-MIGRATE-001 P3)** — Supabase Auth 제거 → Auth.js Credentials Provider + bcryptjs + pg Pool. 신규: `src/auth.ts`, `src/lib/db.ts`, `src/middleware.ts`, `/api/auth/[...nextauth]`. 삭제: `src/proxy.ts`, `src/lib/supabase-browser.ts`, `src/lib/supabase-server.ts`, `@supabase/ssr` |
