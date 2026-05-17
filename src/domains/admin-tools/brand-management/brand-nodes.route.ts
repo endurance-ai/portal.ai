@@ -79,24 +79,40 @@ export async function GET(request: NextRequest) {
     for (const n of (nodes ?? []) as NodeRow[]) nodeMap.set(n.id, n)
   }
 
-  type RepRow = {id: string; brand_node_id: number; images: string[] | null}
+  type RepRow = {id: string; image_url: string | null; images: string[] | null}
   const brandIds = brands.map((b) => b.id)
   const repByBrand = new Map<number, Array<{product_id: string; image_url: string}>>()
   if (brandIds.length > 0) {
-    const {data: reps} = await supabase
-      .from("products")
-      .select("id, brand_node_id, images")
-      .in("brand_node_id", brandIds)
-      .eq("is_brand_representative", true)
-      .order("brand_node_id")
-      .limit(brandIds.length * 5)
-    for (const r of (reps ?? []) as RepRow[]) {
-      const url = r.images?.[0]
-      if (!url) continue
-      const arr = repByBrand.get(r.brand_node_id) ?? []
-      if (arr.length < 5) arr.push({product_id: r.id, image_url: url})
-      repByBrand.set(r.brand_node_id, arr)
-    }
+    // 브랜드별 분리 쿼리(병렬). 단일 IN + 전역 limit 패턴은 rep 가 캡을 초과하는
+    // 브랜드가 brand_node_id 앞 순번에 있으면 전역 예산을 소진해 뒤 브랜드가 0개로
+    // 굶음. 브랜드당 독립 조회로 분리해 rep 분포와 무관하게 각 5개를 보장.
+    await Promise.all(
+      brandIds.map(async (bid) => {
+        const {data: reps, error: repErr} = await supabase
+          .from("products")
+          .select("id, image_url, images")
+          .eq("brand_node_id", bid)
+          .eq("is_brand_representative", true)
+          // 표시 cap 은 5. image_url·images 둘 다 null 인 rep 행이 섞여도 유효
+          // 이미지 5개를 확보하도록 버퍼를 둔 값 (rep 는 브랜드당 최대 10개).
+          .limit(20)
+        // 썸네일은 분류 그리드의 보조 정보 — 단일 브랜드 rep 조회 실패가 그리드
+        // 전체를 500 시키지 않도록 graceful degrade 하되, silent 누락 방지를 위해
+        // 서버 로그에는 남긴다 (상단 brand 쿼리는 bErr 로 엄격 처리, 여기는 보조).
+        if (repErr) console.error(`[brand-nodes] rep query failed brand=${bid}: ${repErr.message}`)
+        const arr: Array<{product_id: string; image_url: string}> = []
+        for (const r of (reps ?? []) as RepRow[]) {
+          // image_url(스칼라) 우선 → images[](배열) 폴백. Cafe24 계열 소스는
+          // image_url 만 채우고 images 배열이 null 이라 후자만 보면 누락됨
+          // (상세 라우트 brand-graph__detail 와 동일 규칙).
+          const url = r.image_url ?? r.images?.[0]
+          if (!url) continue
+          arr.push({product_id: r.id, image_url: url})
+          if (arr.length >= 5) break
+        }
+        if (arr.length > 0) repByBrand.set(bid, arr)
+      }),
+    )
   }
 
   const result = brands.map((b) => ({
