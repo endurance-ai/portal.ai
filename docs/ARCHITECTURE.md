@@ -268,7 +268,7 @@ stack-internal 아키텍처 재설계. **언어·동작·화면 불변**, 레이
 **구 `src/app/_archive-qa/` (Q&A 6단계 플로우) 는 step 8 에서 삭제됨** (live import 0 검증, dead test 2파일 동반 제거). v4 가 쓰던 enum(korean-vocab/color·style-adjacency 등)은 `src/shared/enums/` 로 살아있음.
 
 > ⚠️ ai-fence: `api/find/search` (v5 클라이언트) + SEARCH-UNIFY 포트는 본 SPEC 범위 외 — ai `/recommend` 계약 freeze 의존, 미접촉.
-> 📝 doc-sync: `docs/features/main-flow.md` 경로 표기 갱신은 PR #57(단독 doc-fix) 머지 후 수행 (충돌 회피).
+> 📝 doc-sync: `docs/features/main-flow.md` 경로 표기 갱신 ✅ 완료 (PR #57 머지 후 dev→feature 병합 + 상단 SPEC-ARCH-APP-001 노트 추가).
 
 ---
 
