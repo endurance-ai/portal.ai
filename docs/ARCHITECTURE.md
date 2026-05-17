@@ -26,7 +26,7 @@
 - 선택된 1개 + 그 포스트의 tagged_users로 brandFilter 빌드 → strongMatches + general 검색
 - `instagram_post_scrapes.shortcode` 로 캐시 (재요청 시 Apify 호출 스킵)
 
-> 구 `/` (Q&A 6단계 에이전트)는 `src/app/_archive-qa/` 로 이동, 라우터 제외. PR #30(2026-04-26)에서 `/dna`, `/about`, `/archive` 도 제거됨.
+> 구 `/` (Q&A 6단계 에이전트)는 `src/app/_archive-qa/` 로 이동(PR #30, 2026-04-26) 후 **SPEC-ARCH-APP-001 step 8 에서 최종 삭제됨(2026-05-17)**. PR #30 에서 `/dna`, `/about`, `/archive` 도 제거됨.
 
 ---
 
@@ -250,16 +250,25 @@ SPEC: SPEC-V6-EVAL (완료→드랍), SPEC-V6-EVAL-V2 (완료→드랍)
 
 ---
 
-## Archived 코드 (`src/app/_archive-qa/`)
+## 코드 구조 — SPEC-ARCH-APP-001 재배치 (2026-05-17)
 
-구 `/` Q&A 6단계 플로우 (input → confirm → hold → conditions → results → feedback). 코드만 보존, 라우팅 제외. 함께 미사용 상태로 묶인 것:
+stack-internal 아키텍처 재설계. **언어·동작·화면 불변**, 레이어만 분리. 옛 `src/lib/*` / `src/app/api/*` 경로는 **thin re-export shim** 으로 남아 동작하며, 실체는 아래로 이동:
 
-- `src/app/api/analyze/route.ts` — Vision/Text 단일 분석 라우트
-- `src/app/api/feedback/route.ts` — 6단계 피드백 수집
-- `src/lib/enums/korean-vocab.ts`, `color-adjacency.ts`, `style-adjacency.ts` — 검색엔진 v4가 여전히 호출함
-- `src/lib/search/locked-filter.ts` — 검색엔진이 호출하나 메인 플로우에서는 미사용
+| 신규 위치 | 내용 |
+|---|---|
+| `src/shared/{enums,utils}/` | 순수 enum·유틸 (korean-vocab / color·style-adjacency / locked-filter / currency / format / utils) |
+| `src/repositories/clients/` | 단일 DB 접근층 — `postgrest.ts` / `pg-pool.ts` (옛 `src/lib/{supabase,db}.ts`) |
+| `src/domains/search-v4/` | v4 검색 엔진 (engine/scorer/ranker/query-builder/constants/types). `api/search-products/route.ts` 는 852→207 LOC thin 위임 |
+| `src/domains/instagram/` · `src/domains/vision/` | IG 스크래퍼 · Vision 분석 (analyze-post 는 라우트 유지) |
+| `src/domains/brand-resolution/` | resolve-brands / brand-normalize / brand-embed |
+| `src/domains/admin-tools/{brand-management,style-taxonomy,products,prompts,eval,analytics}/` | 28개 admin 라우트 본문. `api/admin/*/route.ts` 는 전부 `export *` thin shim |
 
-**v5 재설계 결과에 따라 일괄 삭제 가능.** 신규 작업의 reference 금지.
+> 옛 경로 import 는 shim 으로 전부 유효 — 본 문서 내 다른 `src/lib/...` / `api/admin/...` 표기는 호환 경로이며 실체는 위 신규 위치다. 신규 코드는 신규 위치를 직접 참조.
+
+**구 `src/app/_archive-qa/` (Q&A 6단계 플로우) 는 step 8 에서 삭제됨** (live import 0 검증, dead test 2파일 동반 제거). v4 가 쓰던 enum(korean-vocab/color·style-adjacency 등)은 `src/shared/enums/` 로 살아있음.
+
+> ⚠️ ai-fence: `api/find/search` (v5 클라이언트) + SEARCH-UNIFY 포트는 본 SPEC 범위 외 — ai `/recommend` 계약 freeze 의존, 미접촉.
+> 📝 doc-sync: `docs/features/main-flow.md` 경로 표기 갱신 ✅ 완료 (PR #57 머지 후 dev→feature 병합 + 상단 SPEC-ARCH-APP-001 노트 추가).
 
 ---
 
@@ -269,7 +278,7 @@ SPEC: SPEC-V6-EVAL (완료→드랍), SPEC-V6-EVAL-V2 (완료→드랍)
 2. **FashionSigLIP 81k 풀배치 실행** — 인프라/스크립트만 준비됨, 실행 미시도
 3. **LiteLLM 재가동** — EC2 인스턴스 OFF 상태, v5 인프라 잡을 때 같이 켜기
 4. **`product_ai_analysis` 드랍** — v5 검증 완료 후
-5. **archived 코드 처분** — `_archive-qa/` + 관련 enum/유틸 일괄 삭제 시점 결정
+5. ~~**archived 코드 처분**~~ — ✅ 완료 (SPEC-ARCH-APP-001 step 8 — `_archive-qa/` 삭제, v4 사용 enum 은 `src/shared/enums/` 존치)
 
 ---
 

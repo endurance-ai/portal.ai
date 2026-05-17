@@ -10,7 +10,7 @@ AI 이미지 기반 패션 스타일 분석 & 크로스플랫폼 상품 추천. 
 ## 작업 규칙
 
 - `docs/archive/` 는 종료된 문서 산출물 보관소. **탐색·참조하지 않는다.**
-- `src/app/_archive-qa/` 는 종료된 코드 보관소(구 Q&A 6단계). Next.js `_` prefix로 라우팅 제외. **새 작업의 reference 금지.**
+- ~~`src/app/_archive-qa/`~~ — **삭제됨** (SPEC-ARCH-APP-001 step 8, 2026-05-17). 구 Q&A 6단계 코드, 더 이상 존재하지 않음 — 참조 불가.
 - 새 plan/spec은 `docs/plans/` 또는 `docs/research/` 에 작성. 종료 시 archive로 이동.
 - 결정 지점이 모호하면 **혼자 가정하지 말고 먼저 질문할 것** (설계·기획·리팩터링 방향 등).
 

@@ -60,6 +60,8 @@ flowchart TD
 
 API 경로 prefix `/api/find/*` 는 historical naming — 메인 승격 후에도 그대로 유지.
 
+> 📦 **SPEC-ARCH-APP-001 (2026-05-17)**: 본 문서의 `src/lib/instagram/*` · `src/lib/analyze/run-vision.ts` · `src/lib/prompts/analyze.ts` 등 `src/lib/...` 경로는 **re-export shim** (동작 불변) — 실체는 `src/domains/{instagram,vision,brand-resolution}/` · `src/shared/{enums,utils}/`. `api/admin/*/route.ts` 도 thin shim, 본문은 `src/domains/admin-tools/`. 신규 코드는 실체 경로 직접 참조. 상세 토폴로지: `docs/ARCHITECTURE.md`.
+
 ---
 
 ## Step 1 — Apify 스크래핑 + 캐시
