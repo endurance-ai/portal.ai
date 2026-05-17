@@ -70,13 +70,30 @@ export class CircuitBreaker implements SearchEngine {
   private readonly cfg: BreakerConfig
   private readonly now: () => number
 
+  private resolvedFallback: SearchEngine | null = null
+
   constructor(
     private readonly primary: SearchEngine,
-    private readonly fallback: SearchEngine,
+    /**
+     * Either a concrete fallback engine OR a lazy provider. The lazy form
+     * lets the registry defer the v4 adapter's import-time supabase coupling
+     * so the DEFAULT v5-direct path never loads it (byte-identity: the
+     * find-search-route PRESERVE net does not mock @/lib/supabase, and the
+     * prior inline route never pulled the v4 chain).
+     */
+    private readonly fallback: SearchEngine | (() => Promise<SearchEngine>),
     config: Partial<BreakerConfig> = {},
   ) {
     this.cfg = {...DEFAULT_CONFIG, ...config}
     this.now = this.cfg.now ?? (() => Date.now())
+  }
+
+  private async getFallback(): Promise<SearchEngine> {
+    if (typeof this.fallback === "function") {
+      if (!this.resolvedFallback) this.resolvedFallback = await this.fallback()
+      return this.resolvedFallback
+    }
+    return this.fallback
   }
 
   getState(): BreakerState {
@@ -130,7 +147,7 @@ export class CircuitBreaker implements SearchEngine {
           `[find/search][circuit-breaker] HALF-OPEN — cooldown elapsed, probing v5`,
         )
       } else {
-        return this.fallback.search(req)
+        return (await this.getFallback()).search(req)
       }
     }
 
@@ -142,7 +159,7 @@ export class CircuitBreaker implements SearchEngine {
         return res
       }
       this.open()
-      return this.fallback.search(req)
+      return (await this.getFallback()).search(req)
     }
 
     // CLOSED: normal path.
@@ -155,6 +172,6 @@ export class CircuitBreaker implements SearchEngine {
     if (this.failureCount >= this.cfg.failureThreshold) {
       this.open()
     }
-    return this.fallback.search(req)
+    return (await this.getFallback()).search(req)
   }
 }

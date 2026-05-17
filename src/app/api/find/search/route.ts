@@ -1,12 +1,20 @@
 import {NextResponse} from "next/server"
 import {logger} from "@/lib/logger"
 import {resolveIgHandlesToBrands} from "@/lib/find/resolve-brands"
+import {selectEngine} from "@/domains/search/registry"
+import {resolveEngineVersion} from "@/domains/search/engine-port"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
-// 메인 플로우 v3: AI 서버(/recommend) 만 사용. v4 폴백 제거.
-// Modal cold start (~30s) + 검색까지 견딜 수 있게 timeout 60s.
+// SPEC-SEARCH-UNIFY-001 IMPROVE 5/6 — engine invocation is delegated behind
+// the versioned `SearchEngine` port (selectEngine). Input validation, the
+// taggedHandles→brand resolution, the `imageUrl && AI_SERVER_URL` gate, and
+// the HTTP envelope ALL stay in the route VERBATIM (analyze.md §2.1 seam).
+// DEFAULT (SEARCH_ENGINE_VERSION unset ⇒ v5-direct): pure v5 adapter, NO
+// circuit breaker, NO v4 fallback ⇒ byte-identical to the prior inline v5
+// path (200 v5 envelope on success, 502 AI_SERVER_FAILED on v5 failure).
+// Single-env-toggle rollback: SEARCH_ENGINE_VERSION unset = today's reality.
 
 const AI_SERVER_URL = process.env.AI_SERVER_URL
 const AI_SERVER_TIMEOUT_MS = Number(process.env.AI_SERVER_TIMEOUT_MS ?? "60000")
@@ -30,69 +38,6 @@ interface SearchBody {
   priceFilter?: {minPrice?: number; maxPrice?: number}
   strongMatchTolerance?: number
   generalTolerance?: number
-}
-
-interface AICandidate {
-  id: string
-  brand: string
-  name: string
-  price: number | null
-  imageUrl: string | null
-  productUrl: string | null
-  platform: string | null
-  subcategory: string | null
-  score: number
-}
-
-interface AIRecommendResponse {
-  itemId: string
-  results: AICandidate[]
-  counts: Record<string, number>
-  latencyMs: Record<string, number>
-}
-
-async function callAIServer(
-  payload: Record<string, unknown>,
-  label: string
-): Promise<AIRecommendResponse | null> {
-  if (!AI_SERVER_URL) return null
-  const url = `${AI_SERVER_URL.replace(/\/$/, "")}/recommend`
-  const t0 = Date.now()
-  const item = (payload.item as {id?: string; subcategory?: string; searchQuery?: string}) ?? {}
-  logger.info(
-    `[STEP 3.5][find/search][${label}] AI 서버 호출 시작 — POST ${url} | timeout=${AI_SERVER_TIMEOUT_MS}ms | item.id=${item.id} subcategory=${item.subcategory ?? "(none)"} searchQuery="${(item.searchQuery ?? "").slice(0, 60)}" gender=${payload.gender ?? "(none)"} brandFilter=${JSON.stringify((payload as Record<string, unknown>).brandFilter ?? null)} tolerance=${payload.tolerance}`
-  )
-  const ctl = new AbortController()
-  const timer = setTimeout(() => ctl.abort(), AI_SERVER_TIMEOUT_MS)
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {"content-type": "application/json"},
-      body: JSON.stringify(payload),
-      signal: ctl.signal,
-    })
-    const elapsed = Date.now() - t0
-    if (!res.ok) {
-      const text = await res.text().catch(() => "")
-      logger.warn(
-        `[STEP 3.6][find/search][${label}] ⚠️ AI 서버 non-2xx — ${elapsed}ms | status=${res.status} | body=${text.slice(0, 300)} → 폴백 진행`
-      )
-      return null
-    }
-    const json = (await res.json()) as AIRecommendResponse
-    const top = json.results.slice(0, 3).map((r) => `${r.brand}|${r.score.toFixed(3)}`)
-    logger.info(
-      `[STEP 3.6][find/search][${label}] ✅ AI 서버 응답 — ${elapsed}ms | results=${json.results.length} | counts=${JSON.stringify(json.counts)} | latency_ms=${JSON.stringify(json.latencyMs)} | top3=${JSON.stringify(top)}`
-    )
-    return json
-  } catch (err) {
-    logger.warn(
-      `[STEP 3.6][find/search][${label}] ❌ AI 서버 호출 실패 — ${Date.now() - t0}ms | err=${(err as Error).message} → 폴백 진행`
-    )
-    return null
-  } finally {
-    clearTimeout(timer)
-  }
 }
 
 export async function POST(request: Request) {
@@ -135,71 +80,43 @@ export async function POST(request: Request) {
   )
 
   // ── 1) AI 서버 우선 (imageUrl 있을 때만 — embedding 필요) ──────────────
+  // GATE VERBATIM (analyze.md QUIRK, pinned by find-search-route.test.ts):
+  // false (incl. AI_SERVER_URL unset even w/ imageUrl) ⇒ falls through to
+  // the 400 AI_SERVER_REQUIRED branch — NEVER reaches the engine / 502.
   if (body.imageUrl && AI_SERVER_URL) {
+    const engineVersion = resolveEngineVersion(process.env.SEARCH_ENGINE_VERSION)
     logger.info(
-      `[STEP 3.3][find/search] AI 서버 분기 진입 — AI_SERVER_URL=${AI_SERVER_URL} timeout=${AI_SERVER_TIMEOUT_MS}ms | brandFilter ${brandFilter.length > 0 ? "있음 → strongAI+generalAI 병렬 호출" : "없음 → generalAI 만 호출"}`
+      `[STEP 3.3][find/search] AI 서버 분기 진입 — AI_SERVER_URL=${AI_SERVER_URL} timeout=${AI_SERVER_TIMEOUT_MS}ms engine=${engineVersion} | brandFilter ${brandFilter.length > 0 ? "있음 → strong+general" : "없음 → general 만"}`
     )
-    const commonAI = {
+
+    const engine = selectEngine(process.env.SEARCH_ENGINE_VERSION)
+    const result = await engine.search({
       item: body.item,
       imageUrl: body.imageUrl,
       gender: body.gender,
       styleNode: body.styleNode,
       moodTags: body.moodTags,
       priceFilter: body.priceFilter,
-    }
+      brandFilter,
+      strongTolerance: body.strongMatchTolerance ?? 0.5,
+      generalTolerance: body.generalTolerance ?? 0.5,
+    })
 
-    const [strongAI, generalAI] = await Promise.all([
-      brandFilter.length > 0
-        ? callAIServer(
-            {
-              ...commonAI,
-              brandFilter,
-              tolerance: body.strongMatchTolerance ?? 0.5,
-            },
-            "strong"
-          )
-        : Promise.resolve(null),
-      callAIServer(
-        {
-          ...commonAI,
-          tolerance: body.generalTolerance ?? 0.5,
-        },
-        "general"
-      ),
-    ])
-
-    if (generalAI) {
+    if (!result.failed) {
       logger.info(
-        `[STEP 3.9][find/search] ✅ 응답 (engine=v5) — strongMatches=${(strongAI?.results ?? []).length} general=${generalAI.results.length} | 총 ${Date.now() - reqStart}ms`
+        `[STEP 3.9][find/search] ✅ 응답 (engine=${result.engine}) — strongMatches=${result.strongMatches.length} general=${result.general.length} | 총 ${Date.now() - reqStart}ms`
       )
-      // Frontend (find-result.tsx SearchProduct) expects: brand/title/price(string)/platform/imageUrl/link
-      // AI server (AICandidate) returns: brand/name/price(number|null)/platform(null)/imageUrl(null)/productUrl(null)
-      // Map shape + wrap in single group per side.
-      const toSearchProduct = (c: AICandidate) => ({
-        brand: c.brand,
-        title: c.name,
-        price: c.price != null ? `₩${c.price.toLocaleString("ko-KR")}` : "",
-        platform: c.platform ?? "",
-        imageUrl: c.imageUrl ?? "",
-        link: c.productUrl ?? "",
-      })
       return NextResponse.json({
         item: body.item,
         resolvedBrands: resolved,
-        strongMatches:
-          strongAI && strongAI.results.length > 0
-            ? [{id: "strong", products: strongAI.results.map(toSearchProduct)}]
-            : [],
-        general:
-          generalAI.results.length > 0
-            ? [{id: "general", products: generalAI.results.map(toSearchProduct)}]
-            : [],
-        engine: "v5",
+        strongMatches: result.strongMatches,
+        general: result.general,
+        engine: result.engine,
       })
     }
 
     logger.error(
-      `[STEP 3.8][find/search] ❌ AI 서버 실패 — 502 응답 (v4 폴백 제거됨)`
+      `[STEP 3.8][find/search] ❌ 검색 엔진 실패 (engine=${result.engine}) — 502 응답`
     )
     return NextResponse.json(
       {error: "AI server unavailable", code: "AI_SERVER_FAILED"},
