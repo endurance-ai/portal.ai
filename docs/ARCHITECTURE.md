@@ -26,7 +26,7 @@
 - 선택된 1개 + 그 포스트의 tagged_users로 brandFilter 빌드 → strongMatches + general 검색
 - `instagram_post_scrapes.shortcode` 로 캐시 (재요청 시 Apify 호출 스킵)
 
-> 구 `/` (Q&A 6단계 에이전트)는 `src/app/_archive-qa/` 로 이동, 라우터 제외. PR #30(2026-04-26)에서 `/dna`, `/about`, `/archive` 도 제거됨.
+> 구 `/` (Q&A 6단계 에이전트)는 `src/app/_archive-qa/` 로 이동(PR #30, 2026-04-26) 후 **SPEC-ARCH-APP-001 step 8 에서 최종 삭제됨(2026-05-17)**. PR #30 에서 `/dna`, `/about`, `/archive` 도 제거됨.
 
 ---
 
