@@ -43,8 +43,8 @@ graph TB
         MW["middleware.ts<br/>/admin/* auth gate"]
         API_IG["/api/instagram/fetch-post<br/>(cache lookup → Apify fallback)"]
         API_FIND_AN["/api/find/analyze-post<br/>(single slide, slideIndex)"]
-        API_FIND_S["/api/find/search<br/>(AI server first → v4 fallback)"]
-        API_SEARCH["/api/search-products<br/>v4 search engine (fallback)"]
+        API_FIND_S["/api/find/search<br/>(SearchEngine port: 기본 v5-direct,<br/>opt-in breaker+v4-degraded)"]
+        API_SEARCH["/api/search-products<br/>v4 engine (admin search-debugger)"]
         API_ADMIN["/api/admin/*<br/>brand-nodes/ai-insights/style-nodes/[code]/brands"]
         API_INTERNAL["/api/internal/classify-brand<br/>(X-Internal-Key, brand VLM)<br/>LiteLLM 토글 (LITELLM_DISABLED 가드)"]
     end
@@ -124,7 +124,7 @@ graph TB
 | LiteLLM proxy | LLM 라우팅 + Langfuse callback (AI 서버 EC2 컨테이너, `54.116.116.225:4000`). 브랜드 메타 추론 배치에서도 사용 | [infra/deployment.md](infra/deployment.md) |
 | Langfuse self-host | 관측성 (LLM/embed/파이프라인 trace) — AI 서버 EC2 컨테이너 | (ai-server repo) |
 
-> **AI 서버는 별도 repo.** Python FastAPI. `AI_SERVER_URL` 미설정 또는 5xx/timeout 시 자동 v4 폴백.
+> **AI 서버는 별도 repo.** Python FastAPI. `/api/find/search` 는 버전 스왑 가능한 `SearchEngine` port 뒤로 위임 (SPEC-SEARCH-UNIFY-001). **기본 `v5-direct`**(env 미설정): v5 5xx/timeout ⇒ HTTP 502 (폴백 없음 — #57 실상 byte-identical). **opt-in `SEARCH_ENGINE_VERSION=v5`**: 회로차단기 경유 v4 raw-RPC degraded 폴백 자동 진행. `CB_ENABLED=false` ⇒ breaker bypass(롤백). **운영 주의**: `SEARCH_ENGINE_VERSION` 미설정/`v5-direct` = DEFAULT(차단기 없음, v5 실패 시 502 — 오늘 동작) vs `v5` = opt-in(차단기 + v4 degraded 폴백, 차단기 상태는 요청 간 누적). 상세: [features/search-engine.md § SearchEngine port](features/search-engine.md#searchengine-port-spec-search-unify-001).
 
 ---
 
@@ -259,6 +259,7 @@ stack-internal 아키텍처 재설계. **언어·동작·화면 불변**, 레이
 | `src/shared/{enums,utils}/` | 순수 enum·유틸 (korean-vocab / color·style-adjacency / locked-filter / currency / format / utils) |
 | `src/repositories/clients/` | 단일 DB 접근층 — `postgrest.ts` / `pg-pool.ts` (옛 `src/lib/{supabase,db}.ts`) |
 | `src/domains/search-v4/` | v4 검색 엔진 (engine/scorer/ranker/query-builder/constants/types). `api/search-products/route.ts` 는 852→207 LOC thin 위임 |
+| `src/domains/search/` | **SearchEngine port** (SPEC-SEARCH-UNIFY-001) — `engine-port.ts` / `registry.ts`(`selectEngine`) / `adapters/{v5,v4-fallback,v6}-adapter.ts` / `circuit-breaker.ts`. `find/search` 가 구체 엔진 대신 이 port 호출. 기본 v5-direct(동작 불변), v5⇒breaker+v4-degraded, v6 드롭인 seam |
 | `src/domains/instagram/` · `src/domains/vision/` | IG 스크래퍼 · Vision 분석 (analyze-post 는 라우트 유지) |
 | `src/domains/brand-resolution/` | resolve-brands / brand-normalize / brand-embed |
 | `src/domains/admin-tools/{brand-management,style-taxonomy,products,prompts,eval,analytics}/` | 28개 admin 라우트 본문. `api/admin/*/route.ts` 는 전부 `export *` thin shim |
@@ -267,7 +268,7 @@ stack-internal 아키텍처 재설계. **언어·동작·화면 불변**, 레이
 
 **구 `src/app/_archive-qa/` (Q&A 6단계 플로우) 는 step 8 에서 삭제됨** (live import 0 검증, dead test 2파일 동반 제거). v4 가 쓰던 enum(korean-vocab/color·style-adjacency 등)은 `src/shared/enums/` 로 살아있음.
 
-> ⚠️ ai-fence: `api/find/search` (v5 클라이언트) + SEARCH-UNIFY 포트는 본 SPEC 범위 외 — ai `/recommend` 계약 freeze 의존, 미접촉.
+> ✅ SEARCH-UNIFY: `api/find/search` 는 SPEC-SEARCH-UNIFY-001 로 `SearchEngine` port 뒤 위임 완료 (2026-05-17). ai `/recommend` 계약은 v5 어댑터가 verbatim 소비 (계약 변경 0, v5 성공 엔벨로프 byte-identical — 특성화 13개 고정).
 > 📝 doc-sync: `docs/features/main-flow.md` 경로 표기 갱신 ✅ 완료 (PR #57 머지 후 dev→feature 병합 + 상단 SPEC-ARCH-APP-001 노트 추가).
 
 ---
