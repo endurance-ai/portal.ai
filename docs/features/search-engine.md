@@ -1,25 +1,62 @@
 # 검색 엔진
 
-> `POST /api/search-products` 가 단일 진입점. 메인 플로우의 Step 3에서 in-process 호출됨.
-> v4(현재 운영) + v5 전환 인프라(부분 적용, 풀배치 미실행) 두 레이어가 공존.
+> `/api/find/search` (메인 플로우 Step 5) — **v6 embedding-first 단일 엔진** (SPEC-SEARCH-V6-001, 2026-05-18).
+> `/api/search-products` — v4 enum 가중합 엔진 (어드민 search-debugger 전용).
 
-## 한눈에
+## 한눈에 (2026-05-18 이후)
 
 | 레이어 | 상태 | 핵심 |
 |---|---|---|
-| **v4** | ✅ 운영 중 | `products` ⨝ `product_ai_analysis` INNER JOIN + 10차원 가중합 + 다양성 캡 |
-| **v5 인프라** | ✅ 적용 (마이그레이션 027) | `products.embedding vector(768)` + HNSW + pgroonga + bulk RPC |
-| **v5 풀배치** | ⚠️ 테스트만, 81k 미실행 | `scripts/aws/embed_products.py` 단발 실행 필요 |
-| **v5 검색 분기** | ⚠️ 부분 | dense+sparse+RRF 통합 쿼리는 ⬜ 미작성. 단, 버전 스왑 가능한 `SearchEngine` port + 피처 플래그 `SEARCH_ENGINE_VERSION` 는 ✅ (SPEC-SEARCH-UNIFY-001) |
-| **브랜드 그래프 인프라 v1 (텍스트)** | ❌ **037 자산 migration 067 (2026-05-15) 로 컬럼 drop 완료** — `brand_nodes.embedding`/`x_umap`/`y_umap`/`sensitivity_tags`/`brand_keywords` 등 13 컬럼 삭제. `brand_similar` 그래프(42k edges) 는 `brand_id` FK 만 남아 구조만 유지 | `brand_similar` (구조만, 037 자산 없음) |
-| **브랜드 그래프 인프라 v2 (multimodal)** | ✅ SPEC-BRAND-EMBED-001 완료 (063~066) | `brand_multimodal_embeddings` (FashionSigLIP 768) + `node_centroids` + auto `style_node_adjacency` + UMAP. crawler bulk 완료 후 풀배치 |
-| **PAI v6 axis** | ✅ 컬럼 추가 (마이그 045) | `product_ai_analysis` 에 v6 axis 8 컬럼 추가 (neckline/sleeve/length/closure/texture/decoration/silhouette/formality). 백필 스크립트: `scripts/local/pai_backfill/`. 검색 RPC 인덱스 준비됨 |
-
-> v5 재설계 진행 중 — 기존 plans (`docs/plans/26-04-23-embedding-rewrite-plan.md`, `docs/plans/26-04-24-aws-embedding-infra.md`) 는 reference로만, 결정 기준은 다시 잡는다.
+| **v6 (메인 플로우)** | ✅ 운영 | `product_embeddings` cosine-first (`search_products_v6` RPC, 072). Modal `/embed` + `/embed/text` query embedding. `SearchEngine` port 단일 구현체 (`v6-adapter.ts`). v4/v5 어댑터·circuit-breaker 제거 (SPEC-SEARCH-V6-001 P2) |
+| **v4 (어드민 전용)** | ✅ `src/domains/search-v4/` | `products` 직접 쿼리 + 10차원 가중합 + 다양성 캡. `/api/search-products` 어드민 디버거만 사용 |
+| ~~**PAI (`product_ai_analysis`)**~~ | ❌ **069 DROP (2026-05-18)** | v6 embedding-first 는 PAI 비의존 — CASCADE DROP (REQ-V6-031) |
+| ~~**pgroonga 풀텍스트**~~ | ❌ **069 CASCADE DROP** | `idx_products_pgroonga_search` + `product_search_text(products)` — dead infra (유일 소비자 search_products_v5 동시 DROP) |
+| ~~**v5 검색 어댑터**~~ | ❌ **P2 삭제** | `v5-adapter.ts`, `v4-fallback-adapter.ts`, `circuit-breaker.ts` 삭제. `registry.ts` `selectEngine()` → v6 단일. `SEARCH_ENGINE_VERSION` env 분기 제거 |
+| **product_embeddings** | ✅ 071 생성 | halfvec(768) + HNSW halfvec_cosine_ops. 기존 `products.embedding` 71k backfill. `products.embedding*` 컬럼은 cutover 후 별 마이그서 DROP 예정 |
+| **Modal text tower** | ✅ 배포 완료 (2026-05-18) | `/embed/text` + `Embedder.embed_text` (open_clip FashionSigLIP). image+text fusion `normalize(0.7·img+0.3·txt)` 기본 활성. `/embed/text` 5xx 시 image-only 런타임 폴백 |
+| **브랜드 그래프 인프라 v2 (multimodal)** | ✅ SPEC-BRAND-EMBED-001 완료 (063~066) | `brand_multimodal_embeddings` (FashionSigLIP 768) + `node_centroids` + auto `style_node_adjacency` + UMAP. **v6 interim 미사용 (Track B — §14)**. crawler bulk 완료 후 풀배치 예정 |
 
 ---
 
-## v4 (현재 운영)
+## v6 (메인 플로우 — SPEC-SEARCH-V6-001, 2026-05-18)
+
+**엔진 본체: `src/domains/search/adapters/v6-adapter.ts`** (port: `engine-port.ts`, 등록: `registry.ts`)
+
+### 파이프라인 (SPEC §4 + ratified §13)
+
+```
+user image (+ optional text prompt)
+  → query_emb = Modal /embed [+ /embed/text fusion 0.7/0.3] (FashionSigLIP 768-dim L2-norm)
+  → FILTER 1: brand_nodes WHERE primary_style_node_id = styleNode.primary (EXACT)
+  → FILTER 2: products WHERE brand_node_id ∈ filter1 AND category family gate (073) AND in_stock AND product_embeddings row
+  → RANK:     cosine(query_emb, product_embeddings.embedding) DESC, created_at DESC, LIMIT N
+  → FALLBACK (degraded): 0건 시 node 필터 드롭 → category family+in_stock+embedding 전체 cosine, degraded:true
+```
+
+### 핵심 특성
+
+| 항목 | 값 |
+|---|---|
+| RPC | `search_products_v6` (072) |
+| query embedding | Modal `/embed` (image) + optional Modal `/embed/text` fusion (α=0.7) |
+| ranking | cosine DESC (`product_embeddings.embedding <=> query_embedding`), 가중합 없음 |
+| filter | EXACT `primary_style_node_id` + `category_canonical` family gate (073) + `in_stock` |
+| degraded fallback | node 0건 → node 드롭, category-only cosine, `engine:"v6-degraded"` |
+| brand 분기 | `brandFilter` non-empty → strong call (p_brand_names), general always runs |
+| 실패 | query embedding 실패 or DB throw → `failed:true` → route 502 `AI_SERVER_FAILED` |
+
+### 환경변수
+
+| 키 | 의미 |
+|---|---|
+| `AI_SERVER_URL` | Modal embed 서버 base URL |
+| `AI_SERVER_TIMEOUT_MS` | 타임아웃 (기본 60000ms) |
+
+> `SEARCH_ENGINE_VERSION` / `CB_ENABLED` / `CB_FAILURE_THRESHOLD` / `CB_COOLDOWN_MS` — **v6 P2 에서 제거됨** (registry 단일 v6, env 분기 없음).
+
+---
+
+## v4 (어드민 search-debugger 전용)
 
 **엔진 본체: `src/domains/search-v4/`** (engine/scorer/ranker/query-builder/constants/types — SPEC-ARCH-APP-001 step 3, 2026-05-17). `src/app/api/search-products/route.ts` 는 852→**207 LOC thin 핸들러**로 축소(입력검증→`searchByEnums` 위임→동일 NextResponse). 동작·스코어링 byte-identical (특성화 테스트 0-diff 검증). 아래 `src/lib/...` 경로 표기는 re-export shim 호환 경로이며 실체는 `src/domains/search-v4/` · `src/shared/{enums,utils}/`.
 
@@ -68,147 +105,58 @@ interface SearchRequest {
 
 ---
 
-## v5 전환 인프라 (적용 완료, 미가동)
+## 임베딩 배치 스크립트 (로컬 실행)
 
-마이그레이션 `database/migrations/027_product_embeddings_and_pgroonga.sql` 가 다음을 추가:
-
-### 컬럼
-
-```sql
-ALTER TABLE products
-  ADD COLUMN embedding vector(768),
-  ADD COLUMN embedding_model text,
-  ADD COLUMN embedded_at timestamptz;
-```
-
-### 인덱스
-
-```sql
--- pgvector HNSW (FashionSigLIP L2-normalized → cos ≈ inner product)
-CREATE INDEX idx_products_embedding_hnsw
-  ON products USING hnsw (embedding vector_ip_ops)
-  WITH (m = 16, ef_construction = 200);
-
--- pgroonga 한국어 BM25 (brand + name + description + material + color)
-CREATE INDEX idx_products_pgroonga_search
-  ON products USING pgroonga (
-    coalesce(brand,'') || ' ' || coalesce(name,'') || ' ' || ...
-  );
-
--- tags 배열 GIN
-CREATE INDEX idx_products_tags_gin ON products USING gin (tags);
-
--- 미임베딩 상품 빠르게 조회 (배치용 부분 인덱스)
-CREATE INDEX idx_products_embedding_pending
-  ON products (id)
-  WHERE embedding IS NULL AND ...;
-```
-
-### 함수 / 뷰
-
-| 객체 | 용도 |
-|---|---|
-| `bulk_update_product_embeddings(jsonb)` RPC | 배치 스크립트가 호출하는 bulk upsert |
-| `set_hnsw_ef_search(int)` 함수 | 런타임 ef_search 튜닝 (recall ↔ latency) |
-| `product_embedding_coverage` 뷰 | 플랫폼별 `pct_embedded` 모니터링 |
-
----
-
-## v5 풀배치 인프라
-
-> 풀배치 미실행 — 현재까지 테스트만 진행. 81k 풀 인코딩 시점은 v5 재설계와 함께 결정.
-
-### 인프라 패턴 (작성됨)
+> AWS Spot 불필요 (SPEC §5) — 사용자 로컬에서 실행. ~47k 미임베딩 잔여.
 
 | 파일 | 역할 |
 |---|---|
-| `scripts/aws/embed_products.py` | EC2에서 실행: Supabase 페이지네이션 + ThreadPool 병렬 다운로드 + GPU 배치 인코딩 + bulk RPC upsert |
-| `scripts/aws/launch_embed_batch.sh` | 로컬 런처: SG/Key 확인 → user-data 합성 → `aws ec2 run-instances --spot` |
-
-### 인스턴스 사양
-
-- 타입: `g5.xlarge` (A10G 24GB)
-- 마켓: Spot (one-time)
-- 리전: `ap-northeast-2`
-- AMI: Deep Learning AMI GPU PyTorch 2.x
-- Root EBS: 50GB gp3
-- IAM: 없음 (시크릿은 user-data 주입)
-- Shutdown behavior: **terminate** — `shutdown -h now` 로 자동 삭제
-
-### Self-terminate 패턴
-
-user-data 끝에 항상 `shutdown -h now`. 크래시해도 5분 후 강제 종료 (비용 leak 방지 + 디버그 창).
-
-### 비용 추정
-
-- 81k 인코딩 1회: g5.xlarge Spot ~$0.40/hr × 1시간 = **~$0.40**
-- 35k SAM-2 (선택): ~1.5시간 = ~$0.60
-- 증분(주 1회): ~10분 = ~$0.07
-
-상세 사양: `docs/plans/26-04-24-aws-embedding-infra.md`
+| `scripts/aws/embed_products.py` | **071 rework** — `product_embeddings` 대상 UPSERT. `product_embeddings(is.null)` anti-join 으로 미임베딩 선별. DB_URL/DB_TOKEN (구 SUPABASE_URL fallback). Apple Silicon (mps) 지원 추가. |
+| `scripts/aws/launch_embed_batch.sh` | EC2 Spot 런처 — 로컬 실행 이후 불필요하나 파일 유지 |
 
 ---
 
-## v5 미작성 (재설계 대상)
+## SearchEngine port (SPEC-SEARCH-V6-001 §6/§10c)
 
-| 항목 | 현황 |
-|---|---|
-| `/api/search-products` v5 분기 (dense + sparse + RRF 통합 쿼리) | ⬜ |
-| 피처 플래그 `SEARCH_ENGINE_VERSION` 환경변수 | ✅ (SPEC-SEARCH-UNIFY-001, 2026-05-17) — `SearchEngine` port 뒤 active 엔진 선택. 미설정 ⇒ `v5-direct` (현 동작 불변). [§ SearchEngine port](#searchengine-port-spec-search-unify-001) 참조 |
-| 어드민 검색 디버거 v4/v5 토글 | ⬜ |
-| `product_ai_analysis` 드랍 마이그레이션 | ⬜ (v5 검증 후) |
-| Grounded-SAM-2 garment 세그멘테이션 (다중 아이템 사진 대응) | ⬜ |
-| 쿼리 시점 LLM 앙상블 (intent + 자연어 설명 → 2× embedding 평균) | ⬜ |
-
----
-
-## SearchEngine port (SPEC-SEARCH-UNIFY-001)
-
-> 2026-05-17. 검색 엔진을 **버전 스왑 가능**하게 만든 교차 SPEC. **스코어링 재작성이 아니다** — `find/search` 가 구체 엔진이 아닌 port 를 호출하도록 한 호출 간접화 + 실패 안전망.
+> SPEC-SEARCH-UNIFY-001 에서 도입된 port 인터페이스는 **보존**됨. 단, 다중엔진 머신(v4/v5/breaker/버전 env 분기)은 **SPEC-SEARCH-V6-001 P2 에서 제거**.
 
 ### 토폴로지
 
 ```
-/api/find/search  (입력검증·handle→brand resolution·imageUrl&AI_SERVER_URL gate·HTTP 엔벨로프는 route 에 잔류)
-   └─ selectEngine(SEARCH_ENGINE_VERSION).search(req)        ← 유일한 엔진 호출 지점
-        ├─ unset / 미인식  ⇒ v5-direct : v5 어댑터 단독 (breaker X, v4 X)  ← 기본 = 현 동작 불변
-        ├─ "v5"            ⇒ CircuitBreaker(v5, lazy v4-degraded fallback)
-        ├─ "v4"            ⇒ v4 degraded fallback (lazy, 강제)
-        └─ "v6"            ⇒ v6 드롭인 SEAM 스텁 (실 v6 는 스코프 외 — 사용자 별도 개발)
+/api/find/search  (입력검증·handle→brand resolution·imageUrl&AI_SERVER_URL gate·HTTP 엔벨로프 route 잔류)
+   └─ selectEngine().search(req)   ← 단일 v6 엔진
+        └─ v6Adapter               ← embedding-first (SPEC-SEARCH-V6-001 §4)
 ```
 
 ### 핵심 파일 (`src/domains/search/`)
 
 | 파일 | 역할 |
 |---|---|
-| `engine-port.ts` | `SearchEngine` 인터페이스 + `RecommendRequest`/`RecommendResponse` DTO + `resolveEngineVersion()`. DTO shape 은 ai `/recommend` 추론 계약 정합 (app-side observed; ai repo 미확인 — SPEC-ARCH-AI-001 REQ-AI-005 가 실 DTO 소유) |
-| `registry.ts` | `selectEngine()` — 버전→엔진 등록 지점. **v6 드롭인 = 여기 분기 1개 + env 1개, route caller diff 0** (REQ-SU-006) |
-| `adapters/v5-adapter.ts` | active. `callAIServer`+`toSearchProduct`+strong/general 그룹핑 — route.ts 에서 **verbatim 추출**. v5 성공 엔벨로프 byte-identical (PRESERVE 1 게이트) |
-| `adapters/v4-fallback-adapter.ts` | degraded. `domains/search-v4` `searchByEnums` raw RPC 만 사용 (scorer/ranker 재유지보수 X — REQ-SU-007). `engine:"v4-degraded"`. **lazy import** (supabase 결합 — 기본 경로 로드 그래프 제외) |
-| `adapters/v6-adapter.ts` | v6 드롭인 SEAM **스텁** — 실 v6 아님. 실 v6 착륙 시 이 파일 body 만 교체, 동일 인터페이스·동일 registry 키·route 변경 0 |
-| `circuit-breaker.ts` | closed/open/half-open 상태머신. `CB_*` env. `CB_ENABLED=false` ⇒ breaker bypass = 순수 v5-direct (무중단 롤백 레버) |
+| `engine-port.ts` | `SearchEngine` 인터페이스 + `RecommendRequest`/`RecommendResponse` DTO. **v6 기준 업데이트** — `engine:"v6"` / `"v6-degraded"`. `EngineVersion` 유니온 + `resolveEngineVersion()` **P2 제거** |
+| `registry.ts` | `selectEngine()` → `v6Adapter` 단일 반환. `selectEngineByVersion` / `v5Breaker` / `lazyV4Engine` **P2 제거** |
+| `adapters/v6-adapter.ts` | **v6 실 구현체** — Modal `/embed` query_emb + `search_products_v6` RPC + strong/general grouping + degraded provenance |
+| `adapters/query-embed.ts` | `buildQueryEmbedding` — image-only or `normalize(0.7·img+0.3·txt)` fusion. Modal `/embed` + `/embed/text` 호출 |
+| ~~`adapters/v5-adapter.ts`~~ | **P2 삭제** |
+| ~~`adapters/v4-fallback-adapter.ts`~~ | **P2 삭제** |
+| ~~`circuit-breaker.ts`~~ | **P2 삭제** |
 
-### 상태머신 (REQ-SU-005)
+### 응답 계약
 
-- **closed** → v5 호출. 성공 ⇒ 실패 카운트 reset. 실패/throw ⇒ 카운트++; `CB_FAILURE_THRESHOLD` 초과 ⇒ **open** + v4 degraded
-- **open** → v5 미호출, v4 degraded 직행. `CB_COOLDOWN_MS` 경과 ⇒ 다음 호출에서 **half-open**
-- **half-open** → v5 1회 probe. 성공 ⇒ **close** / 실패 ⇒ **재open** + v4 degraded
+- `engine:"v6"` — 정상 EXACT path
+- `engine:"v6-degraded"` — §13 결정 1 fallback (node/family gate 드롭)
+- `failed:true` → route 502 `AI_SERVER_FAILED` (query embedding 실패 or DB throw)
+- `strongMatches` / `general` / `resolvedBrands` shape 불변 (route envelope 변경 0)
 
-### 롤백 / 안전
+### 특성화 게이트 (P2 재정향)
 
-- `SEARCH_ENGINE_VERSION` 미설정 = 기본 `v5-direct` = breaker·v4 둘 다 미개입 = **#57 현 실상과 byte-identical** (v5 성공 200 / v5 실패 502 `AI_SERVER_FAILED`). 단일 env 토글 즉시 원복.
-- `CB_ENABLED=false` ⇒ "v5" 선택 시에도 breaker bypass (순수 v5 pass-through).
-- v5 정상 경로 결과/화면/`engine:"v5"` 응답 형태 **불변** (HARD) — port 도입은 호출 간접화일 뿐.
+- `src/__characterization__/search-unify-001/find-search-route.test.ts` — **v6 success envelope** 핀 (v5 byte-identity pin 은 v5-adapter 삭제와 함께 retire). `engine:"v6"` / `"v6-degraded"` / 502 계약. v6 DB chain mock (mockRpc, mockBuildQueryEmbedding).
+- `src/__characterization__/search-unify-001/search-v4-shape.test.ts` — `searchByEnums` 시그니처 (live consumer: `/api/search-products` 어드민). **v4-fallback-adapter 삭제 후에도 생존** (어드민 경로 보호).
+- `src/__tests__/search-unify-001/registry-and-forward-compat.test.ts` — **v6 단일 registry** + port forward-compat. `selectEngineByVersion` / breaker singleton 테스트 **retire** (삭제된 코드). `circuit-breaker.test.ts` **삭제**.
 
-### v6 forward-compat seam
+### P5 잔여 audit
 
-실 v6 는 본 SPEC 스코프 외 (사용자 별도 능동 개발 — 차단/리팩터 금지). v6 드롭인 절차: `adapters/v6-adapter.ts` body 를 실 엔진으로 교체 → `registry.ts` 의 `"v6"` 분기는 그대로 → `SEARCH_ENGINE_VERSION=v6`. **`find/search` (및 모든 app caller) diff 0** (REQ-SU-006 1급 기준, 자동 테스트로 증명: `src/__tests__/search-unify-001/registry-and-forward-compat.test.ts`).
-
-### 특성화 게이트
-
-- `src/__characterization__/search-unify-001/find-search-route.test.ts` (13) — find/search HTTP 엔벨로프 + v5 성공 byte-shape + 502 + QUIRK. **port 도입 후 변경 0 으로 GREEN 유지** = byte-identity 증명.
-- `src/__characterization__/search-unify-001/search-v4-shape.test.ts` (9) — `searchByEnums` 시그니처/결과 형태 (v4 fallback 어댑터가 재현할 계약).
-- `src/__tests__/search-unify-001/` (14) — breaker 상태 전이 + registry 선택 + v6 forward-compat (신규 동작 테스트, 특성화 아님).
+- `search_quality_logs` (014) — v4 score breakdown, v6 cosine-only 와 구조 불일치. 유지/대체/제거 검토.
+- `get_product_filter_counts()` (026) — PAI 참조 late-binding, **069 PAI DROP 후 런타임 throw**. P5 에서 재작성 또는 제거.
 
 ---
 

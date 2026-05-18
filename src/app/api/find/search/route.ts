@@ -2,19 +2,18 @@ import {NextResponse} from "next/server"
 import {logger} from "@/lib/logger"
 import {resolveIgHandlesToBrands} from "@/lib/find/resolve-brands"
 import {selectEngine} from "@/domains/search/registry"
-import {resolveEngineVersion} from "@/domains/search/engine-port"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
-// SPEC-SEARCH-UNIFY-001 IMPROVE 5/6 — engine invocation is delegated behind
-// the versioned `SearchEngine` port (selectEngine). Input validation, the
+// SPEC-SEARCH-V6-001 §10c — engine invocation is delegated behind the
+// preserved `SearchEngine` port (selectEngine). Input validation, the
 // taggedHandles→brand resolution, the `imageUrl && AI_SERVER_URL` gate, and
-// the HTTP envelope ALL stay in the route VERBATIM (analyze.md §2.1 seam).
-// DEFAULT (SEARCH_ENGINE_VERSION unset ⇒ v5-direct): pure v5 adapter, NO
-// circuit breaker, NO v4 fallback ⇒ byte-identical to the prior inline v5
-// path (200 v5 envelope on success, 502 AI_SERVER_FAILED on v5 failure).
-// Single-env-toggle rollback: SEARCH_ENGINE_VERSION unset = today's reality.
+// the HTTP envelope ALL stay in the route VERBATIM. The engine is the sole
+// v6 implementation (embedding-first); the SPEC-SEARCH-UNIFY-001 version
+// env branching + circuit breaker were retired in P2 (§10b, AC-024). 200
+// envelope on success (engine:"v6"|"v6-degraded"), 502 AI_SERVER_FAILED on
+// total engine failure.
 
 const AI_SERVER_URL = process.env.AI_SERVER_URL
 const AI_SERVER_TIMEOUT_MS = Number(process.env.AI_SERVER_TIMEOUT_MS ?? "60000")
@@ -84,12 +83,11 @@ export async function POST(request: Request) {
   // false (incl. AI_SERVER_URL unset even w/ imageUrl) ⇒ falls through to
   // the 400 AI_SERVER_REQUIRED branch — NEVER reaches the engine / 502.
   if (body.imageUrl && AI_SERVER_URL) {
-    const engineVersion = resolveEngineVersion(process.env.SEARCH_ENGINE_VERSION)
     logger.info(
-      `[STEP 3.3][find/search] AI 서버 분기 진입 — AI_SERVER_URL=${AI_SERVER_URL} timeout=${AI_SERVER_TIMEOUT_MS}ms engine=${engineVersion} | brandFilter ${brandFilter.length > 0 ? "있음 → strong+general" : "없음 → general 만"}`
+      `[STEP 3.3][find/search] AI 서버 분기 진입 — AI_SERVER_URL=${AI_SERVER_URL} timeout=${AI_SERVER_TIMEOUT_MS}ms engine=v6 | brandFilter ${brandFilter.length > 0 ? "있음 → strong+general" : "없음 → general 만"}`
     )
 
-    const engine = selectEngine(process.env.SEARCH_ENGINE_VERSION)
+    const engine = selectEngine()
     const result = await engine.search({
       item: body.item,
       imageUrl: body.imageUrl,

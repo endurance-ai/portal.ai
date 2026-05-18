@@ -1,27 +1,29 @@
-// @MX:ANCHOR: [AUTO] versioned SearchEngine port — find/search calls this, not a concrete engine (SPEC-SEARCH-UNIFY-001 REQ-SU-001)
-// @MX:REASON: Single seam between /api/find/search and {v5 active / v4 degraded fallback / v6 drop-in}; caller diff must stay 0 across engine swaps.
-// @MX:SPEC: SPEC-SEARCH-UNIFY-001
+// @MX:ANCHOR: [AUTO] SearchEngine port — find/search calls this, not a concrete engine (SPEC-SEARCH-V6-001 §6/§10c REQ-V6-001)
+// @MX:REASON: [AUTO] Single seam between /api/find/search and the sole v6 engine implementation; the route caller diff must stay 0 if the engine body ever changes again. SPEC-SEARCH-UNIFY-001 multi-engine machine retired (P2, AC-024) — interface preserved per §10c.
+// @MX:SPEC: SPEC-SEARCH-V6-001
 import "server-only"
 
 /**
- * SPEC-SEARCH-UNIFY-001 — versioned `SearchEngine` port.
+ * SPEC-SEARCH-V6-001 §10c — `SearchEngine` port (interface preserved, single
+ * v6 implementation).
  *
- * `/api/find/search` calls `selectEngine(version).search(req)` instead of any
- * concrete engine. The active engine (v5), the degraded fallback (v4), and a
- * future drop-in (v6) all implement THIS interface — zero caller change.
+ * `/api/find/search` calls `selectEngine().search(req)` instead of any
+ * concrete engine. The sole engine (v6-adapter, embedding-first) implements
+ * THIS interface. The SPEC-SEARCH-UNIFY-001 multi-engine selection machine
+ * (v5/v4 adapters, circuit breaker, version env branching) was retired in P2
+ * (§10b, AC-024); the port interface itself is kept on purpose as the clean
+ * route↔engine seam (§10c HARD: interface preserved, machine removed).
  *
  * Contract shape mirrors the INFERRED ai `/recommend` working contract
- * (analyze.md section 4, Assumption A1 — app-side observed, ai repo NOT read).
- * The PRESERVE 1 regression net (find-search-route.test.ts, 13 tests) is the
- * enforcement mechanism for v5-success byte-identity.
+ * (analyze.md section 4, Assumption A1 — app-side observed). The
+ * find-search-route.test.ts regression net pins the route ENVELOPE + 400/200/
+ * 502 gating + grouping against the v6 engine (re-pointed in P2 — the prior
+ * v5-success byte-identity pin was retired with v5-adapter; SPEC §10b).
  *
  * Why the port returns pre-grouped `strongMatches`/`general` SearchProduct
- * groups (not raw candidates): the route TODAY owns both the strong/general
- * Promise.all orchestration AND the `toSearchProduct` envelope translation
- * inline (route.ts:151-198). To keep the v5-success envelope byte-identical,
- * the v5-adapter reproduces that orchestration+translation verbatim and hands
- * the route exactly the two group arrays it already emits. The route then
- * only wraps them in the outer envelope.
+ * groups (not raw candidates): the route owns only the outer HTTP envelope;
+ * the engine owns the strong/general orchestration AND the `toSearchProduct`
+ * translation, handing the route exactly the two group arrays it wraps.
  */
 
 /** One product as the find-result UI consumes it (route envelope slot). */
@@ -75,10 +77,11 @@ export interface RecommendRequest {
  * `results.length > 0 ? [...] : []` shape).
  *
  * `engine` is the observable provenance tag the route echoes into its
- * envelope: `"v5"` (active, byte-identical), `"v4-degraded"` (fallback),
- * future `"v6"`. `failed` signals total engine failure -> the route maps it
- * to its existing 502 `AI_SERVER_FAILED` contract (only `general` failure
- * gated 200/502 today; the engine owns that decision now).
+ * envelope: `"v6"` (embedding-first) or `"v6-degraded"` (ratified §13 결정 1
+ * category-only fallback — SPEC-SEARCH-V6-001 REQ-V6-034, surfaced via this
+ * tag, no extra response field). `failed` signals total engine failure ->
+ * the route maps it to its existing 502 `AI_SERVER_FAILED` contract (the
+ * engine owns the general-path failure decision).
  */
 export interface RecommendResponse {
   strongMatches: SearchProductGroup[]
@@ -88,23 +91,8 @@ export interface RecommendResponse {
   failed: boolean
 }
 
-/** The versioned engine port. All adapters (v5/v4/v6) implement this. */
+/** The engine port. The sole v6-adapter implements this (§10c). */
 export interface SearchEngine {
   readonly version: string
   search(req: RecommendRequest): Promise<RecommendResponse>
-}
-
-/**
- * Global single active version. `SEARCH_ENGINE_VERSION` unset => `v5-direct`
- * (today's reality: inline v5, 502 on failure, NO circuit breaker, NO v4
- * fallback). The breaker + v4 fallback only engage when the env opts in.
- */
-export type EngineVersion = "v5-direct" | "v5" | "v4" | "v6"
-
-export function resolveEngineVersion(
-  raw: string | undefined,
-): EngineVersion {
-  if (raw === "v5" || raw === "v4" || raw === "v6") return raw
-  // unset / unknown => v5-direct (single-env-toggle rollback default)
-  return "v5-direct"
 }
