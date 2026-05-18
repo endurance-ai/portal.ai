@@ -1,95 +1,30 @@
-// @MX:ANCHOR: [AUTO] selectEngine registry — version→engine composition consulted by find/search (SPEC-SEARCH-UNIFY-001 REQ-SU-002/006)
-// @MX:REASON: The single registration point. v6 drop-in = add a branch here + set SEARCH_ENGINE_VERSION=v6; route caller diff stays 0. Default must equal today's v5-direct and must NOT load the v4 supabase chain.
-// @MX:SPEC: SPEC-SEARCH-UNIFY-001
+// @MX:ANCHOR: [AUTO] selectEngine registry — single seam consulted by find/search (SPEC-SEARCH-V6-001 §6/§10c)
+// @MX:REASON: [AUTO] The single registration point. The route only ever calls selectEngine().search(req); collapsing to one engine here keeps that caller diff at 0. SPEC-SEARCH-UNIFY-001 version branching + circuit breaker retired (P2, AC-024); v6 is the sole engine per §10c.
+// @MX:SPEC: SPEC-SEARCH-V6-001
 import "server-only"
-import type {
-  EngineVersion,
-  RecommendRequest,
-  RecommendResponse,
-  SearchEngine,
-} from "./engine-port"
-import {resolveEngineVersion} from "./engine-port"
-import {v5Adapter} from "./adapters/v5-adapter"
+import type {SearchEngine} from "./engine-port"
 import {v6Adapter} from "./adapters/v6-adapter"
-import {CircuitBreaker} from "./circuit-breaker"
 
 /**
- * SPEC-SEARCH-UNIFY-001 IMPROVE 5/6 — engine registry.
+ * SPEC-SEARCH-V6-001 §10c — engine registry (single v6 engine).
  *
- * `selectEngine` maps the resolved version to a `SearchEngine`. The route only
- * ever calls `selectEngine(...).search(req)` — adding v6 (or any future
- * engine) is a registry branch + an env value, ZERO route caller diff
- * (REQ-SU-006 forward-compat gate).
+ * `selectEngine()` returns the sole `SearchEngine` implementation (v6-adapter,
+ * embedding-first). The route only ever calls `selectEngine().search(req)`,
+ * so the port seam is preserved even though the multi-engine machine is gone.
  *
- * v4 adapter is loaded LAZILY (dynamic import) — it transitively pulls
- * `@/lib/supabase` → `@/repositories/clients/postgrest` which THROWS at
- * module-eval without DB env. The DEFAULT v5-direct path must never load it
- * (byte-identity: the find-search-route PRESERVE net does not mock supabase,
- * and the prior inline route never imported the v4 chain). Lazy loading also
- * keeps the degraded fallback off the active path's load graph.
+ * Retired in P2 (SPEC-SEARCH-V6-001 §10b, AC-024 — SPEC-SEARCH-UNIFY-001
+ * debt cleanup): the v5/v4 adapters, the circuit breaker, the version env
+ * branching (`SEARCH_ENGINE_VERSION` / `EngineVersion` / `resolveEngineVersion`
+ * / `selectEngineByVersion`), and the lazy v4 supabase deferral. v6 has no
+ * fallback machine (REQ-V6-033): its ratified §13 결정 1 category-only
+ * degrade lives inside `search_products_v6` (engine:"v6-degraded" provenance).
  *
- * Version semantics (analyze.md §2.2):
- *   v5-direct (DEFAULT, env unset) → v5 adapter ALONE. NO breaker, NO v4.
- *                                    Byte-identical to today's inline v5
- *                                    (502 on v5 failure). ROLLBACK default.
- *   v5                             → CircuitBreaker(v5, lazy v4 fallback).
- *   v4                             → v4 degraded fallback (lazy), forced.
- *   v6                             → v6 drop-in SEAM (stub; NOT in scope).
+ * v6-adapter is statically imported but keeps its DB chain (@/lib/supabase,
+ * query-embed, style-nodes-db) behind LAZY imports inside `search()` — so
+ * importing this module stays side-effect-free (the find-search-route net
+ * does not mock supabase; @/lib/supabase throws at module-eval without DB
+ * env). See v6-adapter.ts module-scope @MX:NOTE.
  */
-
-async function loadV4Fallback(): Promise<SearchEngine> {
-  const mod = await import("./adapters/v4-fallback-adapter")
-  return mod.v4FallbackAdapter
-}
-
-/**
- * Thin lazy engine: defers the v4 (supabase-coupled) import until the first
- * `search()` call. Used for the forced `v4` version so `selectEngine` stays
- * synchronous and import-side-effect-free on non-v4 paths.
- */
-const lazyV4Engine: SearchEngine = {
-  version: "v4-degraded",
-  async search(req: RecommendRequest): Promise<RecommendResponse> {
-    const v4 = await loadV4Fallback()
-    return v4.search(req)
-  },
-}
-
-/**
- * Module-scope SINGLETON breaker for the opt-in `v5` version. Constructed
- * ONCE at import (import-side-effect-free: `loadV4Fallback` is only a
- * function reference, NOT invoked here → the v4/supabase chain stays lazy).
- * A per-call `new CircuitBreaker(...)` would reset state every request, so
- * the breaker could never accumulate failures across requests and never
- * OPEN in production — REQ-SU-005 cross-request state demands one instance.
- * The DEFAULT v5-direct case below does NOT reference this (byte-identity).
- */
-const v5Breaker = new CircuitBreaker(v5Adapter, loadV4Fallback)
-
-export function selectEngineByVersion(version: EngineVersion): SearchEngine {
-  switch (version) {
-    case "v5-direct":
-      // DEFAULT: pure v5, no breaker, no fallback — today's exact behavior.
-      // Does NOT reference the v4 module ⇒ supabase chain never loaded.
-      return v5Adapter
-    case "v5":
-      // Opt-in: breaker fronts v5 with the LAZY v4 degraded fallback.
-      // Returns the MODULE SINGLETON so breaker state persists across
-      // requests (REQ-SU-005) — see v5Breaker comment above.
-      return v5Breaker
-    case "v4":
-      return lazyV4Engine
-    case "v6":
-      return v6Adapter
-  }
-}
-
-/**
- * Resolve `SEARCH_ENGINE_VERSION` (unset ⇒ v5-direct) and return the engine.
- * The only entry point the route calls.
- */
-export function selectEngine(
-  rawVersion: string | undefined = process.env.SEARCH_ENGINE_VERSION,
-): SearchEngine {
-  return selectEngineByVersion(resolveEngineVersion(rawVersion))
+export function selectEngine(): SearchEngine {
+  return v6Adapter
 }

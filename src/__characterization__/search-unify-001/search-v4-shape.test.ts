@@ -2,13 +2,15 @@
  * SPEC-SEARCH-UNIFY-001 PRESERVE 2/2 — `src/domains/search-v4` raw output
  * shape contract.
  *
- * This is the SECOND half of the HARD characterization gate. PRESERVE 1
- * (find-search-route.test.ts) pinned the app-side `/api/find/search` HTTP
- * envelope (the v5-success byte-shape). THIS file pins the OTHER contract the
- * upcoming versioned `SearchEngine` port depends on: the `domains/search-v4`
- * engine's PUBLIC SURFACE — the exact shape the future
- * `v4-fallback-adapter` (IMPROVE, deferred) must reproduce when it wraps the
- * raw RPC (REQ-SU-004: raw RPC only, no scoring re-maintenance).
+ * ── consumer re-pointed (NOT retired): the contract is STILL LIVE ─────────
+ * Originally this pinned the search-v4 public surface so the (then-future)
+ * `v4-fallback-adapter` could reproduce it for the find/search port. That
+ * adapter was DELETED by SPEC-SEARCH-V6-001 P2 (§10b, AC-024 — v4/v5 debt
+ * cleanup). However `src/domains/search-v4` itself is NOT dead: it remains
+ * the live engine behind `src/app/api/search-products/route.ts` (admin
+ * product search). search-v4 is therefore OUT OF P2 scope and kept; this
+ * regression net is RE-POINTED to protect that still-live consumer — every
+ * assertion below is preserved because the contract it pins is still real.
  *
  * WHY structural / type-level, not live invocation:
  *   `searchByEnums` -> `fetchCandidates` -> `@/lib/supabase` (PostgREST). It
@@ -22,8 +24,9 @@
  * What is pinned here (CURRENT public contract of the search-v4 barrel,
  * verbatim — quirks pinned as-is, nothing "fixed"):
  *   1. Barrel (`@/domains/search-v4`) exports: `searchByEnums` is a function
- *      of arity 10 (the exact positional signature the fallback adapter and
- *      the live `/api/search-products` caller depend on).
+ *      of arity 10 (the exact positional signature the live
+ *      `/api/search-products` caller depends on — the now-deleted
+ *      v4-fallback-adapter bound the same arity before P2).
  *   2. `ScoredProduct` element shape: the keys + value TYPES the engine
  *      returns per result. Asserted via a representative object that the
  *      exported `ScoredProduct` type must structurally accept (compile-time)
@@ -41,20 +44,13 @@
  * the function) purely so importing the barrel is side-effect-safe in jsdom.
  */
 
-import {describe, expect, it} from "vitest"
-import type {
-  FormattedProduct,
-  ScoredProduct,
-  ScoreBreakdown,
-  MatchReason,
-  SearchQuery,
-} from "@/domains/search-v4"
-
 // `@/lib/supabase` imports `server-only` and re-exports the PostgREST client.
 // Neutralize so importing the search-v4 barrel (transitively pulls supabase
 // via query-builder) is side-effect-safe under jsdom. We never invoke
 // searchByEnums (arity-only assertion), so no client behavior is exercised.
-import {vi} from "vitest"
+import {describe, expect, it, vi} from "vitest"
+import type {FormattedProduct, MatchReason, ScoreBreakdown, ScoredProduct, SearchQuery,} from "@/domains/search-v4"
+
 vi.mock("server-only", () => ({}))
 vi.mock("@/lib/supabase", () => ({
   supabase: {from: () => ({select: () => ({})})},
@@ -66,7 +62,7 @@ describe("search-v4 barrel — public engine surface (port fallback contract)", 
     expect(typeof mod.searchByEnums).toBe("function")
     // 10 positional params: item, genderFilter, dbCategories, primaryNode,
     // secondaryNode, moodTags, priceFilter, itemKeywords, brandDnaMap,
-    // brandFilter. The v4-fallback-adapter binds against THIS arity.
+    // brandFilter. The live /api/search-products caller binds THIS arity.
     expect(mod.searchByEnums.length).toBe(10)
   })
 
@@ -82,8 +78,8 @@ describe("search-v4 barrel — public engine surface (port fallback contract)", 
   it("pins the v4 diversity/scoring constants the result shape implies", async () => {
     const mod = await import("@/domains/search-v4")
     // These constants govern the SHAPE/SIZE of the returned ScoredProduct[]
-    // (cap count, per-brand/platform diversity). The fallback adapter must
-    // not assume a different cap.
+    // (cap count, per-brand/platform diversity). The /api/search-products
+    // consumer must not assume a different cap.
     expect(mod.TARGET_RESULTS).toBe(7)
     expect(mod.MAX_PER_BRAND).toBe(2)
     expect(mod.MAX_PER_PLATFORM).toBe(3)
@@ -92,7 +88,7 @@ describe("search-v4 barrel — public engine surface (port fallback contract)", 
   })
 })
 
-describe("search-v4 — ScoredProduct element shape (what the fallback adapter must reproduce)", () => {
+describe("search-v4 — ScoredProduct element shape (what the /api/search-products consumer relies on)", () => {
   // A representative result element EXACTLY as searchByEnums produces it
   // (verbatim field set from types.ts FormattedProduct & ScoredProduct).
   // Typed as ScoredProduct: if the exported type drifts, this stops
@@ -130,7 +126,7 @@ describe("search-v4 — ScoredProduct element shape (what the fallback adapter m
     matchReasons: reasons,
     _scoring: scoring,
     // ScoredProduct internals (used by ranker + the /api/search-products
-    // caller dedup/slice; the fallback adapter normalizes these away)
+    // caller dedup/slice)
     _score: 2.3,
     _rawPrice: 129000,
     _genderPriority: 0,
@@ -165,8 +161,8 @@ describe("search-v4 — ScoredProduct element shape (what the fallback adapter m
   })
 
   it("the user-facing FormattedProduct subset has string brand/title/platform/imageUrl/link", () => {
-    // The v4-fallback-adapter maps THIS subset into the same route envelope
-    // slot as v5's toSearchProduct output (brand/title/price/platform/imageUrl/link).
+    // The /api/search-products handler maps THIS user-facing subset
+    // (brand/title/price/platform/imageUrl/link) into its response.
     const fp: FormattedProduct = SAMPLE
     expect(typeof fp.brand).toBe("string")
     expect(typeof fp.title).toBe("string")
@@ -209,8 +205,8 @@ describe("search-v4 — ScoredProduct element shape (what the fallback adapter m
   })
 
   it("SearchQuery input shape (engine arg 0) — required id/category/searchQuery", () => {
-    // The fallback adapter constructs THIS from the find/search body before
-    // calling searchByEnums. Pin the required-field surface.
+    // The /api/search-products handler constructs THIS from its request
+    // body before calling searchByEnums. Pin the required-field surface.
     const q: SearchQuery = {
       id: "it1",
       category: "outerwear",

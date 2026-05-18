@@ -38,8 +38,8 @@ flowchart TD
 
     SEARCH["Step 5 · /api/find/search<br/>{item, taggedHandles}"]
     SEARCH --> RB["resolve-brands<br/>@handle → brand names"]
-    RB --> SE["selectEngine(SEARCH_ENGINE_VERSION)<br/>SearchEngine port"]
-    SE --> SP["v5 adapter (기본)<br/>· v5 ⇒ breaker+v4-degraded · v6 seam"]
+    RB --> SE["selectEngine()<br/>SearchEngine port"]
+    SE --> SP["v6Adapter (embedding-first)<br/>Modal /embed/text → search_products_v6 cosine HNSW"]
     SP --> RESULTS
 
     RESULTS(["strongMatches + general<br/>(2 sections)"])
@@ -214,54 +214,25 @@ const useLiteLLM =
 
 ---
 
-## Step 5 — 검색 트리거 (SearchEngine port · 기본 v5-direct · v4 degraded 폴백 opt-in)
+## Step 5 — 검색 트리거 (SearchEngine port · v6 embedding-first)
 
 `POST /api/find/search` (입력: `{item, imageUrl, taggedHandles, gender, styleNode, moodTags, priceFilter, ...}`).
 
-> ✅ **현재 코드 동작 (2026-05-17, SPEC-SEARCH-UNIFY-001 적용 후, `src/app/api/find/search/route.ts`)**: 엔진 호출은 버전 스왑 가능한 `SearchEngine` port 뒤로 위임(`selectEngine(SEARCH_ENGINE_VERSION).search(req)`). 입력검증·handle→brand resolution·`imageUrl && AI_SERVER_URL` 게이트·HTTP 엔벨로프는 route 에 잔류. **interim banner 제거됨** — 문서가 다시 코드와 일치.
+> ✅ **현재 코드 동작 (2026-05-18, SPEC-SEARCH-V6-001 적용 후, `src/app/api/find/search/route.ts`)**: 엔진 호출은 `SearchEngine` port 뒤로 위임(`selectEngine().search(req)`). 단일 v6 어댑터. `SEARCH_ENGINE_VERSION` 환경변수·회로차단기·v4/v5 어댑터 전부 제거됨.
 >
-> **기본 (`SEARCH_ENGINE_VERSION` 미설정 ⇒ `v5-direct`)**: v5 어댑터 단독, 회로차단기·v4 폴백 **미개입**. AI 서버 5xx/timeout 시 **HTTP 502 `AI_SERVER_FAILED`** — #57 이후 실상과 byte-identical (특성화 13개로 고정). `imageUrl` 또는 `AI_SERVER_URL` 없으면 진입 거부(400).
+> **v6 기본 동작**: `imageUrl` 있으면 Modal `/embed/text` 호출 → 텍스트 임베딩 융합 (`normalize(0.7·img + 0.3·txt)`) → `search_products_v6` RPC (cosine HNSW + FILTER1 `primary_style_node_id` EXACT + FILTER2 `category_canonical` family 게이트). EXACT node 0건 → FILTER1 drop → category-only cosine (`engine:"v6-degraded"`).
 >
-> **opt-in (`SEARCH_ENGINE_VERSION=v5`, `CB_ENABLED≠false`)**: v5 실패가 임계 초과 시 회로차단기가 열리고 **v4 raw-RPC degraded 폴백** 자동 진행(`engine: "v4-degraded"`). v4 fallback 은 v5 완전 실패 시에만 발동하는 안전망 — 평시 v5 정상 경로 동작·품질·화면 불변(HARD). 단일 env 토글로 즉시 원복(`CB_ENABLED=false` ⇒ breaker bypass = 순수 v5-direct).
+> `imageUrl` 또는 `AI_SERVER_URL` 없으면 진입 거부(400).
 
 현재 흐름:
 1. `taggedHandles` → `resolveIgHandlesToBrands()` 로 brand 이름 배열 산출 (route)
-2. `AI_SERVER_URL` 설정 + `imageUrl` 있으면 → `selectEngine(SEARCH_ENGINE_VERSION).search(req)` (port)
-   - `v5-direct`(기본) ⇒ v5 어댑터 단독 → ai `POST /recommend`
-   - `v5` ⇒ `CircuitBreaker(v5, v4-degraded)` → 평시 v5, 실패 임계 초과 시 v4 degraded
-   - `v4` ⇒ v4 degraded 강제 / `v6` ⇒ v6 드롭인 SEAM (스코프 외)
+2. `AI_SERVER_URL` 설정 + `imageUrl` 있으면 → `selectEngine().search(req)` (port)
+   - v6Adapter → Modal `POST /embed/text` (텍스트 임베딩) + 이미지 임베딩 벡터 융합 → `search_products_v6` RPC 호출
+   - EXACT 0건 → degraded ladder: FILTER1 drop, category-only cosine 재실행, `engine:"v6-degraded"` 표기
 3. 엔진 `failed` ⇒ **502 `AI_SERVER_FAILED`**. 미설정 / 이미지 없음 → 400
-4. 성공 응답에 `engine: "v5"`(기본) 또는 `"v4-degraded"`(폴백) 포함 — 브라우저는 동일 렌더, 품질 저하는 내부 메트릭
+4. 성공 응답에 `engine: "v6"` 또는 `"v6-degraded"` 포함
 
-> 상세 토폴로지·상태머신·롤백·v6 seam: [`search-engine.md` § SearchEngine port](search-engine.md#searchengine-port-spec-search-unify-001)
-
-### AI 서버 호출
-
-> v5 어댑터(`src/domains/search/adapters/v5-adapter.ts`) 내부 — route.ts 에서 verbatim 추출.
-
-```ts
-const ctl = new AbortController()
-const timer = setTimeout(() => ctl.abort(), AI_SERVER_TIMEOUT_MS)  // 기본 60000ms
-const res = await fetch(`${AI_SERVER_URL.replace(/\/$/, "")}/recommend`, {
-  method: "POST",
-  headers: {"content-type": "application/json"},   // X-Internal-Token 은 백로그 (미송출)
-  body: JSON.stringify({
-    item, imageUrl, gender, styleNode, moodTags, priceFilter,
-    brandFilter,                       // strong 호출에만 포함
-    tolerance: strongTolerance ?? 0.5, // strong | general
-  }),
-  signal: ctl.signal,
-})
-// non-2xx / fetch throw / abort ⇒ null ⇒ (general 기준) RecommendResponse.failed
-```
-
-상세 사양: [endurance-ai/ai-server `docs/features/pipeline.md`](https://github.com/endurance-ai/ai-server/blob/dev/docs/features/pipeline.md)
-
-### v4 degraded 폴백 (SPEC-SEARCH-UNIFY-001, opt-in)
-
-`src/domains/search/adapters/v4-fallback-adapter.ts` — search-products route 핸들러를 in-process import 하지 않는다. `domains/search-v4` 의 `searchByEnums` 를 **직접** 호출(raw RPC만, scorer/ranker 재유지보수 X — REQ-SU-007), 결과를 route 엔벨로프로 정규화하고 `engine:"v4-degraded"` 표기. 회로차단기가 v5 실패 임계 초과 시에만 진입(`SEARCH_ENGINE_VERSION=v5`). v4 어댑터는 supabase 결합이라 **lazy import** — 기본 `v5-direct` 경로 로드 그래프에서 제외.
-
-**왜 함수 직접 호출**: HTTP fetch·route 핸들러 재진입 없음 → SSRF 표면 제거 + 라운드트립 제거 + 입력검증 중복 회피.
+> 상세 토폴로지·v6 RPC·degraded ladder: [`search-engine.md` § v6 검색엔진](search-engine.md)
 
 ### 두 갈래 (병렬 실행, AI/v4 공통)
 
@@ -283,26 +254,24 @@ const res = await fetch(`${AI_SERVER_URL.replace(/\/$/, "")}/recommend`, {
 ### 보안
 
 - 내부 search-products 에러 body 클라이언트 노출 X — `{error: "Search failed", code: "SEARCH_FAILED"}` 만 반환
-- **기본 (`v5-direct`)**: AI 서버 호출 실패 시 502 `AI_SERVER_FAILED` (폴백 없음). **opt-in (`SEARCH_ENGINE_VERSION=v5`)**: 회로차단기 경유 v4 degraded 폴백 자동 진행, 브라우저는 `engine` 필드로만 엔진 인지 (동일 렌더)
+- AI 서버 호출 실패 시 502 `AI_SERVER_FAILED`. 브라우저는 `engine` 필드로만 v6/v6-degraded 구분 (동일 렌더)
 
 ### 환경변수
 
 | 키 | 의미 | 기본 |
 |---|---|---|
-| `AI_SERVER_URL` | AI 서버 base URL (예: `http://<EIP>:8000`) | 미설정 시 진입 거부(400) — route 게이트에서 차단, 엔진 미도달 |
-| `AI_SERVER_TIMEOUT_MS` | v5 어댑터 ai 호출 타임아웃 (AbortController) | 60000 |
-| `SEARCH_ENGINE_VERSION` | active 엔진 선택 (port). 미설정 ⇒ `v5-direct`(현 동작 불변) / `v5`(breaker+v4) / `v4` / `v6` | (미설정) |
-| `CB_ENABLED` | `false` ⇒ 회로차단기 bypass = 순수 v5-direct (무중단 롤백) | `true` |
-| `CB_FAILURE_THRESHOLD` | open 전환 연속 실패 임계 | 5 |
-| `CB_COOLDOWN_MS` | open → half-open 쿨다운 | 30000 |
+| `AI_SERVER_URL` | AI 서버 base URL (Modal 프록시 포함, 예: `http://<EIP>:8000`) | 미설정 시 진입 거부(400) — route 게이트에서 차단, 엔진 미도달 |
+| `AI_SERVER_TIMEOUT_MS` | v6 어댑터 Modal 임베딩 호출 타임아웃 (AbortController) | 60000 |
 | `INTERNAL_API_TOKEN` | AI 서버 인증 헤더 (`X-Internal-Token`) — 백로그, 미송출 | (백로그) |
 
+> `SEARCH_ENGINE_VERSION`, `CB_ENABLED`, `CB_FAILURE_THRESHOLD`, `CB_COOLDOWN_MS` — v6 전환 시 제거됨 (SPEC-SEARCH-V6-001).
+
 핵심 파일:
-- `src/app/api/find/search/route.ts` — 입력검증·게이트·엔벨로프 + `selectEngine(...).search(req)` 위임 (SPEC-SEARCH-UNIFY-001)
-- `src/domains/search/` — `engine-port.ts` / `registry.ts` / `adapters/{v5,v4-fallback,v6}-adapter.ts` / `circuit-breaker.ts` (상세: `search-engine.md`)
+- `src/app/api/find/search/route.ts` — 입력검증·게이트·엔벨로프 + `selectEngine().search(req)` 위임
+- `src/domains/search/` — `engine-port.ts` / `registry.ts` / `adapters/v6-adapter.ts` (상세: `search-engine.md`)
 - `src/lib/find/resolve-brands.ts` — @handle → brand name resolver
-- `src/app/api/search-products/route.ts` — 어드민 search-debugger 의 v4 엔진 진입점. find/search 폴백은 이 핸들러가 아니라 `domains/search-v4` `searchByEnums` 를 v4 어댑터가 직접 호출 (상세: `search-engine.md`)
-- `database/migrations/030_search_products_v5.sql` — v5 RPC (AI 서버가 호출)
+- `src/app/api/search-products/route.ts` — 어드민 search-debugger 의 v4 엔진 진입점 (어드민 전용, find/search 와 무관)
+- `database/migrations/072_search_products_v6.sql` — v6 RPC
 
 ---
 

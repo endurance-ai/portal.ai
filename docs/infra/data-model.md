@@ -10,9 +10,10 @@
 |---|---|---|---|
 | **분석 로그** | `analyses` | 001 | 분석 1건 = 1행. AI raw 응답 + 검색 결과 전체 + `is_pinned` |
 | | `analysis_sessions` | 021 | 세션 단위 묶음 (user_voice 분석용) |
-| **상품** | `products` | 004 + 005 + 006 + 011 + 027 | 크롤로 들어온 모든 SKU. 임베딩 컬럼 추가됨 (027) |
-| | `product_reviews` | 019 | 상품 리뷰 |
-| | `product_ai_analysis` | 012 | v4 검색이 INNER JOIN 하는 LLM 분석 산출물. **v5 검증 후 드랍 예정** |
+| **상품** | `products` | 004 + 005 + 006 + 011 + 027 + **070** | 크롤로 들어온 모든 SKU. 임베딩 컬럼 추가됨 (027). **070: id uuid→bigserial 전환 (2026-05-18)** |
+| | `product_embeddings` | **071** | FashionSigLIP(768) product image embeddings — `products` 에서 분리. halfvec(768) + HNSW halfvec_cosine_ops. `brand_multimodal_embeddings` (063) 와 대칭. v6 ranking 기반. **product_id bigint PK + FK → products.id ON DELETE CASCADE** |
+| | `product_reviews` | 019 | 상품 리뷰. **070 에서 product_id uuid→bigint swap** |
+| | ~~`product_ai_analysis`~~ | ~~012~~→**069 드랍** | **migration 069 (2026-05-18) 에서 CASCADE DROP. v6 embedding-first 는 PAI 비의존 (REQ-V6-031)** |
 | **브랜드** | `brand_nodes` | 002 + 007 + 037 + 040 + 041 + 042 + **055** + **056** + **067** | Fashion Genome v2 슬림화. **067 (2026-05-15)**: 037 BGE-m3 텍스트 임베딩 자산(embedding/x_umap/y_umap 등) + 옛 LLM 메타(sensitivity_tags/brand_keywords/aliases/category_type/representative_image_urls/price_band) 13 컬럼 DROP. price_min_usd / price_max_usd (numeric, USD) 신규 + products 기준 backfill. **id bigserial** (056). primary/secondary_node_id FK + node_confidence (055) |
 | | `brand_attributes` | 010 | 어드민에서 채우는 브랜드 속성 |
 | | `brand_similar` | 038 + **056** | 브랜드 간 유사도 그래프 (top-20 edges per brand, cosine similarity). brand_id bigint 전환 (056) |
@@ -29,6 +30,7 @@
 | **어드민 인증** | `admin_profiles` | 022 + 023 + 024 | `status: pending/approved/rejected` 승인 게이트 |
 | **Instagram** | `instagram_post_scrapes` | 028 | 메인 플로우 스크랩 결과 (shortcode unique, raw_data jsonb) |
 | | `instagram_post_scrape_images` | 028 | 슬라이드별 R2 URL + tagged_users + is_video |
+| **카테고리** | `category_canonical` | **073** | raw `products.category` (752 distinct) → 20 canonical family 매핑 테이블. v6 FILTER 2 family 게이트 + Vision-normalize 공유 계약. `raw_category` PK, `family` (tops/bottoms/…/other). |
 | **스타일 노드** | `style_nodes` | 049 + 050 | Fashion Genome taxonomy DB 관리 (20 nodes A~T, admin CRUD). `src/lib/style-nodes-db.ts` 로 fetch (5 min cache). `fashion-genome.ts` 의 hardcoded 15-node 대체 |
 | | `style_node_adjacency` | 051 | 스타일 노드 간 관계 그래프 (빈 테이블 — SPEC-BRAND-EMBED-001 이 채울 예정) |
 | **프롬프트 레지스트리** | `prompts` | 052 + 053 + **059** | VLM/Text prompt DB 관리. situation 별 active 1개 유지 (partial unique index). `src/lib/prompts/registry.ts` 로 fetch (5 min cache + in-flight dedup). Admin 편집 가능 (/admin/prompts). 059: brand-vlm v1 row 추가 (gpt-4o-mini, 5-image multimodal, NODES_BLOCK/NODE_CODES/BRAND_NAME placeholders) |
@@ -36,53 +38,38 @@
 
 ---
 
-## Postgres 확장 (마이그 027)
+## Postgres 확장 / 인덱스 현황 (SPEC-SEARCH-V6-001 P0 이후)
 
-### pgvector
+### pgvector (027 + 031 + 071)
 
 ```sql
-CREATE EXTENSION IF NOT EXISTS vector;
-
-ALTER TABLE products
-  ADD COLUMN embedding vector(768),
-  ADD COLUMN embedding_model text,
-  ADD COLUMN embedded_at timestamptz;
-
--- HNSW: m=16, ef_construction=200, vector_ip_ops
--- (FashionSigLIP 출력 L2-normalized → cos ≈ inner product)
-CREATE INDEX idx_products_embedding_hnsw
-  ON products USING hnsw (embedding vector_ip_ops)
+-- product_embeddings (071 — 활성 v6 ranking 인덱스)
+CREATE INDEX idx_product_embeddings_hnsw
+  ON product_embeddings USING hnsw (embedding halfvec_cosine_ops)
   WITH (m = 16, ef_construction = 200);
+
+-- products.embedding 컬럼 + 관련 인덱스는 cutover 후 별 마이그서 DROP 예정 (SPEC §7b)
+-- (products에 embedding/embedding_model/embedded_at 컬럼 잔존 — 배치용)
+-- idx_products_embedding_pending (배치 anti-join 보조 부분 인덱스) — 071 에서 재작성
+CREATE INDEX idx_products_embedding_pending
+  ON products (id)
+  WHERE embedding IS NULL AND images IS NOT NULL AND array_length(images, 1) > 0;
 ```
+
+> **069 DROP:** `idx_products_embedding_hnsw` (027 products HNSW), `idx_products_embedding_pending` (027 부분인덱스), `product_embedding_coverage` VIEW — 모두 071 에서 `product_embeddings` 기준으로 재작성됨.
 
 ### pgroonga
 
-```sql
-CREATE EXTENSION IF NOT EXISTS pgroonga;
-
--- brand + name + description + material + color 통합 검색 텍스트
-CREATE INDEX idx_products_pgroonga_search
-  ON products USING pgroonga (
-    coalesce(brand,'') || ' ' || coalesce(name,'') || ' ' ||
-    coalesce(description,'') || ' ' || coalesce(material,'') || ' ' || coalesce(color,'')
-  );
 ```
-
-> tags 는 배열이라 `array_to_string` 이 STABLE → pgroonga 인덱스 표현식 불가. tags용은 별도 GIN.
+⚠️ idx_products_pgroonga_search (027) + product_search_text(products) 함수 — 069 에서 CASCADE DROP.
+사유: 유일 소비자 search_products_v5 가 동일 마이그에서 DROP됨 (dead infra).
+v6 는 cosine-first 랭킹 — pgroonga 풀텍스트 미사용.
+```
 
 ### GIN
 
 ```sql
 CREATE INDEX idx_products_tags_gin ON products USING gin (tags);
-```
-
-### 부분 인덱스
-
-```sql
--- 임베딩 안 된 상품 빠르게 조회 (배치 idempotent 재실행용)
-CREATE INDEX idx_products_embedding_pending
-  ON products (id)
-  WHERE embedding IS NULL AND images IS NOT NULL AND array_length(images,1) > 0;
 ```
 
 ---
@@ -91,9 +78,12 @@ CREATE INDEX idx_products_embedding_pending
 
 | 함수 | 시그니처 | 용도 |
 |---|---|---|
-| `bulk_update_product_embeddings(payload jsonb)` | returns int | `scripts/aws/embed_products.py` 가 배치 인코딩 결과를 한 번에 upsert |
+| `bulk_update_product_embeddings(payload jsonb)` | returns int | `scripts/aws/embed_products.py` 가 배치 인코딩 결과를 **product_embeddings** 로 bulk UPSERT (071 rework — bigint product_id, ON CONFLICT DO UPDATE). 구 products.embedding 대상 버전은 **069 에서 DROP** |
+| `search_products_v6(query_embedding halfvec, p_style_node_id bigint, p_category text, p_subcategory text, p_brand_names text[], p_limit int)` | returns table(id bigint, brand, name, price, image_url, product_url, platform, subcategory, distance, degraded) | **072** — v6 embedding-first 검색 RPC. FILTER 1 EXACT primary_style_node_id → FILTER 2 category family gate (073) + in_stock + product_embeddings row → cosine `<=>` DESC, created_at tie. 0건 시 degraded fallback (category-only, degraded=true). |
+| ~~`search_products_v5(vector/halfvec, ...)`~~ | — | **069 DROP** (uuid 시그니처 stale) |
+| ~~`product_search_text(products)`~~ | — | **069 CASCADE DROP** (pgroonga 인덱스 의존 — dead infra, 유일 소비자 search_products_v5 가 069 에서 제거됨) |
 | ~~`set_hnsw_ef_search(ef int)`~~ | — | **044 드랍** — 호출 0 hits, A/B 실험용 잔재 |
-| `get_product_filter_counts()` | returns table | 어드민 상품 필터 옵션 (10min CDN cache) |
+| `get_product_filter_counts()` | returns table | 어드민 상품 필터 옵션 (10min CDN cache). ⚠️ **PAI 참조 late-binding — 069 PAI DROP 후 런타임 throw. P5 audit 항목 (재작성 또는 제거 예정)** |
 | `activate_prompt(p_id bigint)` | returns prompts | **054** — atomic activate: 동일 situation 의 기존 active row deactivate + 대상 row activate 를 단일 트랜잭션으로 처리. race 조건(unique partial index 위반) 방지. SECURITY DEFINER. `app_user` EXECUTE 권한 부여됨 |
 | `classify_brand_acquire(p_brand_id bigint, p_force boolean)` | returns table (id, brand_name, primary_node_id, skip_reason) | **060** — `/api/internal/classify-brand` 진입 가드. SELECT FOR UPDATE + conditional UPDATE sentinel(node_assigned_at). skip_reason NULL=진행 / 'already_classified' / 'recently_assigned'(60초 내). `app_user` EXECUTE 권한 부여됨 |
 | `enqueue_brand_review(p_brand_id bigint, p_reason text, p_vlm_output jsonb)` | returns bigint | **060** — brand_node_review_queue atomic upsert. partial unique index (brand_id WHERE resolved_at IS NULL) 와 함께 open row 1건 보장. `app_user` EXECUTE 권한 부여됨 |
@@ -101,13 +91,16 @@ CREATE INDEX idx_products_embedding_pending
 ### 모니터링 뷰
 
 ```sql
+-- 071 rework: product_embeddings LEFT JOIN 기준 (027/031 products.embedding 카운트 대체)
 CREATE VIEW product_embedding_coverage AS
-SELECT platform,
-       count(*) AS total,
-       count(embedding) AS embedded,
-       round(100.0 * count(embedding) / nullif(count(*),0), 2) AS pct_embedded,
-       max(embedded_at) AS last_embedded_at
-FROM products GROUP BY platform ORDER BY total DESC;
+SELECT p.platform,
+       count(*)                                                AS total,
+       count(pe.product_id)                                    AS embedded,
+       round(100.0 * count(pe.product_id) / nullif(count(*),0), 2) AS pct_embedded,
+       max(pe.embedded_at)                                     AS last_embedded_at
+  FROM products p
+  LEFT JOIN product_embeddings pe ON pe.product_id = p.id
+ GROUP BY p.platform ORDER BY total DESC;
 ```
 
 ---
@@ -180,6 +173,11 @@ FROM products GROUP BY platform ORDER BY total DESC;
 | **060** | **classify_brand_acquire + enqueue_brand_review PL/pgSQL 함수** — `classify_brand_acquire(bigint, boolean)`: SELECT FOR UPDATE + 60초 mutex sentinel. `enqueue_brand_review(bigint, text, jsonb)`: partial unique upsert. 양 함수 `app_user` EXECUTE 권한 부여. SPEC-BRAND-NODE-001 P3' |
 | **067** | **brand_nodes 슬림화 + price USD 전환** — 13 컬럼 DROP: representative_image_urls / category_type / aliases / sensitivity_tags / brand_keywords / embedding / embedding_model / embedding_text_hash / embedded_at / x_umap / y_umap / umap_at / price_band. 관련 인덱스 cascade 삭제. price_min_usd / price_max_usd (numeric) 신규. products 기준 USD backfill (정적 FX: KRW 1/1370, GBP 1.27, EUR 1.07, JPY 1/156, CNY 1/7.2). price_band 파싱 fallback. |
 | **068** | **ai 스키마 app_user READ-ONLY GRANT** — `GRANT USAGE ON SCHEMA ai TO app_user; GRANT SELECT ON ALL TABLES IN SCHEMA ai TO app_user; ALTER DEFAULT PRIVILEGES FOR ROLE ai_user IN SCHEMA ai GRANT SELECT ON TABLES TO app_user`. ai-server(ai_user 소유) 테이블을 어드민 `/admin/ai-insights` 에서 read-only 조회. |
+| **069** | **SPEC-SEARCH-V6-001 P0 (1/3) — dead/PAI/blocker DROP** — `product_ai_analysis` DROP CASCADE (012 테이블+인덱스+017/045 컬럼). `search_products_v5` DROP (vector+halfvec 오버로드 2개, 030/031). `product_search_text(products)` DROP CASCADE → `idx_products_pgroonga_search` (027 pgroonga 풀텍스트, dead infra) 동반 제거. 027/031 products 임베딩 자산 DROP (HNSW idx, pending 부분인덱스, VIEW, bulk_update_product_embeddings RPC) — 071 에서 product_embeddings 기준 재생성. |
+| **070** | **SPEC-SEARCH-V6-001 P0 (2/3) — products.id uuid→bigserial** — 056 검증 템플릿. FK swap 표면 = `product_reviews.product_id` 단일 (PAI 069 DROP, product_embeddings 071 에서 처음부터 bigint). 옛 uuid 미보존. `products_id_seq` 시퀀스 rename. |
+| **071** | **SPEC-SEARCH-V6-001 P0 (3/3) — `product_embeddings` 테이블 생성** — `product_id bigint PK FK → products.id ON DELETE CASCADE`, `embedding halfvec(768)`, HNSW `halfvec_cosine_ops` (직렬 빌드 강제: `SET LOCAL max_parallel_maintenance_workers=0`). 기존 `products.embedding` 전량 backfill (~71k rows). 027/031 자산 전부 `product_embeddings` 기준 rework (HNSW 인덱스·pending 부분인덱스·coverage VIEW·bulk_update_product_embeddings RPC). |
+| **072** | **SPEC-SEARCH-V6-001 P1 — `search_products_v6` RPC** — embedding-first 검색 함수. FILTER 1 EXACT `primary_style_node_id` → FILTER 2 `category_canonical` family gate (073) + `in_stock + product_embeddings row` → cosine `<=>` DESC, `created_at` tie. 0건 시 degraded fallback (category-only cosine, `degraded=true`). `p_brand_names` 로 strong/general 분기. |
+| **073** | **SPEC-SEARCH-V6-001 follow-up — `category_canonical` 테이블 + search_products_v6 FILTER 2 개선** — 752 distinct `products.category` 값 → 20 canonical family 매핑. method B (family equality gate) + F (relaxation ladder: node+family → node-drop → both-drop) + A (lower/trim normalize). Vision-normalize cross-component 공유 계약. |
 
 ---
 

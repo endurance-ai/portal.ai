@@ -1,7 +1,7 @@
 # kiko.ai — 아키텍처 (Overview)
 
 > 시스템 전체 그림 + 도메인별 doc 매핑. 깊은 내용은 각 `features/*` / `infra/*` 참조.
-> 최종 업데이트: 2026-05-18 (admin brand-nodes 썸네일 쿼리 개선 + brand-graph detail 샘플 cap 10)
+> 최종 업데이트: 2026-05-18 (SPEC-SEARCH-V6-001 — v6 embedding-first 단일 엔진, 마이그레이션 069~073, v4/v5 어댑터·circuit-breaker·PAI·pgroonga 폐기)
 
 ## 한 줄 요약
 
@@ -43,7 +43,7 @@ graph TB
         MW["middleware.ts<br/>/admin/* auth gate"]
         API_IG["/api/instagram/fetch-post<br/>(cache lookup → Apify fallback)"]
         API_FIND_AN["/api/find/analyze-post<br/>(single slide, slideIndex)"]
-        API_FIND_S["/api/find/search<br/>(SearchEngine port: 기본 v5-direct,<br/>opt-in breaker+v4-degraded)"]
+        API_FIND_S["/api/find/search<br/>(SearchEngine port: v6 embedding-first<br/>Modal /embed/text → search_products_v6 HNSW)"]
         API_SEARCH["/api/search-products<br/>v4 engine (admin search-debugger)"]
         API_ADMIN["/api/admin/*<br/>brand-nodes/ai-insights/style-nodes/[code]/brands"]
         API_INTERNAL["/api/internal/classify-brand<br/>(X-Internal-Key, brand VLM)<br/>LiteLLM 토글 (LITELLM_DISABLED 가드)"]
@@ -52,12 +52,12 @@ graph TB
     subgraph External["🌐 External Services"]
         APIFY["Apify<br/>instagram-post-scraper<br/>(run-sync, ~5-10s)"]
         OAI["OpenAI<br/>GPT-4o-mini Vision"]
-        AISERVER["AI Server (EC2)<br/>endurance-ai/ai-server<br/>FastAPI + Modal embed"]
+        AISERVER["AI Server (EC2)<br/>endurance-ai/ai-server<br/>FastAPI + Modal embed + text tower"]
         LITELLM["LiteLLM proxy<br/>(EC2, AI 서버 옆 컨테이너)"]
     end
 
     subgraph Data["💾 Persistence"]
-        SB["dev-app Postgres 16<br/>+ pgvector + pgroonga<br/>+ PostgREST nginx shim<br/>public schema (app_user)"]
+        SB["dev-app Postgres 16<br/>+ pgvector<br/>+ PostgREST nginx shim<br/>public schema (app_user)"]
         AIDB["ai schema (ai_user 소유)<br/>card_impression / log_conversation_event<br/>user_taste_profile / user_session<br/>app_user = SELECT-only (068)"]
         R2["Cloudflare R2<br/>analyses/ + instagram-posts/"]
     end
@@ -79,8 +79,7 @@ graph TB
     API_FIND_AN -.optional.-> LITELLM --> OAI
 
     U1 --> API_FIND_S
-    API_FIND_S -->|HTTP /recommend| AISERVER
-    API_FIND_S -. fallback .-> API_SEARCH
+    API_FIND_S -->|Modal /embed/text + search_products_v6| AISERVER
     AISERVER --> SB
     API_SEARCH --> SB
 
@@ -114,17 +113,17 @@ graph TB
 | 서비스 | 용도 | 상세 |
 |---|---|---|
 | dev-app EC2 | Next.js 16 호스팅 (output: standalone, GitHub Actions CI/CD, SPEC-INFRA-MIGRATE-001 P5). 2026-05-10 Vercel pause | [infra/deployment.md](infra/deployment.md) |
-| dev-app Postgres 16 | 영속 데이터 + RLS + pgvector + pgroonga (자체호스팅, SPEC-INFRA-MIGRATE-001 P2/P4. Auth는 Auth.js v5로 전환 완료) | [infra/data-model.md](infra/data-model.md) |
+| dev-app Postgres 16 | 영속 데이터 + RLS + pgvector (자체호스팅, SPEC-INFRA-MIGRATE-001 P2/P4. Auth는 Auth.js v5로 전환 완료. pgroonga는 069로 DROP) | [infra/data-model.md](infra/data-model.md) |
 | **PostgREST + nginx shim** | dev-app EC2 자체 호스팅 — Supabase.com REST 대신 로컬 PostgREST 라우팅 (SPEC-INFRA-MIGRATE-001 P6) | aws-infra 리포 |
 | Cloudflare R2 | 이미지 저장 (단일 버킷, prefix 분리) | [infra/deployment.md](infra/deployment.md#cloudflare-r2--이미지-저장) |
 | **Apify** (`instagram-post-scraper`) | Instagram 포스트 단발 스크래핑 — `run-sync-get-dataset-items`, ~5-10s, $0.0023/post | [features/main-flow.md](features/main-flow.md#step-1--instagram-포스트-스크래핑) |
 | OpenAI | GPT-4o-mini Vision (단일 슬라이드 분석) + 브랜드 메타 추론 (`fill_brand_meta.py` via LiteLLM) + **brand-VLM 분류** (`/api/internal/classify-brand`, 5-image multimodal, LiteLLM 토글 가능 — `LITELLM_DISABLED !== "true"` 가드) | [features/main-flow.md](features/main-flow.md#step-2--슬라이드별-vision-분석) |
-| **AI Server** ([endurance-ai/ai-server](https://github.com/endurance-ai/ai-server)) | v5 검색 오케스트레이션 (Modal embed + dev-app PostgREST RPC + 다양성 캡). `/api/find/search` 가 호출 | [features/search-engine.md](features/search-engine.md) |
-| **Modal serverless** | FashionSigLIP `/embed` (이미지 임베딩, T4 GPU, scale-to-zero) — AI 서버가 호출 | (ai-server repo) |
+| **AI Server** ([endurance-ai/ai-server](https://github.com/endurance-ai/ai-server)) | v6 검색 오케스트레이션 (Modal `/embed` + `/embed/text` 텍스트 타워 + dev-app `search_products_v6` RPC). `/api/find/search` 가 호출 | [features/search-engine.md](features/search-engine.md) |
+| **Modal serverless** | FashionSigLIP `/embed` (이미지 임베딩) + `/embed/text` (텍스트 임베딩, FashionSigLIP 텍스트 타워, T4 GPU, scale-to-zero) — AI 서버가 호출 | (ai-server repo) |
 | LiteLLM proxy | LLM 라우팅 + Langfuse callback (AI 서버 EC2 컨테이너, `54.116.116.225:4000`). 브랜드 메타 추론 배치에서도 사용 | [infra/deployment.md](infra/deployment.md) |
 | Langfuse self-host | 관측성 (LLM/embed/파이프라인 trace) — AI 서버 EC2 컨테이너 | (ai-server repo) |
 
-> **AI 서버는 별도 repo.** Python FastAPI. `/api/find/search` 는 버전 스왑 가능한 `SearchEngine` port 뒤로 위임 (SPEC-SEARCH-UNIFY-001). **기본 `v5-direct`**(env 미설정): v5 5xx/timeout ⇒ HTTP 502 (폴백 없음 — #57 실상 byte-identical). **opt-in `SEARCH_ENGINE_VERSION=v5`**: 회로차단기 경유 v4 raw-RPC degraded 폴백 자동 진행. `CB_ENABLED=false` ⇒ breaker bypass(롤백). **운영 주의**: `SEARCH_ENGINE_VERSION` 미설정/`v5-direct` = DEFAULT(차단기 없음, v5 실패 시 502 — 오늘 동작) vs `v5` = opt-in(차단기 + v4 degraded 폴백, 차단기 상태는 요청 간 누적). 상세: [features/search-engine.md § SearchEngine port](features/search-engine.md#searchengine-port-spec-search-unify-001).
+> **AI 서버는 별도 repo.** Python FastAPI. `/api/find/search` 는 `SearchEngine` port 뒤로 위임 (SPEC-SEARCH-V6-001). **단일 v6 어댑터**: 쿼리 텍스트 → Modal `/embed/text` → `normalize(0.7·img + 0.3·txt)` 벡터 → `search_products_v6` RPC (cosine HNSW + `primary_style_node_id` EXACT + `category_canonical` family 게이트). EXACT 0건 → degraded ladder (`engine:"v6-degraded"`). `SEARCH_ENGINE_VERSION`·`CB_ENABLED`·회로차단기·v4/v5 어댑터 전부 제거됨 (SPEC-SEARCH-V6-001). 상세: [features/search-engine.md](features/search-engine.md).
 
 ---
 
@@ -133,7 +132,7 @@ graph TB
 | 영역 | doc |
 |---|---|
 | 메인 플로우 (IG → Vision → 검색) | [features/main-flow.md](features/main-flow.md) |
-| 검색 엔진 (v4 + v5 인프라) | [features/search-engine.md](features/search-engine.md) |
+| 검색 엔진 (v6 embedding-first / v4 어드민) | [features/search-engine.md](features/search-engine.md) |
 | 크롤러 (외부 리포) | [endurance-ai/crawler](https://github.com/endurance-ai/crawler) — 데이터 흐름은 [features/crawler.md](features/crawler.md) |
 | DB 스키마 / 마이그레이션 / RLS | [infra/data-model.md](infra/data-model.md) |
 | 환경변수 / AWS 프로필 | [infra/env.md](infra/env.md) |
@@ -259,7 +258,7 @@ stack-internal 아키텍처 재설계. **언어·동작·화면 불변**, 레이
 | `src/shared/{enums,utils}/` | 순수 enum·유틸 (korean-vocab / color·style-adjacency / locked-filter / currency / format / utils) |
 | `src/repositories/clients/` | 단일 DB 접근층 — `postgrest.ts` / `pg-pool.ts` (옛 `src/lib/{supabase,db}.ts`) |
 | `src/domains/search-v4/` | v4 검색 엔진 (engine/scorer/ranker/query-builder/constants/types). `api/search-products/route.ts` 는 852→207 LOC thin 위임 |
-| `src/domains/search/` | **SearchEngine port** (SPEC-SEARCH-UNIFY-001) — `engine-port.ts` / `registry.ts`(`selectEngine`) / `adapters/{v5,v4-fallback,v6}-adapter.ts` / `circuit-breaker.ts`. `find/search` 가 구체 엔진 대신 이 port 호출. 기본 v5-direct(동작 불변), v5⇒breaker+v4-degraded, v6 드롭인 seam |
+| `src/domains/search/` | **SearchEngine port** (SPEC-SEARCH-V6-001) — `engine-port.ts` / `registry.ts`(`selectEngine`) / `adapters/v6-adapter.ts`. `find/search` 가 이 port 호출. v6 단일 엔진. v5/v4-fallback 어댑터·circuit-breaker 제거 |
 | `src/domains/instagram/` · `src/domains/vision/` | IG 스크래퍼 · Vision 분석 (analyze-post 는 라우트 유지) |
 | `src/domains/brand-resolution/` | resolve-brands / brand-normalize / brand-embed |
 | `src/domains/admin-tools/{brand-management,style-taxonomy,products,prompts,eval,analytics}/` | 28개 admin 라우트 본문. `api/admin/*/route.ts` 는 전부 `export *` thin shim |
@@ -268,17 +267,17 @@ stack-internal 아키텍처 재설계. **언어·동작·화면 불변**, 레이
 
 **구 `src/app/_archive-qa/` (Q&A 6단계 플로우) 는 step 8 에서 삭제됨** (live import 0 검증, dead test 2파일 동반 제거). v4 가 쓰던 enum(korean-vocab/color·style-adjacency 등)은 `src/shared/enums/` 로 살아있음.
 
-> ✅ SEARCH-UNIFY: `api/find/search` 는 SPEC-SEARCH-UNIFY-001 로 `SearchEngine` port 뒤 위임 완료 (2026-05-17). ai `/recommend` 계약은 v5 어댑터가 verbatim 소비 (계약 변경 0, v5 성공 엔벨로프 byte-identical — 특성화 13개 고정).
-> 📝 doc-sync: `docs/features/main-flow.md` 경로 표기 갱신 ✅ 완료 (PR #57 머지 후 dev→feature 병합 + 상단 SPEC-ARCH-APP-001 노트 추가).
+> ✅ SEARCH-V6: `api/find/search` 는 SPEC-SEARCH-V6-001 로 v6 단일 어댑터 전환 완료 (2026-05-18). v5/v4-fallback 어댑터·circuit-breaker·PAI·pgroonga 전부 제거. `product_embeddings`(071) + `search_products_v6`(072) + `category_canonical`(073) 활성.
+> 📝 doc-sync: `docs/features/main-flow.md` + `docs/features/search-engine.md` + `docs/infra/data-model.md` 모두 갱신 ✅ 완료 (SPEC-SEARCH-V6-001 doc pass).
 
 ---
 
-## 다음 단계 (v5 재설계와 묶일 결정 항목)
+## 다음 단계
 
-1. **검색 엔진 v5 분기 작성** — `/api/search-products` 에 dense + sparse + RRF 통합 쿼리 + 피처 플래그 `SEARCH_ENGINE_VERSION`
-2. **FashionSigLIP 81k 풀배치 실행** — 인프라/스크립트만 준비됨, 실행 미시도
-3. **LiteLLM 재가동** — EC2 인스턴스 OFF 상태, v5 인프라 잡을 때 같이 켜기
-4. **`product_ai_analysis` 드랍** — v5 검증 완료 후
+1. ~~**검색 엔진 v5 분기 작성**~~ — ✅ 완료 → v6 단일 엔진으로 대체 (SPEC-SEARCH-V6-001)
+2. **`product_embeddings` 풀배치 실행** — 인프라(071) + 스크립트(`scripts/aws/embed_products.py`) 준비됨, 81k SKU 풀 실행 미시도
+3. **LiteLLM 재가동** — EC2 인스턴스 OFF 상태 (v6 검색은 Modal 직접 호출이라 LiteLLM 미의존, 브랜드 메타 배치용으로 별도 결정 필요)
+4. ~~**`product_ai_analysis` 드랍**~~ — ✅ 완료 (migration 069 DROP CASCADE)
 5. ~~**archived 코드 처분**~~ — ✅ 완료 (SPEC-ARCH-APP-001 step 8 — `_archive-qa/` 삭제, v4 사용 enum 은 `src/shared/enums/` 존치)
 
 ---
@@ -287,6 +286,7 @@ stack-internal 아키텍처 재설계. **언어·동작·화면 불변**, 레이
 
 | 날짜 | 사건 |
 |---|---|
+| 2026-05-18 | **검색 엔진 v6 전환 (SPEC-SEARCH-V6-001)** — migration 069(product_ai_analysis + search_products_v5 + product_search_text + pgroonga 인덱스 + 027 임베딩 자산 DROP CASCADE) 070(products.id uuid→bigserial, product_reviews FK swap) 071(product_embeddings halfvec(768) HNSW, SERIAL 빌드) 072(search_products_v6 RPC — cosine HNSW + primary_style_node_id EXACT + category_canonical family 게이트 + degraded ladder) 073(category_canonical 752→20 family 매핑). SearchEngine port: v5/v4-fallback 어댑터·circuit-breaker 제거, v6 단일 어댑터. Modal `/embed/text` 텍스트 타워 신규 의존. `SEARCH_ENGINE_VERSION`·`CB_ENABLED` 등 env 제거. PAI·pgroonga 완전 폐기. |
 | 2026-05-18 | **admin brand-nodes 썸네일 쿼리 개선 (bugfix)** — `/api/admin/brand-nodes` 대표 이미지 조회: 단일 `IN(brandIds)+global limit` → 브랜드별 `Promise.all` 병렬 쿼리(limit 20). 이미지 소스: `images[]` 단독 → `image_url`(스칼라, 우선) + `images[0]`(fallback). `/api/admin/brand-graph/detail` 대표 샘플 cap: 5 → 10. 신규 외부 의존성·라우트·에러 코드 없음. |
 | 2026-05-15 | **brand_nodes 슬림화 + admin reskin** — migration 067: brand_nodes 13 컬럼 drop (037 BGE-m3 텍스트 임베딩 자산: embedding/embedding_model/embedding_text_hash/embedded_at/x_umap/y_umap/umap_at + 옛 LLM 메타: sensitivity_tags/brand_keywords/aliases/category_type/representative_image_urls + price_band) + price_min_usd/price_max_usd (numeric) 신규 + products 기준 USD backfill. migration 068: app_user → ai 스키마 SELECT-only GRANT (card_impression/log_conversation_event/user_taste_profile/user_session). 신규 admin 페이지 `/admin/brand-nodes` (구 genome rename + redirect), `/admin/ai-insights` (ai 스키마 대화형 봇 통계 3탭). 신규 admin API `/api/admin/brand-nodes`, `/api/admin/ai-insights`, `/api/admin/ai-insights/user`, `/api/admin/style-nodes/[code]/brands`. `/admin/brand-graph` → `/admin/brand-clusters` redirect. 사이드바 4섹션 + "kiko.ai Admin" rebrand + 파비콘 교체. 삭제: brand-detail-panel/edit-panel/table/filters components, `src/lib/brand-cluster.ts`. search-products v4 brandDna 로드 disable (sensitivity_tags 067 drop). `src/lib/currency-to-usd.ts` 신규. |
 | 2026-05-15 | **Brand Multimodal Embedding (SPEC-BRAND-EMBED-001)** — migration 063~066: `brand_multimodal_embeddings` (FashionSigLIP 768 halfvec, HNSW), `node_centroids`, `find_similar_brands` RPC, `brand_multimodal_umap`. 스크립트 5종 (`embed_brand_multimodal.py` / `build_node_centroids.py` / `build_adjacency_from_centroids.py` / `build_brand_umap.py` / `refresh_brand_embeddings_all.sh` wrapper). `style_node_adjacency` 자동 채움 인프라 완성 (source='embedding_derived', manual 보존). 신규 admin `/admin/brand-clusters` (UMAP 2D scatter, recharts) + `GET /api/admin/brand/[id]/similar`. `src/lib/brand-embed.ts` helper. **검색 엔진 미통합** — SPEC-SEARCH-V6 가 결합. **현재 11 brand 임베딩**, crawler bulk 완료 후 풀배치 예정. 037 BGE-m3 텍스트 임베딩은 stale (옛 15 코드 풀) — SPEC 5 정리 대상. 상세: `features/brand-embed.md`. |

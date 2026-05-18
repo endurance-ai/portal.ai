@@ -1,17 +1,29 @@
 """
-FashionSigLIP 이미지 임베딩 배치 — EC2 Spot 실행용 standalone 스크립트
+FashionSigLIP product image embedding batch — local / standalone runner.
 
-사전 조건
-  - DLAMI (Deep Learning AMI GPU PyTorch) — torch/CUDA 프리인스톨
+SPEC-SEARCH-V6-001 §7b: reworked to target the normalized `product_embeddings`
+table (was: products.embedding column). Remaining ~47k unembedded products are
+processed locally (low cost) — AWS Spot is no longer required (SPEC §5). The
+file path is kept (scripts/aws/) to avoid churn; it now runs anywhere with a
+GPU/CPU + DB access.
+
+Prereqs
+  - torch / CUDA (DLAMI or local GPU; CPU also works, slower)
   - pip: open_clip_torch, supabase, httpx, pillow
-  - env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, (선택) LIMIT
+  - env: DB_URL, DB_TOKEN (project standard; legacy SUPABASE_URL /
+    SUPABASE_SERVICE_ROLE_KEY accepted as fallback), (optional) LIMIT
 
-동작
-  1. products.embedding IS NULL 페이지네이션 조회
-  2. images[0] ThreadPool(20)로 병렬 다운로드
-  3. GPU 배치(64) 인코딩 + L2 정규화
-  4. bulk_update_product_embeddings RPC로 일괄 upsert
-  5. 모든 페이지 완료될 때까지 반복
+Behavior
+  1. Page through products with NO product_embeddings row (server-side
+     PostgREST anti-join: embedded product_embeddings resource filtered
+     is.null, ordered by id — see fetch_pending). Image source per row =
+     images[0] else image_url (images array is NULL for ~34k that still
+     have a valid image_url).
+  2. Download the resolved image URL in parallel (ThreadPool 20).
+  3. GPU/CPU batch (64) encode + L2-normalize.
+  4. UPSERT into product_embeddings via bulk_update_product_embeddings RPC
+     (reworked: ON CONFLICT product_id DO UPDATE, bigint product_id).
+  5. Repeat until no pending rows remain.
 """
 from __future__ import annotations
 
@@ -31,15 +43,15 @@ from supabase import create_client
 MODEL_ID = "hf-hub:Marqo/marqo-fashionSigLIP"
 EMBEDDING_MODEL_NAME = "Marqo/marqo-fashionSigLIP"
 
-GPU_BATCH = 64           # GPU forward-pass 배치
-FETCH_PAGE = 500         # Supabase 페이지 크기
-RPC_BATCH = 200          # bulk RPC 당 상품 수
-DOWNLOAD_WORKERS = 20    # 이미지 병렬 다운로드 워커
+GPU_BATCH = 64           # GPU/CPU forward-pass batch
+FETCH_PAGE = 500         # page size
+RPC_BATCH = 200          # products per bulk UPSERT RPC call
+DOWNLOAD_WORKERS = 20    # parallel image download workers
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
 HTTP_TIMEOUT = 20
 
 
-def download_one(client: httpx.Client, pid: str, url: str) -> Optional[tuple[str, Image.Image]]:
+def download_one(client: httpx.Client, pid: int, url: str) -> Optional[tuple[int, Image.Image]]:
     try:
         r = client.get(url)
         r.raise_for_status()
@@ -51,11 +63,42 @@ def download_one(client: httpx.Client, pid: str, url: str) -> Optional[tuple[str
         return None
 
 
+def fetch_pending(sb, page_limit: int) -> list[dict]:
+    """Products with no product_embeddings row.
+
+    Image source per row = images[0] if the images array is populated, else
+    the always-present image_url column (text). The `images` array is NULL for
+    ~34k products that nonetheless have a valid image_url, so filtering on
+    `images IS NOT NULL` (prior behavior) silently skipped them — those rows
+    are embeddable via image_url. No image filter here; the caller resolves
+    the source and skips only rows with neither.
+
+    Server-side anti-join: PostgREST embeds the product_embeddings resource as
+    a LEFT JOIN and `product_embeddings=is.null` keeps only products that have
+    NO matching product_embeddings row (product_embeddings is keyed on bigint
+    product_id, SPEC §7a). `order("id")` makes paging deterministic so every
+    unembedded product is covered and a transiently failed row reappears on a
+    later pass. The caller loops until this returns empty; each UPSERT pass
+    shrinks the anti-join result, so no cross-call cursor is needed.
+    """
+    resp = (
+        sb.table("products")
+        .select("id,images,image_url,product_embeddings(product_id)")
+        .is_("product_embeddings", "null")
+        .order("id")
+        .limit(page_limit)
+        .execute()
+    )
+    return resp.data or []
+
+
 def main() -> int:
-    url = os.environ.get("SUPABASE_URL")
-    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+    # Project standard = DB_URL / DB_TOKEN (formerly SUPABASE_URL /
+    # SUPABASE_SERVICE_ROLE_KEY). Prefer standard; accept legacy as fallback.
+    url = os.environ.get("DB_URL") or os.environ.get("SUPABASE_URL")
+    key = os.environ.get("DB_TOKEN") or os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
     if not url or not key:
-        print("[fatal] SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY 미설정", file=sys.stderr)
+        print("[fatal] DB_URL / DB_TOKEN 미설정 (또는 SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)", file=sys.stderr)
         return 2
 
     limit_env = os.environ.get("LIMIT")
@@ -64,7 +107,11 @@ def main() -> int:
     sb = create_client(url, key)
 
     print(f"[load] {MODEL_ID}")
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = (
+        "cuda" if torch.cuda.is_available()
+        else "mps" if torch.backends.mps.is_available()  # Apple Silicon GPU
+        else "cpu"
+    )
     model, _, preprocess = open_clip.create_model_and_transforms(MODEL_ID)
     model = model.to(device).eval()
     print(f"[load] ready on {device}")
@@ -84,35 +131,28 @@ def main() -> int:
                     break
                 page_limit = min(FETCH_PAGE, remaining)
 
-            resp = (
-                sb.table("products")
-                .select("id,images")
-                .is_("embedding", "null")
-                .not_.is_("images", "null")
-                .limit(page_limit)
-                .execute()
-            )
-            rows = resp.data or []
+            rows = fetch_pending(sb, page_limit)
             if not rows:
                 print("[done] no more pending products")
                 break
 
-            jobs: list[tuple[str, str]] = []
+            jobs: list[tuple[int, str]] = []
             for row in rows:
                 imgs = row.get("images") or []
-                if not imgs or not imgs[0]:
+                src = imgs[0] if imgs and imgs[0] else row.get("image_url")
+                if not src:
                     total_skipped += 1
                     continue
-                jobs.append((row["id"], imgs[0]))
+                jobs.append((int(row["id"]), src))
 
             if not jobs:
                 processed += len(rows)
                 continue
 
-            # 병렬 다운로드 — 20 워커
-            fetched: list[tuple[str, Image.Image]] = []
+            # parallel download — 20 workers
+            fetched: list[tuple[int, Image.Image]] = []
             with ThreadPoolExecutor(max_workers=DOWNLOAD_WORKERS) as pool:
-                futures = [pool.submit(download_one, http, pid, url) for pid, url in jobs]
+                futures = [pool.submit(download_one, http, pid, u) for pid, u in jobs]
                 for f in as_completed(futures):
                     result = f.result()
                     if result is None:
@@ -124,7 +164,7 @@ def main() -> int:
                 processed += len(rows)
                 continue
 
-            # GPU 배치 인코딩
+            # GPU/CPU batch encode
             updates: list[dict] = []
             for i in range(0, len(fetched), GPU_BATCH):
                 chunk = fetched[i : i + GPU_BATCH]
@@ -135,13 +175,15 @@ def main() -> int:
                 vecs = feats.cpu().float().numpy()
                 for (pid, _), vec in zip(chunk, vecs):
                     updates.append({
-                        "id": pid,
+                        "id": str(pid),  # bigint product_id (RPC casts ::bigint)
                         "embedding": "[" + ",".join(f"{x:.6f}" for x in vec.tolist()) + "]",
                         "model": EMBEDDING_MODEL_NAME,
                     })
 
             for i in range(0, len(updates), RPC_BATCH):
                 batch = updates[i : i + RPC_BATCH]
+                # bulk_update_product_embeddings reworked (migration 071):
+                # UPSERT into product_embeddings, ON CONFLICT product_id.
                 sb.rpc("bulk_update_product_embeddings", {"payload": batch}).execute()
 
             total_embedded += len(updates)
