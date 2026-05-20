@@ -2,7 +2,6 @@ import "server-only"
 import {supabase} from "@/lib/supabase"
 import {buildEnumReference} from "@/lib/enums/product-enums"
 import {buildKoreanVocabReference} from "@/lib/enums/korean-vocab"
-import {buildSeasonPatternReference} from "@/lib/enums/season-pattern"
 import {SENSITIVITY_TAGS} from "@/lib/fashion-genome"
 import {buildNodeReference, getActiveNodeCodes,} from "@/lib/style-nodes-db"
 
@@ -22,6 +21,7 @@ export const PROMPT_SITUATIONS = [
   "vision-analyze",
   "prompt-search",
   "brand-vlm",
+  "brand-attributes",
 ] as const
 export type PromptSituation = (typeof PROMPT_SITUATIONS)[number]
 
@@ -54,7 +54,7 @@ export type PromptRow = {
 type PlaceholderSpec =
   | {source: "style_nodes"; field: "buildNodeReference" | "codes_csv"}
   | {source: "static"; field: "SENSITIVITY_TAGS"}
-  | {source: "enums"; field: "buildEnumReference" | "buildSeasonPatternReference" | "buildKoreanVocabReference"}
+  | {source: "enums"; field: "buildEnumReference" | "buildKoreanVocabReference"}
   | {source: "runtime"}
 
 export type BuiltPrompt = {
@@ -143,8 +143,6 @@ async function resolvePlaceholder(
       switch (spec.field) {
         case "buildEnumReference":
           return buildEnumReference()
-        case "buildSeasonPatternReference":
-          return buildSeasonPatternReference()
         case "buildKoreanVocabReference":
           return buildKoreanVocabReference()
       }
