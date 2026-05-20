@@ -3,15 +3,17 @@
 import Link from "next/link"
 import {usePathname} from "next/navigation"
 import {
+    Activity,
     BarChart3,
+    Bug,
     Database,
     FileText,
     FlaskConical,
     Inbox,
     ListChecks,
     MessageCircle,
+    MousePointerClick,
     Palette,
-    Search,
     ShoppingBag,
     Sparkles
 } from "lucide-react"
@@ -28,35 +30,36 @@ type NavSection = {title: string; items: NavItem[]}
 
 const NAV_SECTIONS: NavSection[] = [
   {
-    title: "분류 체계",
+    title: "데이터",
     items: [
       {href: "/admin/style-nodes", label: "스타일 노드", description: "스타일 분류 체계 관리", icon: Palette},
       {href: "/admin/brand-nodes", label: "브랜드 노드", description: "브랜드 + 분류 + 대표상품", icon: Database},
-      {href: "/admin/prompts", label: "프롬프트", description: "이미지·검색 프롬프트 관리", icon: FileText},
-    ],
-  },
-  {
-    title: "검수 대기",
-    items: [
-      {href: "/admin/brand-node-review", label: "브랜드 노드 검수", description: "브랜드 자동 분류 검수", icon: Inbox},
-      {href: "/admin/brand-proposals", label: "브랜드 검수큐", description: "AI 메타 추론 검수", icon: ListChecks},
-    ],
-  },
-  {
-    title: "시각화 / 분석",
-    items: [
       {href: "/admin/brand-clusters", label: "브랜드 클러스터", description: "이미지 임베딩 2D 지도", icon: Sparkles},
-      {href: "/admin/analytics", label: "분석 로그", description: "분석 기록 & 활동", icon: BarChart3},
-      {href: "/admin/search-debugger", label: "검색 디버거", description: "검색 점수 분석", icon: Search},
+      {href: "/admin/products", label: "상품 DB", description: "크롤링 상품 & AI 분석", icon: ShoppingBag},
+      {href: "/admin/crawl", label: "크롤 모니터", description: "플랫폼별 SKU·stale·임베딩 현황", icon: Activity},
     ],
   },
   {
-    title: "운영",
+    title: "검수 큐",
     items: [
-      {href: "/admin/products", label: "상품 DB", description: "크롤링 상품 & AI 분석", icon: ShoppingBag},
-      {href: "/admin/ai-insights", label: "AI 인사이트", description: "봇 검색 추천 성과 (CTR)", icon: BarChart3},
-      {href: "/admin/eval", label: "품질 평가", description: "품질 평가 허브", icon: FlaskConical},
+      {href: "/admin/brand-node-review", label: "브랜드 검수", description: "브랜드 자동 분류 검수", icon: Inbox},
+      {href: "/admin/brand-proposals", label: "메타 검수", description: "AI 메타 추론 (vibe·palette·...) 검수", icon: ListChecks},
+      {href: "/admin/eval", label: "분석 품질평가", description: "Vision 분석 결과 인간 평가", icon: FlaskConical},
+    ],
+  },
+  {
+    title: "인사이트",
+    items: [
+      {href: "/admin/analytics", label: "분석 트래픽", description: "분석 기록 & 활동 차트", icon: BarChart3},
+      {href: "/admin/ai-insights", label: "봇 추천 성과", description: "봇 검색 추천 CTR & latency", icon: MousePointerClick},
       {href: "/admin/user-voice", label: "유저 보이스", description: "피드백 & 리파인 여정", icon: MessageCircle},
+    ],
+  },
+  {
+    title: "시스템",
+    items: [
+      {href: "/admin/prompts", label: "프롬프트", description: "Vision·검색 프롬프트 관리", icon: FileText},
+      {href: "/admin/search-debugger", label: "검색 디버거", description: "검색 점수 분석", icon: Bug},
     ],
   },
 ]

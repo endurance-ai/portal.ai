@@ -2,64 +2,56 @@ import {NextResponse} from "next/server"
 import {requireApprovedAdmin} from "@/lib/admin-auth"
 import {supabase} from "@/lib/supabase"
 
-// 브라우저는 캐시하지 않고 CDN/서버 수준에서만 10분 캐시
-export const revalidate = 600
+// SPEC-SEARCH-V6-001 P2: PAI 폐기 후 어드민 상품 필터 옵션.
+// 옛 RPC get_product_filter_counts() 는 product_ai_analysis 참조로 깨졌으며
+// migration 074 에서 DROP. 이 라우트는 products + style_nodes 직접 집계.
+//
+// v6 변경:
+//   * categories: products.category 분포
+//   * platforms : products.platform 분포
+//   * styleNodes: style_nodes.code (활성) — brand-level 분류 경유 필터
+//   * 폐기: subcategories / colorFamilies / fits / fabrics (PAI 의존)
 
-interface FilterCountRow {
-  dimension: string
-  value: string
-  count: number
-}
+export const revalidate = 600
 
 export interface FilterOptionsResponse {
   platforms: {value: string; count: number}[]
   categories: {value: string; count: number}[]
-  subcategories: Record<string, {value: string; count: number}[]>
-  styleNodes: {value: string; count: number}[]
-  colorFamilies: {value: string; count: number}[]
-  fits: {value: string; count: number}[]
-  fabrics: {value: string; count: number}[]
+  styleNodes: {value: string; label: string}[]
 }
 
 export async function GET() {
   const gate = await requireApprovedAdmin()
   if (gate instanceof NextResponse) return gate
 
-  const {data, error} = await supabase.rpc("get_product_filter_counts")
-  if (error) {
-    return NextResponse.json(
-      {error: error.message, code: "RPC_FAILED"},
-      {status: 500}
-    )
-  }
+  const [platformsRes, categoriesRes, styleNodesRes] = await Promise.all([
+    supabase.rpc("count_products_by", {p_column: "platform"}).then((r) =>
+      r.error ? null : (r.data as Array<{value: string; count: number}>)
+    ),
+    supabase.rpc("count_products_by", {p_column: "category"}).then((r) =>
+      r.error ? null : (r.data as Array<{value: string; count: number}>)
+    ),
+    supabase
+      .from("style_nodes")
+      .select("code, name_en")
+      .eq("is_active", true)
+      .order("code"),
+  ])
 
-  const rows = (data ?? []) as FilterCountRow[]
+  // RPC 가 없으면 fallback (그룹바이를 클라이언트에서) — 데이터량 많을 수 있으나 1회 캐시
+  const platforms =
+    platformsRes ?? (await groupByFallback("platform"))
+  const categories =
+    categoriesRes ?? (await groupByFallback("category"))
 
-  const byDimension = (dim: string) =>
-    rows
-      .filter((r) => r.dimension === dim)
-      .sort((a, b) => b.count - a.count)
-      .map((r) => ({value: r.value, count: Number(r.count)}))
-
-  const subcategories: FilterOptionsResponse["subcategories"] = {}
-  for (const row of rows) {
-    if (!row.dimension.startsWith("subcategory:")) continue
-    const category = row.dimension.slice("subcategory:".length)
-    if (!subcategories[category]) subcategories[category] = []
-    subcategories[category].push({value: row.value, count: Number(row.count)})
-  }
-  for (const cat of Object.keys(subcategories)) {
-    subcategories[cat].sort((a, b) => b.count - a.count)
-  }
+  const styleNodes = ((styleNodesRes.data ?? []) as Array<{code: string; name_en: string}>).map(
+    (r) => ({value: r.code, label: `${r.code} · ${r.name_en}`})
+  )
 
   const response: FilterOptionsResponse = {
-    platforms: byDimension("platform"),
-    categories: byDimension("category"),
-    subcategories,
-    styleNodes: byDimension("style_node"),
-    colorFamilies: byDimension("color_family"),
-    fits: byDimension("fit"),
-    fabrics: byDimension("fabric"),
+    platforms: sortByCountDesc(platforms),
+    categories: sortByCountDesc(categories),
+    styleNodes,
   }
 
   return NextResponse.json(response, {
@@ -67,4 +59,24 @@ export async function GET() {
       "cache-control": "public, max-age=0, s-maxage=600, stale-while-revalidate=60",
     },
   })
+}
+
+function sortByCountDesc(rows: Array<{value: string; count: number}>) {
+  return [...rows]
+    .filter((r) => r.value != null && r.value !== "")
+    .sort((a, b) => Number(b.count) - Number(a.count))
+    .map((r) => ({value: r.value, count: Number(r.count)}))
+}
+
+// RPC 미존재 환경(또는 신규 migration 074 미적용) fallback.
+// products 전수 fetch 후 클라이언트 그룹바이 — 11만 row 정도라 1회 캐시 acceptable.
+async function groupByFallback(column: "platform" | "category") {
+  const {data} = await supabase.from("products").select(column)
+  const counter = new Map<string, number>()
+  for (const row of (data ?? []) as Array<Record<string, string | null>>) {
+    const v = row[column]
+    if (!v) continue
+    counter.set(v, (counter.get(v) ?? 0) + 1)
+  }
+  return Array.from(counter.entries()).map(([value, count]) => ({value, count}))
 }

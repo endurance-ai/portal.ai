@@ -17,7 +17,7 @@ export default async function BrandClustersPage() {
 
   const {data: umap} = await supabase
     .from("brand_multimodal_umap")
-    .select("brand_id, x, y, computed_at")
+    .select("brand_id, x, y, computed_at, cluster_id, cluster_computed_at")
 
   const brandIds = (umap ?? []).map((r) => r.brand_id)
 
@@ -44,6 +44,7 @@ export default async function BrandClustersPage() {
       brand_name: b?.brand_name ?? "(unknown)",
       primary_style_node_id: b?.primary_style_node_id ?? null,
       secondary_style_node_id: b?.secondary_style_node_id ?? null,
+      cluster_id: (r as {cluster_id?: number | null}).cluster_id ?? null,
       x: r.x,
       y: r.y,
     }
@@ -67,20 +68,18 @@ export default async function BrandClustersPage() {
           <h1 className="text-xl font-semibold">브랜드 클러스터</h1>
           <p
             className="text-sm text-muted-foreground"
-            title="이미지 임베딩(FashionSigLIP 768차원)을 2D 평면에 투영. 가까운 점일수록 시각적으로 비슷한 브랜드. UMAP 알고리즘 사용."
+            title="FashionSigLIP 768-dim 멀티모달 임베딩의 cosine top-10 이웃 시각화. 거리=실제 유사도 (UMAP 압축 X)."
           >
-            이미지 임베딩 2D 지도 ⓘ · 브랜드 {points.length}개
+            이미지+속성 임베딩 cosine top-10 ⓘ · {points.length} brand
           </p>
         </div>
-        <div className="text-xs text-muted-foreground">
-          {latestComputed
-            ? `갱신: ${new Date(latestComputed).toLocaleString("ko-KR")}`
-            : "데이터 없음"}
+        <div className="space-y-0.5 text-right text-xs text-muted-foreground">
+          <div>임베딩 갱신: {latestComputed ? new Date(latestComputed).toLocaleString("ko-KR") : "—"}</div>
         </div>
       </header>
 
       {points.length < 10 && (
-        <div className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+        <div className="rounded border border-amber-900/50 bg-amber-950/40 px-3 py-2 text-xs text-amber-300">
           현재 임베딩 보유 브랜드 {points.length}개 — 2D 시각화는 10개 이상에서 의미 있음. 크롤러 분류 완료 후 재계산 권장.
         </div>
       )}

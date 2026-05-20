@@ -6,20 +6,8 @@ import Image from "next/image"
 import Link from "next/link"
 import {ChevronLeft, ChevronRight, Loader2, RotateCcw, Search, X} from "lucide-react"
 import {Button} from "@/components/ui/button"
-import {CrawlCoverage} from "@/components/admin/crawl-coverage"
 import type {FilterOptionsResponse} from "@/app/api/admin/products/filter-options/route"
 import {formatProductPrice} from "@/lib/format-product-price"
-
-type ProductAI = {
-  category: string | null
-  subcategory: string | null
-  fit: string | null
-  fabric: string | null
-  colorFamily: string | null
-  styleNode: string | null
-  moodTags: string[] | null
-  confidence: number | null
-}
 
 type Product = {
   id: string
@@ -33,9 +21,9 @@ type Product = {
   category: string | null
   inStock: boolean
   hasDescription: boolean
-  hasMaterial: boolean
   reviewCount: number
-  ai: ProductAI | null
+  hasEmbedding: boolean
+  styleNode: {code: string; name_en: string} | null
 }
 
 const SELECT_CLASS =
@@ -50,25 +38,27 @@ function fmtCount(n: number): string {
 function OptionList({
   options,
   includeSelected,
+  labelKey,
 }: {
-  options: {value: string; count: number}[]
+  options: {value: string; count?: number; label?: string}[]
   includeSelected?: string
+  labelKey?: "label"
 }) {
   const seen = new Set<string>()
-  const list: {value: string; count: number | null}[] = []
+  const list: {value: string; count?: number; label?: string}[] = []
   for (const o of options) {
     if (seen.has(o.value)) continue
     seen.add(o.value)
     list.push(o)
   }
   if (includeSelected && !seen.has(includeSelected)) {
-    list.unshift({value: includeSelected, count: null})
+    list.unshift({value: includeSelected})
   }
   return (
     <>
       {list.map((o) => (
         <option key={o.value} value={o.value}>
-          {o.value}
+          {labelKey === "label" ? o.label ?? o.value : o.value}
           {o.count != null ? ` · ${fmtCount(o.count)}` : ""}
         </option>
       ))}
@@ -78,16 +68,7 @@ function OptionList({
 
 function ProductCard({p}: {p: Product}) {
   const [imgError, setImgError] = useState(false)
-  const aiTags = p.ai
-    ? [
-        p.ai.category,
-        p.ai.subcategory,
-        p.ai.styleNode,
-        p.ai.colorFamily,
-        p.ai.fit,
-        p.ai.fabric,
-      ].filter(Boolean)
-    : []
+  const tags = [p.category, p.styleNode?.code].filter(Boolean)
 
   return (
     <Link href={`/admin/products/${p.id}`} className="group block">
@@ -110,71 +91,42 @@ function ProductCard({p}: {p: Product}) {
               <span className="text-[10px] text-muted-foreground">No Image</span>
             </div>
           )}
-
-          {/* Badges on image */}
-          <div className="absolute top-1.5 left-1.5 flex flex-col gap-1">
-            {!p.inStock && (
-              <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-900/80 border border-red-700/50 text-red-300 font-medium">
-                품절
-              </span>
-            )}
-          </div>
-
-          {/* Hover/focus overlay — full details (focus-within for keyboard users) */}
-          <div className="absolute inset-0 bg-background/95 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity p-2.5 overflow-y-auto text-[10.5px] flex flex-col gap-1.5">
-            <div>
-              <p className="text-muted-foreground">{p.brand}</p>
-              <p className="text-foreground leading-tight">{p.name}</p>
-              <p className="text-foreground font-bold tabular-nums mt-1">
-                {formatProductPrice({sourcePrice: p.sourcePrice, sourceCurrency: p.sourceCurrency, krwPrice: p.price})}
-              </p>
-              <p className="text-muted-foreground/70 text-[9.5px] mt-0.5">{p.platform}</p>
-            </div>
-
-            {(p.hasDescription || p.hasMaterial || p.reviewCount > 0) && (
-              <div className="flex flex-wrap gap-1">
-                {p.hasDescription && (
-                  <span className="text-[9px] px-1 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-blue-400">
-                    설명
-                  </span>
-                )}
-                {p.hasMaterial && (
-                  <span className="text-[9px] px-1 py-0.5 rounded bg-green-500/10 border border-green-500/20 text-green-400">
-                    소재
-                  </span>
-                )}
-                {p.reviewCount > 0 && (
-                  <span className="text-[9px] px-1 py-0.5 rounded bg-yellow-500/10 border border-yellow-500/20 text-yellow-400">
-                    리뷰 {p.reviewCount}
-                  </span>
-                )}
-              </div>
-            )}
-
-            {aiTags.length > 0 ? (
-              <div className="flex flex-wrap gap-1">
-                {aiTags.map((tag, i) => (
-                  <span
-                    key={i}
-                    className="text-[9px] px-1 py-0.5 rounded bg-turquoise/10 border border-turquoise/20 text-turquoise"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <span className="text-[9px] text-orange-400/70">NO AI</span>
-            )}
+          {/* Embedding badge */}
+          <div className="absolute top-1.5 right-1.5">
+            <span
+              className={`text-[9px] px-1.5 py-0.5 rounded font-mono ${
+                p.hasEmbedding
+                  ? "bg-turquoise/20 text-turquoise"
+                  : "bg-orange-400/15 text-orange-400"
+              }`}
+            >
+              {p.hasEmbedding ? "EMB" : "—"}
+            </span>
           </div>
         </div>
-
-        {/* Compact caption */}
-        <div className="px-2 py-1.5 space-y-0.5">
+        {/* Info */}
+        <div className="p-2 space-y-0.5">
           <p className="text-[10px] text-muted-foreground truncate">{p.brand}</p>
-          <p className="text-[11px] text-foreground truncate leading-tight">{p.name}</p>
-          <p className="text-[12px] font-bold tabular-nums">
-            {formatProductPrice({sourcePrice: p.sourcePrice, sourceCurrency: p.sourceCurrency, krwPrice: p.price})}
+          <p className="text-xs font-medium truncate">{p.name}</p>
+          <p className="text-xs tabular-nums">
+            {formatProductPrice({
+              sourcePrice: p.sourcePrice,
+              sourceCurrency: p.sourceCurrency,
+              krwPrice: p.price,
+            })}
           </p>
+          {tags.length > 0 && (
+            <div className="flex flex-wrap gap-1 pt-1">
+              {tags.map((t) => (
+                <span
+                  key={t as string}
+                  className="text-[9px] px-1.5 py-0.5 rounded bg-foreground/5 text-muted-foreground"
+                >
+                  {t}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </article>
     </Link>
@@ -184,13 +136,9 @@ function ProductCard({p}: {p: Product}) {
 interface FilterState {
   search: string
   category: string
-  subcategory: string
   platform: string
   styleNode: string
-  colorFamily: string
-  fit: string
-  fabric: string
-  aiStatus: string
+  embeddingStatus: string
   stockStatus: string
   detailStatus: string
   reviewStatus: string
@@ -200,13 +148,9 @@ interface FilterState {
 const DEFAULTS: FilterState = {
   search: "",
   category: "",
-  subcategory: "",
   platform: "",
   styleNode: "",
-  colorFamily: "",
-  fit: "",
-  fabric: "",
-  aiStatus: "all",
+  embeddingStatus: "all",
   stockStatus: "all",
   detailStatus: "all",
   reviewStatus: "all",
@@ -216,13 +160,9 @@ const DEFAULTS: FilterState = {
 const CHIP_LABELS: Record<string, string> = {
   search: "검색",
   category: "카테고리",
-  subcategory: "서브",
   platform: "플랫폼",
   styleNode: "노드",
-  colorFamily: "컬러",
-  fit: "핏",
-  fabric: "패브릭",
-  aiStatus: "AI",
+  embeddingStatus: "임베딩",
   stockStatus: "재고",
   detailStatus: "상세",
   reviewStatus: "리뷰",
@@ -230,8 +170,8 @@ const CHIP_LABELS: Record<string, string> = {
 }
 
 const STATUS_LABELS: Record<string, string> = {
-  analyzed: "분석완료",
-  unanalyzed: "미분석",
+  embedded: "있음",
+  no_embedding: "없음",
   in_stock: "판매중",
   out_of_stock: "품절",
   with_desc: "있음",
@@ -256,13 +196,9 @@ export default function ProductsPageInner() {
   const [filters, setFilters] = useState<FilterState>(() => ({
     search: searchParams.get("search") || "",
     category: searchParams.get("category") || "",
-    subcategory: searchParams.get("subcategory") || "",
     platform: searchParams.get("platform") || "",
     styleNode: searchParams.get("styleNode") || "",
-    colorFamily: searchParams.get("colorFamily") || "",
-    fit: searchParams.get("fit") || "",
-    fabric: searchParams.get("fabric") || "",
-    aiStatus: searchParams.get("aiStatus") || "all",
+    embeddingStatus: searchParams.get("embeddingStatus") || "all",
     stockStatus: searchParams.get("stockStatus") || "all",
     detailStatus: searchParams.get("detailStatus") || "all",
     reviewStatus: searchParams.get("reviewStatus") || "all",
@@ -278,7 +214,6 @@ export default function ProductsPageInner() {
     setPage(0)
   }, [])
 
-  // Load filter options on mount
   useEffect(() => {
     let cancelled = false
     async function loadOptions() {
@@ -301,7 +236,6 @@ export default function ProductsPageInner() {
     }
   }, [])
 
-  // Debounce search
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -314,12 +248,6 @@ export default function ProductsPageInner() {
     }
   }, [filters.search])
 
-  // Reset subcategory when category changes
-  useEffect(() => {
-    setFilters((prev) => (prev.subcategory ? {...prev, subcategory: ""} : prev))
-  }, [filters.category])
-
-  // URL sync
   useEffect(() => {
     const params = new URLSearchParams()
     const state: Record<string, string> = {
@@ -341,13 +269,9 @@ export default function ProductsPageInner() {
         page: String(page),
         search: debouncedSearch,
         category: filters.category,
-        subcategory: filters.subcategory,
         platform: filters.platform,
         styleNode: filters.styleNode,
-        colorFamily: filters.colorFamily,
-        fit: filters.fit,
-        fabric: filters.fabric,
-        aiStatus: filters.aiStatus,
+        embeddingStatus: filters.embeddingStatus,
         stockStatus: filters.stockStatus,
         detailStatus: filters.detailStatus,
         reviewStatus: filters.reviewStatus,
@@ -395,13 +319,9 @@ export default function ProductsPageInner() {
       })
     }
     pushIfValue("category")
-    pushIfValue("subcategory")
     pushIfValue("platform")
     pushIfValue("styleNode")
-    pushIfValue("colorFamily")
-    pushIfValue("fit")
-    pushIfValue("fabric")
-    pushIfValue("aiStatus", "all", (v) => STATUS_LABELS[v] ?? v)
+    pushIfValue("embeddingStatus", "all", (v) => STATUS_LABELS[v] ?? v)
     pushIfValue("stockStatus", "all", (v) => STATUS_LABELS[v] ?? v)
     pushIfValue("detailStatus", "all", (v) => STATUS_LABELS[v] ?? v)
     pushIfValue("reviewStatus", "all", (v) => STATUS_LABELS[v] ?? v)
@@ -415,11 +335,6 @@ export default function ProductsPageInner() {
     return chips
   }, [filters, debouncedSearch, update])
 
-  const subcategoryOptions =
-    filters.category && options?.subcategories[filters.category]
-      ? options.subcategories[filters.category]
-      : []
-
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -430,14 +345,11 @@ export default function ProductsPageInner() {
         </span>
       </div>
 
-      {/* Crawl Coverage */}
-      <CrawlCoverage />
-
       {/* Filter bar */}
       <div className="space-y-2.5 border border-border bg-card rounded-md p-3">
         {optionsError && (
           <div className="text-[11px] text-amber-400/80">
-            필터 옵션 로드 실패: {optionsError} · migration 026 확인 필요
+            필터 옵션 로드 실패: {optionsError}
           </div>
         )}
 
@@ -473,7 +385,7 @@ export default function ProductsPageInner() {
           </button>
         </div>
 
-        {/* Row 2: Product attrs */}
+        {/* Row 2: 상품 속성 */}
         <FilterRow label="상품">
           <select
             value={filters.category}
@@ -486,15 +398,6 @@ export default function ProductsPageInner() {
             )}
           </select>
           <select
-            value={filters.subcategory}
-            onChange={(e) => update({subcategory: e.target.value})}
-            disabled={!filters.category}
-            className={`${SELECT_CLASS} disabled:opacity-40`}
-          >
-            <option value="">서브카테고리</option>
-            <OptionList options={subcategoryOptions} includeSelected={filters.subcategory} />
-          </select>
-          <select
             value={filters.platform}
             onChange={(e) => update({platform: e.target.value})}
             className={SELECT_CLASS}
@@ -504,58 +407,33 @@ export default function ProductsPageInner() {
               <OptionList options={options.platforms} includeSelected={filters.platform} />
             )}
           </select>
-        </FilterRow>
-
-        {/* Row 3: AI attrs */}
-        <FilterRow label="AI 속성">
           <select
             value={filters.styleNode}
             onChange={(e) => update({styleNode: e.target.value})}
             className={SELECT_CLASS}
+            title="브랜드의 primary style node 로 필터"
           >
-            <option value="">노드</option>
+            <option value="">스타일 노드</option>
             {options && (
-              <OptionList options={options.styleNodes} includeSelected={filters.styleNode} />
+              <OptionList
+                options={options.styleNodes}
+                includeSelected={filters.styleNode}
+                labelKey="label"
+              />
             )}
-          </select>
-          <select
-            value={filters.colorFamily}
-            onChange={(e) => update({colorFamily: e.target.value})}
-            className={SELECT_CLASS}
-          >
-            <option value="">컬러</option>
-            {options && (
-              <OptionList options={options.colorFamilies} includeSelected={filters.colorFamily} />
-            )}
-          </select>
-          <select
-            value={filters.fit}
-            onChange={(e) => update({fit: e.target.value})}
-            className={SELECT_CLASS}
-          >
-            <option value="">핏</option>
-            {options && <OptionList options={options.fits} includeSelected={filters.fit} />}
-          </select>
-          <select
-            value={filters.fabric}
-            onChange={(e) => update({fabric: e.target.value})}
-            className={SELECT_CLASS}
-          >
-            <option value="">패브릭</option>
-            {options && <OptionList options={options.fabrics} includeSelected={filters.fabric} />}
           </select>
         </FilterRow>
 
-        {/* Row 4: Status flags */}
+        {/* Row 3: 상태 */}
         <FilterRow label="상태">
           <select
-            value={filters.aiStatus}
-            onChange={(e) => update({aiStatus: e.target.value})}
+            value={filters.embeddingStatus}
+            onChange={(e) => update({embeddingStatus: e.target.value})}
             className={SELECT_CLASS}
           >
-            <option value="all">AI상태</option>
-            <option value="analyzed">분석완료</option>
-            <option value="unanalyzed">미분석</option>
+            <option value="all">임베딩 여부</option>
+            <option value="embedded">있음</option>
+            <option value="no_embedding">없음</option>
           </select>
           <select
             value={filters.stockStatus}

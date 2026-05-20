@@ -1,7 +1,7 @@
 # kiko.ai — 아키텍처 (Overview)
 
 > 시스템 전체 그림 + 도메인별 doc 매핑. 깊은 내용은 각 `features/*` / `infra/*` 참조.
-> 최종 업데이트: 2026-05-18 (SPEC-SEARCH-V6-001 — v6 embedding-first 단일 엔진, 마이그레이션 069~073, v4/v5 어댑터·circuit-breaker·PAI·pgroonga 폐기)
+> 최종 업데이트: 2026-05-20 (feature/redesign-admin — 마이그레이션 074~083, v6 search-debugger v2 + `search_debug_runs`, 어드민 sidebar 리그룹, dead code 제거)
 
 ## 한 줄 요약
 
@@ -44,7 +44,7 @@ graph TB
         API_IG["/api/instagram/fetch-post<br/>(cache lookup → Apify fallback)"]
         API_FIND_AN["/api/find/analyze-post<br/>(single slide, slideIndex)"]
         API_FIND_S["/api/find/search<br/>(SearchEngine port: v6 embedding-first<br/>Modal /embed/text → search_products_v6 HNSW)"]
-        API_SEARCH["/api/search-products<br/>v4 engine (admin search-debugger)"]
+        API_SEARCH["/api/admin/search-v6-debug<br/>v6 debugger (admin — AI server proxy + RPC trace)<br/>+ /api/admin/search-debug-runs CRUD"]
         API_ADMIN["/api/admin/*<br/>brand-nodes/ai-insights/style-nodes/[code]/brands"]
         API_INTERNAL["/api/internal/classify-brand<br/>(X-Internal-Key, brand VLM)<br/>LiteLLM 토글 (LITELLM_DISABLED 가드)"]
     end
@@ -152,7 +152,7 @@ graph TB
 2. `src/app/admin/layout.tsx` — RSC에서 `requireApprovedAdmin()` 재확인
 3. `/api/admin/*` 라우트 핸들러 — 동일 헬퍼로 한번 더 검증
 
-대시보드 (4섹션 카테고리화 — 2026-05-15 reskin): **분류 체계** (스타일 노드 / 브랜드 노드 / 프롬프트) / **검수 대기** (브랜드 노드 검수 / 브랜드 검수큐) / **시각화·분석** (브랜드 클러스터 / 분석 로그 / 검색 디버거) / **운영** (상품 DB / AI 인사이트 / 품질 평가 / 유저 보이스). 브라우저 탭·사이드바 타이틀 "portal.ai Admin" → **"kiko.ai Admin"** 변경.
+대시보드 (4섹션 카테고리화 — 2026-05-15 reskin, 2026-05-20 리그룹): **분류 체계** (스타일 노드 / 브랜드 노드 / 프롬프트) / **검수 대기** (브랜드 노드 검수 / 브랜드 검수큐) / **시각화·분석** (브랜드 클러스터 / 분석 로그 / **검색 디버거 v2** / **크롤 모니터**) / **운영** (상품 DB / AI 인사이트 / 품질 평가 / 유저 보이스). 브라우저 탭·사이드바 타이틀 "portal.ai Admin" → **"kiko.ai Admin"** 변경.
 
 Eval 모듈: migration 048 (2026-05-13) 로 eval_golden_queries / eval_golden_set / eval_judgments / eval_runs 4 테이블 + 관련 API 7개 드랍. `/admin/eval` 은 queue-only 단일 탭으로 단순화. `eval_reviews` 만 유지. 상세: `docs/features/search-engine.md` 의 "Evaluation Infrastructure" 섹션.
 
@@ -174,8 +174,27 @@ Eval 모듈: migration 048 (2026-05-13) 로 eval_golden_queries / eval_golden_se
 - `src/app/api/auth/[...nextauth]/route.ts`, `src/app/admin/login/page.tsx`
 - `src/app/admin/layout.tsx`, `src/app/admin/pending/page.tsx`
 
+v6 검색 디버거 v2 신규 (2026-05-20 — feature/redesign-admin):
+- `src/app/admin/search-debugger/page.tsx` — 전면 재작성 (~1710 LOC). text/image/fused 3 모드 + Apify URL resolve + Vision/LLM rewrite trace + 파이프라인 step 토글 + `search_debug_runs` 히스토리 패널. 구 v4 score-breakdown UI 완전 대체.
+- `/api/admin/search-v6-debug` — AI 서버(`AI_API_URL`) 프록시 + `search_products_v6` RPC 직접 trace. `AI_API_URL` + `INTERNAL_API_TOKEN` 신규 env 의존.
+- `/api/admin/search-debug-runs` (GET/POST) + `[id]` (GET/PATCH/DELETE) — `search_debug_runs` 테이블 CRUD (migration 083). run 저장/히스토리/rating.
+- `src/domains/admin-tools/search-debug/` — `v6-debug.route.ts` / `runs.route.ts` / `ai-client.ts` (AI server HTTP client, `X-Internal-Token` 헤더)
+
+크롤 모니터 신규 (2026-05-20):
+- `src/app/admin/crawl/page.tsx` — `crawl_platform_stats` 집계 뷰 시각화 (migration 078). 플랫폼별 SKU 카운트 + 최근 크롤 타임스탬프.
+- `/api/admin/crawl-monitor/route.ts` — `crawl_platform_stats` 조회 (구 `/api/admin/crawl-coverage` — migration 078 기반 새 라우트).
+
+제거된 라우트 / 컴포넌트 (feature/redesign-admin):
+- ~~`/api/admin/brands`~~ / ~~`/api/admin/brands/[id]`~~ / ~~`/api/admin/brands/export`~~ / ~~`/api/admin/brand/[id]/similar`~~ / ~~`/api/admin/brand-clusters`~~ (루트) / ~~`/api/admin/crawl-coverage`~~ — 모두 dead stub, 이 PR에서 삭제.
+- ~~`/api/search-products`~~ — v4 어드민 전용 route 삭제. `src/domains/search-v4/` 도메인 전체 삭제 (검색 디버거가 v6으로 전환됨).
+- ~~`src/components/admin/crawl-coverage.tsx`~~ / ~~`src/components/admin/search-debugger-results.tsx`~~ — 구 v4 디버거 컴포넌트 삭제.
+- ~~`src/lib/brand-embed.ts`~~ / ~~`src/domains/brand-resolution/brand-embed.ts`~~ — 사용처 없음 삭제.
+- ~~`src/lib/search/locked-filter.ts`~~ / ~~`src/shared/utils/locked-filter.ts`~~ / ~~`src/lib/enums/season-pattern.ts`~~ / ~~`src/shared/enums/season-pattern.ts`~~ — v4 전용 유틸 삭제.
+- ~~`src/__characterization__/arch-app-001/v4-scoring.test.ts`~~ / ~~`src/__characterization__/search-unify-001/search-v4-shape.test.ts`~~ — v4 특성화 테스트 삭제.
+- ~~`src/app/admin/brand-graph/page.tsx`~~ / ~~`src/app/admin/genome/page.tsx`~~ — 리다이렉트 페이지 삭제 (리다이렉트 불필요).
+
 브랜드 그래프 관련 신규 (2026-05-10):
-- ~~`src/app/admin/brand-graph/page.tsx`~~ — **067 후 redirect → `/admin/brand-clusters`** (037 BGE-m3 자산 폐기)
+- ~~`src/app/admin/brand-graph/page.tsx`~~ — **067 후 redirect → `/admin/brand-clusters`** (037 BGE-m3 자산 폐기. 리다이렉트 페이지 자체는 feature/redesign-admin에서 삭제됨)
 - `src/app/admin/brand-proposals/page.tsx` — LLM 추론 검수큐 테이블 뷰
 - `src/app/api/admin/brand-graph/route.ts` (노드 + SKU 카운트), `neighbors/route.ts`, `detail/route.ts`
 - `src/app/api/admin/brand-proposals/route.ts`, `bulk/route.ts` (일괄 승인/거절)
@@ -257,7 +276,7 @@ stack-internal 아키텍처 재설계. **언어·동작·화면 불변**, 레이
 |---|---|
 | `src/shared/{enums,utils}/` | 순수 enum·유틸 (korean-vocab / color·style-adjacency / locked-filter / currency / format / utils) |
 | `src/repositories/clients/` | 단일 DB 접근층 — `postgrest.ts` / `pg-pool.ts` (옛 `src/lib/{supabase,db}.ts`) |
-| `src/domains/search-v4/` | v4 검색 엔진 (engine/scorer/ranker/query-builder/constants/types). `api/search-products/route.ts` 는 852→207 LOC thin 위임 |
+| ~~`src/domains/search-v4/`~~ | **feature/redesign-admin에서 전체 삭제** — v6 search-debugger 전환으로 v4 어드민 소비자 제거됨. `api/search-products/route.ts` 도 삭제. |
 | `src/domains/search/` | **SearchEngine port** (SPEC-SEARCH-V6-001) — `engine-port.ts` / `registry.ts`(`selectEngine`) / `adapters/v6-adapter.ts`. `find/search` 가 이 port 호출. v6 단일 엔진. v5/v4-fallback 어댑터·circuit-breaker 제거 |
 | `src/domains/instagram/` · `src/domains/vision/` | IG 스크래퍼 · Vision 분석 (analyze-post 는 라우트 유지) |
 | `src/domains/brand-resolution/` | resolve-brands / brand-normalize / brand-embed |
@@ -286,6 +305,7 @@ stack-internal 아키텍처 재설계. **언어·동작·화면 불변**, 레이
 
 | 날짜 | 사건 |
 |---|---|
+| 2026-05-20 | **admin redesign (feature/redesign-admin)** — migration 074 (`get_product_filter_counts()` DROP + `count_products_by()` RPC 신설), 075 (brand-attributes prompt v1 seed), 076 (brand_multimodal_umap + cluster 테이블), 078 (`crawl_platform_stats` 집계 뷰), 079 (products.material DROP), 080 (`brand_similar` DROP), 081 (products.style_node text 레거시 컬럼+인덱스+CHECK DROP), 082 (`search_products_v6` category JOIN verbatim 정정 — fanout 버그 수정), 083 (`search_debug_runs` 테이블 신설). v6 검색 디버거 v2 (text/image/fused 모드, Apify URL resolve, Vision/LLM rewrite trace, Run 히스토리). 크롤 모니터 신설 (`/admin/crawl`). 어드민 사이드바 리그룹. `src/domains/search-v4/` 전체 + dead admin API stubs + v4 특성화 테스트 삭제. brand-node 상세 drawer 13 속성 + 상품 상세 UX 개편. brand-cluster 상세 패널 신설. |
 | 2026-05-18 | **검색 엔진 v6 전환 (SPEC-SEARCH-V6-001)** — migration 069(product_ai_analysis + search_products_v5 + product_search_text + pgroonga 인덱스 + 027 임베딩 자산 DROP CASCADE) 070(products.id uuid→bigserial, product_reviews FK swap) 071(product_embeddings halfvec(768) HNSW, SERIAL 빌드) 072(search_products_v6 RPC — cosine HNSW + primary_style_node_id EXACT + category_canonical family 게이트 + degraded ladder) 073(category_canonical 752→20 family 매핑). SearchEngine port: v5/v4-fallback 어댑터·circuit-breaker 제거, v6 단일 어댑터. Modal `/embed/text` 텍스트 타워 신규 의존. `SEARCH_ENGINE_VERSION`·`CB_ENABLED` 등 env 제거. PAI·pgroonga 완전 폐기. |
 | 2026-05-18 | **admin brand-nodes 썸네일 쿼리 개선 (bugfix)** — `/api/admin/brand-nodes` 대표 이미지 조회: 단일 `IN(brandIds)+global limit` → 브랜드별 `Promise.all` 병렬 쿼리(limit 20). 이미지 소스: `images[]` 단독 → `image_url`(스칼라, 우선) + `images[0]`(fallback). `/api/admin/brand-graph/detail` 대표 샘플 cap: 5 → 10. 신규 외부 의존성·라우트·에러 코드 없음. |
 | 2026-05-15 | **brand_nodes 슬림화 + admin reskin** — migration 067: brand_nodes 13 컬럼 drop (037 BGE-m3 텍스트 임베딩 자산: embedding/embedding_model/embedding_text_hash/embedded_at/x_umap/y_umap/umap_at + 옛 LLM 메타: sensitivity_tags/brand_keywords/aliases/category_type/representative_image_urls + price_band) + price_min_usd/price_max_usd (numeric) 신규 + products 기준 USD backfill. migration 068: app_user → ai 스키마 SELECT-only GRANT (card_impression/log_conversation_event/user_taste_profile/user_session). 신규 admin 페이지 `/admin/brand-nodes` (구 genome rename + redirect), `/admin/ai-insights` (ai 스키마 대화형 봇 통계 3탭). 신규 admin API `/api/admin/brand-nodes`, `/api/admin/ai-insights`, `/api/admin/ai-insights/user`, `/api/admin/style-nodes/[code]/brands`. `/admin/brand-graph` → `/admin/brand-clusters` redirect. 사이드바 4섹션 + "kiko.ai Admin" rebrand + 파비콘 교체. 삭제: brand-detail-panel/edit-panel/table/filters components, `src/lib/brand-cluster.ts`. search-products v4 brandDna 로드 disable (sensitivity_tags 067 drop). `src/lib/currency-to-usd.ts` 신규. |

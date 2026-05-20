@@ -9,11 +9,27 @@ import {fmtUsd} from "@/lib/currency-to-usd"
 
 type NodeRef = {id: number; code: string; name_en: string}
 
+type BrandAttributes = {
+  vibe?: string[]
+  palette?: string[]
+  material?: string[]
+  silhouette?: string[]
+  detail?: string[]
+  pattern?: string[]
+  gender_lean?: string | null
+  formality?: string | null
+  price_tier?: string | null
+  era_reference?: string | null
+  subculture?: string | null
+  confidence?: number
+  reasoning?: string
+}
+
 type Detail = {
   brand: {
     id: number
     name: string
-    attributes: Record<string, string[]> | null
+    attributes: BrandAttributes | null
     primary_style_node: NodeRef | null
     secondary_style_node: NodeRef | null
     confidence: number | null
@@ -188,10 +204,12 @@ export function BrandNodeDetailDrawer({
 
             {/* 3. 브랜드 메타 (attributes) */}
             {detail.brand.attributes && Object.keys(detail.brand.attributes).length > 0 && (
-              <section className="space-y-2">
+              <section className="space-y-3">
                 <h3 className="text-sm font-semibold">브랜드 메타</h3>
+
+                {/* 3-1. 배열 속성 (vibe / silhouette / palette / material / detail / pattern) */}
                 <dl className="space-y-1.5 text-xs">
-                  {(["vibe", "silhouette", "palette", "material", "detail"] as const).map((key) => {
+                  {(["vibe", "silhouette", "palette", "material", "detail", "pattern"] as const).map((key) => {
                     const values = detail.brand.attributes?.[key]
                     if (!values || values.length === 0) return null
                     return (
@@ -208,6 +226,50 @@ export function BrandNodeDetailDrawer({
                     )
                   })}
                 </dl>
+
+                {/* 3-2. 단일값 분류 (formality / price_tier / era_reference / subculture / gender_lean) */}
+                {(() => {
+                  const a = detail.brand.attributes
+                  if (!a) return null
+                  const rows: Array<[string, string]> = []
+                  if (a.formality) rows.push(["포멀리티", a.formality])
+                  if (a.price_tier) rows.push(["포지셔닝", a.price_tier])
+                  if (a.era_reference) rows.push(["시대", a.era_reference])
+                  if (a.subculture && a.subculture !== "none") rows.push(["서브컬처", a.subculture])
+                  if (a.gender_lean) rows.push(["성별 추론", a.gender_lean])
+                  if (rows.length === 0) return null
+                  return (
+                    <dl className="space-y-1.5 border-t pt-2 text-xs">
+                      {rows.map(([label, value]) => (
+                        <div key={label} className="grid grid-cols-[80px_1fr] gap-2">
+                          <dt className="text-muted-foreground">{label}</dt>
+                          <dd>
+                            <span className="rounded border bg-muted/40 px-1.5 py-0.5 text-[10px]">{value}</span>
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                  )
+                })()}
+
+                {/* 3-3. 속성 추출 메타 (attributes.confidence + reasoning) */}
+                {(detail.brand.attributes.confidence != null || detail.brand.attributes.reasoning) && (
+                  <div className="space-y-1.5 border-t pt-2 text-[10px] text-muted-foreground">
+                    {detail.brand.attributes.confidence != null && (
+                      <div className="flex justify-between">
+                        <span>속성 추출 신뢰도</span>
+                        <span className="tabular-nums text-foreground">
+                          {detail.brand.attributes.confidence.toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                    {detail.brand.attributes.reasoning && (
+                      <p className="whitespace-pre-wrap leading-relaxed text-muted-foreground/80">
+                        {detail.brand.attributes.reasoning}
+                      </p>
+                    )}
+                  </div>
+                )}
               </section>
             )}
 
@@ -267,12 +329,13 @@ function Row({label, value}: {label: string; value: string}) {
   )
 }
 
-const META_KEY_KO: Record<"vibe" | "silhouette" | "palette" | "material" | "detail", string> = {
+const META_KEY_KO: Record<"vibe" | "silhouette" | "palette" | "material" | "detail" | "pattern", string> = {
   vibe: "무드",
   silhouette: "실루엣",
   palette: "팔레트",
   material: "소재",
   detail: "디테일",
+  pattern: "패턴",
 }
 
 function fmtPriceBand(min: number | null, max: number | null): string {

@@ -11,7 +11,7 @@ export default async function PendingPage() {
   }
 
   if (status === "approved") {
-    redirect("/admin/genome")
+    redirect("/admin/brand-nodes")
   }
 
   return (

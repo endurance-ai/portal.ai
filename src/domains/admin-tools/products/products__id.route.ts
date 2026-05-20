@@ -2,36 +2,49 @@ import {NextRequest, NextResponse} from "next/server"
 import {requireApprovedAdmin} from "@/lib/admin-auth"
 import {supabase} from "@/lib/supabase"
 
+// SPEC-SEARCH-V6-001 P2: PAI 폐기 후 어드민 상품 상세.
+// AI categorical 분석 (color/fit/fabric/mood/keywords) 은 v6 에서 임베딩이 대체.
+// 응답은 products row + brand→style_node 매핑 + product_embeddings 보유여부만.
+
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  {params}: {params: Promise<{id: string}>}
 ) {
   const gate = await requireApprovedAdmin()
   if (gate instanceof NextResponse) return gate
 
-  const { id } = await params
+  const {id} = await params
 
-  // Fetch product
-  const { data: product, error: productError } = await supabase
+  const {data: product, error: productError} = await supabase
     .from("products")
     .select("*")
     .eq("id", id)
     .single()
 
   if (productError || !product) {
-    return NextResponse.json({ error: "Product not found" }, { status: 404 })
+    return NextResponse.json({error: "Product not found"}, {status: 404})
   }
 
-  // Fetch AI data (v1)
-  const { data: aiData } = await supabase
-    .from("product_ai_analysis")
-    .select("*")
-    .eq("product_id", id)
-    .eq("version", "v1")
-    .single()
+  const [styleRes, embRes] = await Promise.all([
+    product.brand_node_id != null
+      ? supabase
+          .from("brand_nodes")
+          .select("id, style_nodes!brand_nodes_primary_style_node_id_fkey(code, name_en)")
+          .eq("id", product.brand_node_id)
+          .maybeSingle()
+      : Promise.resolve({data: null, error: null}),
+    supabase
+      .from("product_embeddings")
+      .select("product_id, embedded_at")
+      .eq("product_id", id)
+      .maybeSingle(),
+  ])
 
-  // Transform response
-  const response = {
+  const styleNode =
+    (styleRes.data as {style_nodes: {code: string; name_en: string} | null} | null)
+      ?.style_nodes ?? null
+
+  return NextResponse.json({
     product: {
       id: product.id,
       brand: product.brand,
@@ -48,30 +61,13 @@ export async function GET(
       gender: product.gender,
       inStock: product.in_stock,
       color: product.color,
-      material: product.material,
       description: product.description,
       tags: product.tags,
       sizeInfo: product.size_info,
       createdAt: product.created_at,
-      ai: aiData
-        ? {
-            category: aiData.category,
-            subcategory: aiData.subcategory,
-            fit: aiData.fit,
-            fabric: aiData.fabric,
-            colorFamily: aiData.color_family,
-            colorDetail: aiData.color_detail,
-            styleNode: aiData.style_node,
-            moodTags: aiData.mood_tags,
-            keywordsKo: aiData.keywords_ko,
-            keywordsEn: aiData.keywords_en,
-            confidence: aiData.confidence,
-            modelId: aiData.model_id,
-            version: aiData.version,
-          }
-        : null,
+      styleNode,
+      hasEmbedding: !!embRes.data,
+      embeddedAt: (embRes.data as {embedded_at?: string} | null)?.embedded_at ?? null,
     },
-  }
-
-  return NextResponse.json(response)
+  })
 }

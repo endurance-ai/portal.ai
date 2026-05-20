@@ -39,7 +39,7 @@ export default function LoginPage() {
       return
     }
 
-    router.push("/admin/genome")
+    router.push("/admin/brand-nodes")
     router.refresh()
   }
 

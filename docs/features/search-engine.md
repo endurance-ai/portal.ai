@@ -1,14 +1,14 @@
 # 검색 엔진
 
 > `/api/find/search` (메인 플로우 Step 5) — **v6 embedding-first 단일 엔진** (SPEC-SEARCH-V6-001, 2026-05-18).
-> `/api/search-products` — v4 enum 가중합 엔진 (어드민 search-debugger 전용).
+> ~~`/api/search-products`~~ — **feature/redesign-admin에서 삭제됨** (v6 search-debugger 전환, `src/domains/search-v4/` 전체 제거).
 
 ## 한눈에 (2026-05-18 이후)
 
 | 레이어 | 상태 | 핵심 |
 |---|---|---|
 | **v6 (메인 플로우)** | ✅ 운영 | `product_embeddings` cosine-first (`search_products_v6` RPC, 072). Modal `/embed` + `/embed/text` query embedding. `SearchEngine` port 단일 구현체 (`v6-adapter.ts`). v4/v5 어댑터·circuit-breaker 제거 (SPEC-SEARCH-V6-001 P2) |
-| **v4 (어드민 전용)** | ✅ `src/domains/search-v4/` | `products` 직접 쿼리 + 10차원 가중합 + 다양성 캡. `/api/search-products` 어드민 디버거만 사용 |
+| ~~**v4 (어드민 전용)**~~ | ❌ **feature/redesign-admin에서 삭제** | `src/domains/search-v4/` + `/api/search-products` 전체 제거. 어드민 search-debugger가 `/api/admin/search-v6-debug` 로 전환됨. |
 | ~~**PAI (`product_ai_analysis`)**~~ | ❌ **069 DROP (2026-05-18)** | v6 embedding-first 는 PAI 비의존 — CASCADE DROP (REQ-V6-031) |
 | ~~**pgroonga 풀텍스트**~~ | ❌ **069 CASCADE DROP** | `idx_products_pgroonga_search` + `product_search_text(products)` — dead infra (유일 소비자 search_products_v5 동시 DROP) |
 | ~~**v5 검색 어댑터**~~ | ❌ **P2 삭제** | `v5-adapter.ts`, `v4-fallback-adapter.ts`, `circuit-breaker.ts` 삭제. `registry.ts` `selectEngine()` → v6 단일. `SEARCH_ENGINE_VERSION` env 분기 제거 |
@@ -56,7 +56,11 @@ user image (+ optional text prompt)
 
 ---
 
-## v4 (어드민 search-debugger 전용)
+## ~~v4 (어드민 search-debugger 전용)~~ — **삭제됨 (feature/redesign-admin, 2026-05-20)**
+
+> `src/domains/search-v4/` 전체 + `/api/search-products/route.ts` + v4 특성화 테스트 2파일 + locked-filter/season-pattern 유틸 삭제. 어드민 search-debugger가 `/api/admin/search-v6-debug` 기반 v6 디버거로 완전 전환됨.
+
+아래는 아카이브 참조용 (이 PR 이전 상태).
 
 **엔진 본체: `src/domains/search-v4/`** (engine/scorer/ranker/query-builder/constants/types — SPEC-ARCH-APP-001 step 3, 2026-05-17). `src/app/api/search-products/route.ts` 는 852→**207 LOC thin 핸들러**로 축소(입력검증→`searchByEnums` 위임→동일 NextResponse). 동작·스코어링 byte-identical (특성화 테스트 0-diff 검증). 아래 `src/lib/...` 경로 표기는 re-export shim 호환 경로이며 실체는 `src/domains/search-v4/` · `src/shared/{enums,utils}/`.
 
@@ -150,13 +154,31 @@ interface SearchRequest {
 ### 특성화 게이트 (P2 재정향)
 
 - `src/__characterization__/search-unify-001/find-search-route.test.ts` — **v6 success envelope** 핀 (v5 byte-identity pin 은 v5-adapter 삭제와 함께 retire). `engine:"v6"` / `"v6-degraded"` / 502 계약. v6 DB chain mock (mockRpc, mockBuildQueryEmbedding).
-- `src/__characterization__/search-unify-001/search-v4-shape.test.ts` — `searchByEnums` 시그니처 (live consumer: `/api/search-products` 어드민). **v4-fallback-adapter 삭제 후에도 생존** (어드민 경로 보호).
+- ~~`src/__characterization__/search-unify-001/search-v4-shape.test.ts`~~ — **feature/redesign-admin에서 삭제됨** (v4 어드민 소비자 `/api/search-products` + `domains/search-v4` 제거와 함께).
 - `src/__tests__/search-unify-001/registry-and-forward-compat.test.ts` — **v6 단일 registry** + port forward-compat. `selectEngineByVersion` / breaker singleton 테스트 **retire** (삭제된 코드). `circuit-breaker.test.ts` **삭제**.
 
 ### P5 잔여 audit
 
-- `search_quality_logs` (014) — v4 score breakdown, v6 cosine-only 와 구조 불일치. 유지/대체/제거 검토.
-- `get_product_filter_counts()` (026) — PAI 참조 late-binding, **069 PAI DROP 후 런타임 throw**. P5 에서 재작성 또는 제거.
+- `search_quality_logs` (014) — v4 score breakdown 구조. v6 cosine-only 와 불일치. 유지/대체/제거 검토.
+- ~~`get_product_filter_counts()`~~ — **migration 074에서 DROP됨** (feature/redesign-admin). PAI DROP(069) 후 런타임 throw 상태였던 audit 항목 청산. `count_products_by(p_column)` RPC + 라우트 직접 집계로 대체.
+
+### 검색 디버거 v2 (관측성 도구, 2026-05-20)
+
+어드민 `/admin/search-debugger` 전면 재작성 — v6 파이프라인 end-to-end 트레이스.
+
+| 기능 | 상세 |
+|---|---|
+| **모드** | text / image / fused (3종) |
+| **Apify URL resolve** | IG/Pinterest URL → 이미지 URL 자동 추출 |
+| **Vision/LLM rewrite** | AI 서버 `/debug/*` 엔드포인트 호출 → Vision 분석 + 쿼리 rewrite trace |
+| **파이프라인 trace** | `search_products_v6` RPC 직접 호출 + steps 토글 (run_rewrite, apply_rewrite, run_vision, auto_wire_category) |
+| **Run 히스토리** | `search_debug_runs` 테이블 (migration 083) — rating(1-5) / notes / tags. 어드민 간 공유 |
+| **API** | `POST /api/admin/search-v6-debug` (AI 서버 프록시), `GET/POST /api/admin/search-debug-runs`, `GET/PATCH/DELETE /api/admin/search-debug-runs/[id]` |
+| **env 의존** | `AI_API_URL` (AI server base URL, `AI_SERVER_URL` fallback), `INTERNAL_API_TOKEN` (X-Internal-Token 헤더) |
+
+### search_products_v6 fanout 버그 수정 (migration 082)
+
+`category_canonical` JOIN 의 `lower(trim())` 정규화가 동일 normalize 값을 가진 cc row N개에 매칭 → N배 fanout 발생 (같은 product_id 2~3회 중복 반환). `cc.raw_category = p.category` verbatim 비교로 정정. v_target_family lookup (p_category 인자 → family) 의 `lower(trim())` 는 보존.
 
 ---
 
@@ -167,9 +189,9 @@ interface SearchRequest {
 
 | 파일 | 설명 |
 |---|---|
-| `src/domains/search-v4/` | **v4 엔진 본체** (engine/scorer/ranker/query-builder/constants/types) |
-| `src/app/api/search-products/route.ts` | 207 LOC thin 핸들러 → `domains/search-v4` 위임 (구 ~870 LOC 본체) |
-| `src/lib/search/locked-filter.ts` | shim → `src/shared/utils/locked-filter` (`passesLockedFilter` + `toleranceToTargetCount`) |
+| ~~`src/domains/search-v4/`~~ | **feature/redesign-admin에서 전체 삭제** (engine/scorer/ranker/query-builder/constants/types) |
+| ~~`src/app/api/search-products/route.ts`~~ | **feature/redesign-admin에서 삭제** — 어드민 search-debugger가 v6으로 전환됨 |
+| ~~`src/lib/search/locked-filter.ts`~~ / ~~`src/shared/utils/locked-filter.ts`~~ | **feature/redesign-admin에서 삭제** — v4 전용 유틸, 소비자 없음 |
 | `src/lib/enums/product-enums.ts` | enum 정의 + validation + `buildEnumReference()` |
 | `src/lib/enums/korean-vocab.ts` | 한국어 → enum 매핑 (115+) |
 | `src/lib/enums/color-adjacency.ts` | 16색 인접 |
