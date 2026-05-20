@@ -104,29 +104,20 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // 4) similar brand (brand_similar 037 자산, SPEC 5 cutover 후 정리 예정)
-  type SimEdge = {similar_brand_id: number; similarity: number | string}
-  const {data: simEdges} = await supabase
-    .from("brand_similar")
-    .select("similar_brand_id, similarity")
-    .eq("brand_id", id)
-    .order("rank")
-    .limit(8)
-
-  const similarResult: Array<{id: number; name: string; similarity: number}> = []
-  if (simEdges && simEdges.length > 0) {
-    const ids = (simEdges as SimEdge[]).map((e) => e.similar_brand_id)
-    const {data: simBrands} = await supabase
-      .from("brand_nodes")
-      .select("id, brand_name")
-      .in("id", ids)
-    const brandMap = new Map(((simBrands ?? []) as Array<{id: number; brand_name: string}>).map((b) => [b.id, b]))
-    for (const e of simEdges as SimEdge[]) {
-      const b = brandMap.get(e.similar_brand_id)
-      if (!b) continue
-      similarResult.push({id: b.id, name: b.brand_name, similarity: Number(e.similarity)})
-    }
-  }
+  // 4) similar brand — FashionSigLIP multimodal cosine (mig 065 RPC)
+  //   brand_multimodal_embeddings.vector 기반. 옛 brand_similar (037 BGE-m3) 폐기 후 교체.
+  type SimRow = {brand_id: number; brand_name: string; primary_style_node_id: number | null; similarity: number | string}
+  const {data: simRows} = await supabase.rpc("find_similar_brands", {
+    p_brand_id: Number(id),
+    p_limit: 10,
+  })
+  const similarResult: Array<{id: number; name: string; similarity: number}> = (
+    (simRows ?? []) as SimRow[]
+  ).map((r) => ({
+    id: r.brand_id,
+    name: r.brand_name,
+    similarity: Number(r.similarity),
+  }))
 
   return NextResponse.json({
     brand: {
