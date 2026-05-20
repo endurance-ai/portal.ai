@@ -22,7 +22,7 @@ AI 이미지 기반 패션 스타일 분석 & 크로스플랫폼 상품 추천. 
 |---|---|
 | `docs/ARCHITECTURE.md` | 외부 서비스 추가/제거, 토폴로지 변경, 활성 진입점 변경, 마이그레이션 머지 |
 | `docs/features/main-flow.md` | `/api/instagram/*`, `/api/find/*`, `_components/find-*` 변경, 에러 코드 추가/삭제, 캐시·picker UX 흐름 변경 |
-| `docs/features/search-engine.md` | `/api/search-products` 알고리즘/스코어링 변경, v6 embedding-first 진척, 검색 관련 enum/사전/RPC 변경 |
+| `docs/features/search-engine.md` | `/api/admin/search-v6-debug` 변경, v6 embedding-first 진척, 검색 관련 enum/사전/RPC 변경 (`/api/search-products` 는 feature/redesign-admin에서 삭제됨) |
 
 **`/feature-finalize` 스킬의 doc-update 단계에서 이 3개는 "변경 없음" 처리 금지.** 매 PR마다 코드 diff 와 cross-check 후 본문 갱신 여부 명시.
 
@@ -44,7 +44,7 @@ pnpm test:watch   # vitest watch
 | UI | Tailwind 4, shadcn/ui, framer-motion, Pretendard |
 | 인증 | Auth.js v5 (next-auth@5 beta) Credentials Provider + bcryptjs + pg Pool (SPEC-INFRA-MIGRATE-001 P3) |
 | 이미지 분석 | OpenAI GPT-4o-mini Vision (LiteLLM 프록시 토글, 현재 OFF) |
-| 검색 | **v6** (embedding-first, SPEC-SEARCH-V6-001) — `search_products_v6` RPC (072) + `product_embeddings` halfvec(768) HNSW. v4 어드민 전용 (`/api/search-products`). PAI·pgroonga·v5 어댑터 폐기 (069) |
+| 검색 | **v6** (embedding-first, SPEC-SEARCH-V6-001) — `search_products_v6` RPC (072, 082 verbatim JOIN 정정) + `product_embeddings` halfvec(768) HNSW. ~~v4 어드민 전용 (`/api/search-products`)~~ — feature/redesign-admin에서 삭제, 어드민 search-debugger가 `/api/admin/search-v6-debug` 로 전환됨. PAI·pgroonga·v5 어댑터 폐기 (069) |
 | 저장 | 자체호스트 Postgres 16 (dev-app EC2) + pgvector, PostgREST 게이트웨이 (nginx shim, SPEC-INFRA-MIGRATE-001 P6), Cloudflare R2 |
 | 크롤러 | **외부 리포 [`endurance-ai/crawler`](https://github.com/endurance-ai/crawler)** — Playwright (Cafe24 22) + Shopify JSON (10), 81k SKU / 697 브랜드 |
 | 배포 | dev-app EC2 self-host (Dockerfile + GitHub Actions CI/CD, SPEC-INFRA-MIGRATE-001 P5) + AWS EC2 g5 Spot (임베딩 배치). 2026-05-10 Vercel pause |

@@ -5,36 +5,49 @@ import {ProductDetail} from "@/components/admin/product-detail"
 export default async function ProductDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }>
+  params: Promise<{id: string}>
 }) {
-  const { id } = await params
+  const {id} = await params
 
-  const [productRes, aiRes, reviewsRes] = await Promise.all([
+  const [productRes, reviewsRes] = await Promise.all([
     supabase.from("products").select("*").eq("id", id).single(),
-    supabase
-      .from("product_ai_analysis")
-      .select("*")
-      .eq("product_id", id)
-      .eq("version", "v1")
-      .single()
-      .then(
-        (res) => res,
-        () => ({ data: null, error: null })
-      ),
     supabase
       .from("product_reviews")
       .select("*")
       .eq("product_id", id)
-      .order("created_at", { ascending: false })
+      .order("created_at", {ascending: false})
       .limit(50),
   ])
 
   if (productRes.error) notFound()
 
+  const product = productRes.data
+
+  const [styleRes, embRes] = await Promise.all([
+    product.brand_node_id != null
+      ? supabase
+          .from("brand_nodes")
+          .select("id, style_nodes!brand_nodes_primary_style_node_id_fkey(code, name_en)")
+          .eq("id", product.brand_node_id)
+          .maybeSingle()
+      : Promise.resolve({data: null}),
+    supabase
+      .from("product_embeddings")
+      .select("product_id, embedded_at")
+      .eq("product_id", id)
+      .maybeSingle(),
+  ])
+
+  const styleNode =
+    (styleRes.data as {style_nodes: {code: string; name_en: string} | null} | null)
+      ?.style_nodes ?? null
+
   return (
     <ProductDetail
-      product={productRes.data}
-      ai={aiRes.data}
+      product={product}
+      styleNode={styleNode}
+      hasEmbedding={!!embRes.data}
+      embeddedAt={(embRes.data as {embedded_at?: string} | null)?.embedded_at ?? null}
       reviews={reviewsRes.data ?? []}
     />
   )

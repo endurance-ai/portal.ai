@@ -35,6 +35,8 @@
 | | `style_node_adjacency` | 051 | 스타일 노드 간 관계 그래프 (빈 테이블 — SPEC-BRAND-EMBED-001 이 채울 예정) |
 | **프롬프트 레지스트리** | `prompts` | 052 + 053 + **059** | VLM/Text prompt DB 관리. situation 별 active 1개 유지 (partial unique index). `src/lib/prompts/registry.ts` 로 fetch (5 min cache + in-flight dedup). Admin 편집 가능 (/admin/prompts). 059: brand-vlm v1 row 추가 (gpt-4o-mini, 5-image multimodal, NODES_BLOCK/NODE_CODES/BRAND_NAME placeholders) |
 | **API 로깅** | `api_access_logs` | — | 외부 API 호출 추적 |
+| **검색 디버거** | `search_debug_runs` | **083** | 어드민 v6 search-debugger Run 스냅샷. mode/query/image_url/filters/steps/response(jsonb) + rating(1-5)/notes/tags. 어드민 간 공유 (RLS 없음, requireApprovedAdmin 게이트). |
+| **크롤 통계** | `crawl_platform_stats` | **078** | 플랫폼별 SKU 카운트 + 최근 크롤 타임스탬프 집계 뷰. `/admin/crawl` 페이지가 소비. |
 
 ---
 
@@ -83,7 +85,8 @@ CREATE INDEX idx_products_tags_gin ON products USING gin (tags);
 | ~~`search_products_v5(vector/halfvec, ...)`~~ | — | **069 DROP** (uuid 시그니처 stale) |
 | ~~`product_search_text(products)`~~ | — | **069 CASCADE DROP** (pgroonga 인덱스 의존 — dead infra, 유일 소비자 search_products_v5 가 069 에서 제거됨) |
 | ~~`set_hnsw_ef_search(ef int)`~~ | — | **044 드랍** — 호출 0 hits, A/B 실험용 잔재 |
-| `get_product_filter_counts()` | returns table | 어드민 상품 필터 옵션 (10min CDN cache). ⚠️ **PAI 참조 late-binding — 069 PAI DROP 후 런타임 throw. P5 audit 항목 (재작성 또는 제거 예정)** |
+| ~~`get_product_filter_counts()`~~ | ~~returns table~~ | **migration 074 에서 DROP됨** (feature/redesign-admin). 069 PAI DROP 후 런타임 throw 상태 청산. `count_products_by(p_column text)` (074) 로 대체 — platform/category 두 차원 GROUP BY 집계. |
+| `count_products_by(p_column text)` | returns table(value text, count bigint) | **074** — 어드민 상품 필터 옵션 fast-path. platform / category 컬럼 집계. `app_user` EXECUTE 권한 부여됨 |
 | `activate_prompt(p_id bigint)` | returns prompts | **054** — atomic activate: 동일 situation 의 기존 active row deactivate + 대상 row activate 를 단일 트랜잭션으로 처리. race 조건(unique partial index 위반) 방지. SECURITY DEFINER. `app_user` EXECUTE 권한 부여됨 |
 | `classify_brand_acquire(p_brand_id bigint, p_force boolean)` | returns table (id, brand_name, primary_node_id, skip_reason) | **060** — `/api/internal/classify-brand` 진입 가드. SELECT FOR UPDATE + conditional UPDATE sentinel(node_assigned_at). skip_reason NULL=진행 / 'already_classified' / 'recently_assigned'(60초 내). `app_user` EXECUTE 권한 부여됨 |
 | `enqueue_brand_review(p_brand_id bigint, p_reason text, p_vlm_output jsonb)` | returns bigint | **060** — brand_node_review_queue atomic upsert. partial unique index (brand_id WHERE resolved_at IS NULL) 와 함께 open row 1건 보장. `app_user` EXECUTE 권한 부여됨 |
@@ -178,6 +181,15 @@ SELECT p.platform,
 | **071** | **SPEC-SEARCH-V6-001 P0 (3/3) — `product_embeddings` 테이블 생성** — `product_id bigint PK FK → products.id ON DELETE CASCADE`, `embedding halfvec(768)`, HNSW `halfvec_cosine_ops` (직렬 빌드 강제: `SET LOCAL max_parallel_maintenance_workers=0`). 기존 `products.embedding` 전량 backfill (~71k rows). 027/031 자산 전부 `product_embeddings` 기준 rework (HNSW 인덱스·pending 부분인덱스·coverage VIEW·bulk_update_product_embeddings RPC). |
 | **072** | **SPEC-SEARCH-V6-001 P1 — `search_products_v6` RPC** — embedding-first 검색 함수. FILTER 1 EXACT `primary_style_node_id` → FILTER 2 `category_canonical` family gate (073) + `in_stock + product_embeddings row` → cosine `<=>` DESC, `created_at` tie. 0건 시 degraded fallback (category-only cosine, `degraded=true`). `p_brand_names` 로 strong/general 분기. |
 | **073** | **SPEC-SEARCH-V6-001 follow-up — `category_canonical` 테이블 + search_products_v6 FILTER 2 개선** — 752 distinct `products.category` 값 → 20 canonical family 매핑. method B (family equality gate) + F (relaxation ladder: node+family → node-drop → both-drop) + A (lower/trim normalize). Vision-normalize cross-component 공유 계약. |
+| **074** | **SPEC-SEARCH-V6-001 P5 audit 청산 — `get_product_filter_counts()` DROP** (069 PAI DROP 후 런타임 throw 상태였던 함수 제거). `count_products_by(p_column text)` RPC 신설 (platform/category GROUP BY, `app_user` EXECUTE 권한). |
+| **075** | **`prompts` brand-attributes v1 seed** — situation='brand-attributes', 12-dimension JSON extraction prompt (vibe/palette/material/silhouette/detail/pattern/gender_lean/formality/price_tier/era_reference/subculture/confidence). nova-lite Vision 기반. |
+| **076** | **`brand_multimodal_umap` 클러스터 테이블** — UMAP 2D scatter 관련 클러스터 메타데이터 (brand-clusters 어드민 상세 패널용). |
+| **078** | **`crawl_platform_stats` 집계 뷰** — 플랫폼별 SKU 카운트 + 최근 크롤 타임스탬프. `/admin/crawl` 크롤 모니터 페이지가 소비. |
+| **079** | **`products.material` 컬럼 DROP** — 크롤러에서 채우지 않는 dead 컬럼 제거. |
+| **080** | **`brand_similar` 그래프 DROP** — BGE-m3 텍스트 임베딩 기반 42k edge 그래프. `brand_multimodal_embeddings` + `find_similar_brands` RPC(063~066)로 완전 대체. |
+| **081** | **`products.style_node` 레거시 컬럼 + 인덱스 + CHECK constraint DROP** — 004(컬럼+인덱스) + 008(chk_products_style_node) 자산 제거. 118k rows 중 265행만 채워진 dead data (v6 embedding-first는 product-level 라벨 미사용). |
+| **082** | **`search_products_v6` category JOIN verbatim 정정** — 3 곳의 `lower(trim(cc.raw_category)) = lower(trim(p.category))` → `cc.raw_category = p.category`. category_canonical seed 가 verbatim 1:1 매핑이므로 정규화 불필요. 동일 normalize 값 N개 매칭 → N배 fanout 버그 수정 (중복 product_id 반환 증상). |
+| **083** | **`search_debug_runs` 테이블** — 어드민 v6 search-debugger Run 히스토리. mode(text/image/fused)/query_text/image_url/source_url/filters/steps(jsonb)/response(jsonb)/rating(1-5)/notes/tags(text[]). 인덱스: created_at DESC + rating + tags GIN. |
 
 ---
 
