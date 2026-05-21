@@ -14,7 +14,7 @@
 | | `product_embeddings` | **071** | FashionSigLIP(768) product image embeddings — `products` 에서 분리. halfvec(768) + HNSW halfvec_cosine_ops. `brand_multimodal_embeddings` (063) 와 대칭. v6 ranking 기반. **product_id bigint PK + FK → products.id ON DELETE CASCADE** |
 | | `product_reviews` | 019 | 상품 리뷰. **070 에서 product_id uuid→bigint swap** |
 | | ~~`product_ai_analysis`~~ | ~~012~~→**069 드랍** | **migration 069 (2026-05-18) 에서 CASCADE DROP. v6 embedding-first 는 PAI 비의존 (REQ-V6-031)** |
-| **브랜드** | `brand_nodes` | 002 + 007 + 037 + 040 + 041 + 042 + **055** + **056** + **067** | Fashion Genome v2 슬림화. **067 (2026-05-15)**: 037 BGE-m3 텍스트 임베딩 자산(embedding/x_umap/y_umap 등) + 옛 LLM 메타(sensitivity_tags/brand_keywords/aliases/category_type/representative_image_urls/price_band) 13 컬럼 DROP. price_min_usd / price_max_usd (numeric, USD) 신규 + products 기준 backfill. **id bigserial** (056). primary/secondary_node_id FK + node_confidence (055) |
+| **브랜드** | `brand_nodes` | 002 + 007 + 037 + 040 + 041 + 042 + **055** + **056** + **067** + **084** | Fashion Genome v2 슬림화. **067 (2026-05-15)**: 037 BGE-m3 텍스트 임베딩 자산(embedding/x_umap/y_umap 등) + 옛 LLM 메타(sensitivity_tags/brand_keywords/aliases/category_type/representative_image_urls/price_band) 13 컬럼 DROP. price_min_usd / price_max_usd (numeric, USD) 신규 + products 기준 backfill. **id bigserial** (056). primary/secondary_node_id FK + node_confidence (055). **084 (2026-05-21)**: `wiki jsonb` 컬럼 추가 (SPEC-BRAND-WIKI-001) — 브랜드 위키 메타 (instagram_handle / homepage_url / description_ko / founder / founded_year / origin_country / status 등). 인덱스 3종 (country / ig_handle / status). |
 | | `brand_attributes` | 010 | 어드민에서 채우는 브랜드 속성 |
 | | `brand_similar` | 038 + **056** | 브랜드 간 유사도 그래프 (top-20 edges per brand, cosine similarity). brand_id bigint 전환 (056) |
 | | `brand_attribute_proposals` | 039 + **056** | LLM 추론 브랜드 속성 검수큐 (confidence ≥ 0.85 자동/0.7~0.85 pending/< 0.7 폐기). brand_id bigint 전환 (056) |
@@ -190,6 +190,7 @@ SELECT p.platform,
 | **081** | **`products.style_node` 레거시 컬럼 + 인덱스 + CHECK constraint DROP** — 004(컬럼+인덱스) + 008(chk_products_style_node) 자산 제거. 118k rows 중 265행만 채워진 dead data (v6 embedding-first는 product-level 라벨 미사용). |
 | **082** | **`search_products_v6` category JOIN verbatim 정정** — 3 곳의 `lower(trim(cc.raw_category)) = lower(trim(p.category))` → `cc.raw_category = p.category`. category_canonical seed 가 verbatim 1:1 매핑이므로 정규화 불필요. 동일 normalize 값 N개 매칭 → N배 fanout 버그 수정 (중복 product_id 반환 증상). |
 | **083** | **`search_debug_runs` 테이블** — 어드민 v6 search-debugger Run 히스토리. mode(text/image/fused)/query_text/image_url/source_url/filters/steps(jsonb)/response(jsonb)/rating(1-5)/notes/tags(text[]). 인덱스: created_at DESC + rating + tags GIN. |
+| **084** | **`brand_nodes.wiki jsonb` 컬럼 추가 (SPEC-BRAND-WIKI-001 P1)** — 브랜드 위키 메타데이터를 단일 jsonb 컬럼에 namespace 묶음. 기존 `attributes`(VLM 결과)와 완전 분리. 신규 컬럼만 추가 — 기존 데이터 무변경. 인덱스 3종: `idx_brand_nodes_wiki_country` (origin_country 클러스터링), `idx_brand_nodes_wiki_ig` (instagram_handle lookup), `idx_brand_nodes_wiki_status` (admin 검수 필터). |
 
 ---
 
@@ -230,6 +231,7 @@ SELECT p.platform,
 | node_assigned_model | text | VLM 모델 ID 추적 (055) |
 | price_min_usd | numeric | USD 환산 최저가 (067 신규). products 기준 backfill 또는 어드민 수동 입력 |
 | price_max_usd | numeric | USD 환산 최고가 (067 신규) |
+| wiki | jsonb | 브랜드 위키 메타 (084 신규, SPEC-BRAND-WIKI-001). 필드: `instagram_handle`, `instagram_url`, `homepage_url`, `description_ko`, `description_original`, `founder text[]`, `founded_year smallint`, `origin_country char(2)`, `sources jsonb[]`, `confidence`, `status` (ok/review/no_data), `review_reasons`, `enriched_at`, `schema_version`. attributes(VLM 결과)와 분리. 인덱스: `idx_brand_nodes_wiki_country` (origin_country) / `idx_brand_nodes_wiki_ig` (instagram_handle) / `idx_brand_nodes_wiki_status` (status). |
 
 ### brand_similar
 

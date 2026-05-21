@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
     id: number
     brand_name: string
     attributes: Record<string, string[]> | null
+    wiki: Record<string, unknown> | null
     primary_style_node_id: number | null
     secondary_style_node_id: number | null
     style_node_confidence: number | string | null
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
   const {data: brandRaw, error: bErr} = await supabase
     .from("brand_nodes")
     .select(
-      "id, brand_name, attributes, " +
+      "id, brand_name, attributes, wiki, " +
         "primary_style_node_id, secondary_style_node_id, " +
         "style_node_confidence, style_node_assigned_model, style_node_assigned_at, " +
         "gender_scope, source_platforms, price_min_usd, price_max_usd",
@@ -105,25 +106,41 @@ export async function GET(request: NextRequest) {
   }
 
   // 4) similar brand — FashionSigLIP multimodal cosine (mig 065 RPC)
-  //   brand_multimodal_embeddings.vector 기반. 옛 brand_similar (037 BGE-m3) 폐기 후 교체.
+  //   brand_multimodal_embeddings.vector 기반. brand-clusters 패널과 동일 RPC.
   type SimRow = {brand_id: number; brand_name: string; primary_style_node_id: number | null; similarity: number | string}
   const {data: simRows} = await supabase.rpc("find_similar_brands", {
     p_brand_id: Number(id),
     p_limit: 10,
   })
-  const similarResult: Array<{id: number; name: string; similarity: number}> = (
-    (simRows ?? []) as SimRow[]
-  ).map((r) => ({
-    id: r.brand_id,
-    name: r.brand_name,
-    similarity: Number(r.similarity),
-  }))
+  const simList = (simRows ?? []) as SimRow[]
+  const similarResult: Array<{id: number; name: string; primary_style_node_id: number | null; similarity: number}> =
+    simList.map((r) => ({
+      id: r.brand_id,
+      name: r.brand_name,
+      primary_style_node_id: r.primary_style_node_id,
+      similarity: Number(r.similarity),
+    }))
+
+  // similar 의 primary_style_node 까지 한 번에 lookup (node 배지 표시용)
+  const similarNodeIds = simList
+    .map((s) => s.primary_style_node_id)
+    .filter((v): v is number => v != null && !nodeMap.has(v))
+  if (similarNodeIds.length > 0) {
+    const {data: extraNodes} = await supabase
+      .from("style_nodes")
+      .select("id, code, name_en")
+      .in("id", similarNodeIds)
+    for (const n of (extraNodes ?? []) as NodeRow[]) nodeMap.set(n.id, n)
+  }
+  const nodesById: Record<number, {code: string; name_en: string}> = {}
+  for (const [k, v] of nodeMap.entries()) nodesById[k] = {code: v.code, name_en: v.name_en}
 
   return NextResponse.json({
     brand: {
       id: brand.id,
       name: brand.brand_name,
       attributes: brand.attributes,
+      wiki: brand.wiki,
       primary_style_node:
         brand.primary_style_node_id != null ? nodeMap.get(brand.primary_style_node_id) ?? null : null,
       secondary_style_node:
@@ -148,5 +165,6 @@ export async function GET(request: NextRequest) {
       product_url: p.product_url,
     })),
     similar: similarResult,
+    nodes_by_id: nodesById,
   })
 }

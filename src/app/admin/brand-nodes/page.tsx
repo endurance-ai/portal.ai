@@ -21,6 +21,7 @@ type Brand = {
 type Resp = {brands: Brand[]; total: number; page: number; limit: number; has_more: boolean}
 
 type Status = "all" | "classified" | "unclassified" | "low_conf"
+type WikiFilter = "all" | "with" | "without"
 
 export default function BrandNodesPage() {
   const [nodes, setNodes] = useState<StyleNode[]>([])
@@ -35,6 +36,7 @@ export default function BrandNodesPage() {
       : ""
   const [nodeId, setNodeId] = useState<string>("")
   const [status, setStatus] = useState<Status>("all")
+  const [wikiFilter, setWikiFilter] = useState<WikiFilter>("all")
   const [search, setSearch] = useState(initialQ)
   const [debouncedSearch, setDebouncedSearch] = useState(initialQ)
   const [page, setPage] = useState(0)
@@ -60,7 +62,7 @@ export default function BrandNodesPage() {
   // reset page when filters change
   useEffect(() => {
     setPage(0)
-  }, [nodeId, status, debouncedSearch])
+  }, [nodeId, status, wikiFilter, debouncedSearch])
 
   // load brands
   const load = useCallback(async () => {
@@ -70,6 +72,7 @@ export default function BrandNodesPage() {
       const params = new URLSearchParams()
       if (nodeId) params.set("nodeId", nodeId)
       params.set("status", status)
+      if (wikiFilter !== "all") params.set("wiki", wikiFilter)
       if (debouncedSearch) params.set("q", debouncedSearch)
       params.set("page", String(page))
       params.set("limit", "24")
@@ -82,7 +85,7 @@ export default function BrandNodesPage() {
     } finally {
       setLoading(false)
     }
-  }, [nodeId, status, debouncedSearch, page])
+  }, [nodeId, status, wikiFilter, debouncedSearch, page])
 
   useEffect(() => {
     void load()
@@ -144,6 +147,16 @@ export default function BrandNodesPage() {
                 {n.code} · {n.name_en}
               </option>
             ))}
+          </select>
+          <select
+            value={wikiFilter}
+            onChange={(e) => setWikiFilter(e.target.value as WikiFilter)}
+            className="rounded border bg-background px-2 py-1.5 text-sm outline-none focus:border-foreground/40"
+            title="위키 정보 유무 필터"
+          >
+            <option value="all">Wiki 전체</option>
+            <option value="with">Wiki 있음</option>
+            <option value="without">Wiki 없음</option>
           </select>
           {data && (
             <div className="ml-auto text-xs text-muted-foreground tabular-nums">

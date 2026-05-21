@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic"
  * GET /api/admin/brand-nodes
  *   ?nodeId=N            — primary_style_node_id 일치
  *   ?status=all|classified|unclassified|low_conf
+ *   ?wiki=all|with|without — wiki jsonb 유무 (SPEC-BRAND-WIKI-001 M2)
  *   ?q=text              — brand_name ILIKE
  *   ?minConf=0.0&maxConf=1.0
  *   ?page=0&limit=24
@@ -21,6 +22,7 @@ export async function GET(request: NextRequest) {
   const sp = request.nextUrl.searchParams
   const nodeId = sp.get("nodeId")
   const status = (sp.get("status") ?? "all") as "all" | "classified" | "unclassified" | "low_conf"
+  const wiki = (sp.get("wiki") ?? "all") as "all" | "with" | "without"
   const q = sp.get("q")?.trim() ?? ""
   const minConf = sp.get("minConf") ? parseFloat(sp.get("minConf")!) : null
   const maxConf = sp.get("maxConf") ? parseFloat(sp.get("maxConf")!) : null
@@ -42,6 +44,9 @@ export async function GET(request: NextRequest) {
   if (status === "classified") query = query.not("primary_style_node_id", "is", null)
   else if (status === "unclassified") query = query.is("primary_style_node_id", null)
   else if (status === "low_conf") query = query.lt("style_node_confidence", 0.7)
+
+  if (wiki === "with") query = query.not("wiki", "is", null)
+  else if (wiki === "without") query = query.is("wiki", null)
 
   if (nodeId) {
     const parsed = parseInt(nodeId, 10)
