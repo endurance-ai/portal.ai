@@ -4,14 +4,11 @@ import Link from "next/link"
 import {usePathname} from "next/navigation"
 import {
     Activity,
-    BarChart3,
     Bug,
     Database,
     FileText,
-    FlaskConical,
     Inbox,
     ListChecks,
-    MessageCircle,
     MousePointerClick,
     Palette,
     ShoppingBag,
@@ -44,15 +41,12 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       {href: "/admin/brand-node-review", label: "브랜드 검수", description: "브랜드 자동 분류 검수", icon: Inbox},
       {href: "/admin/brand-proposals", label: "메타 검수", description: "AI 메타 추론 (vibe·palette·...) 검수", icon: ListChecks},
-      {href: "/admin/eval", label: "분석 품질평가", description: "Vision 분석 결과 인간 평가", icon: FlaskConical},
     ],
   },
   {
     title: "인사이트",
     items: [
-      {href: "/admin/analytics", label: "분석 트래픽", description: "분석 기록 & 활동 차트", icon: BarChart3},
       {href: "/admin/ai-insights", label: "봇 추천 성과", description: "봇 검색 추천 CTR & latency", icon: MousePointerClick},
-      {href: "/admin/user-voice", label: "유저 보이스", description: "피드백 & 리파인 여정", icon: MessageCircle},
     ],
   },
   {

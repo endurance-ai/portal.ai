@@ -71,7 +71,7 @@ export function Card({className, children}: {className?: string; children: React
 ### 표준 입력 검증 + 에러 셰이프
 
 ```ts
-// src/app/api/feedback/route.ts (요약)
+// 예시 — API route 입력 검증 + 에러 셰이프 패턴 (구 /api/feedback, 2026-05-22 제거)
 import {NextResponse} from "next/server"
 
 export async function POST(req: Request) {
@@ -115,12 +115,12 @@ export async function POST(req: Request) {
 - DB 에러 메시지는 사용자에게 노출 X (`error.code`, `error.message` 만 서버 로그)
 - 시크릿/내부 식별자(`session_id`, service role key)는 응답에 절대 포함 금지
 
-### 핸들러 인프로세스 직접 호출 (`/find` → search-products)
+### 핸들러 인프로세스 직접 호출
 
-자기 자신 도메인으로 `fetch` 던지지 말고 **핸들러 함수 import + `NextRequest` 합성**.
+자기 자신 도메인으로 `fetch` 던지지 말고 **핸들러 함수 import + `NextRequest` 합성**. (아래 구체 예시 파일들은 2026-05-22 제거됨 — 패턴 참고용. 현행 thin-route는 `app/api/admin/* → domains/admin-tools/*.route.ts` import 방식 사용)
 
 ```ts
-// src/app/api/find/search/route.ts
+// (구 예시) src/app/api/find/search/route.ts → search-products 핸들러 직접 호출
 import {POST as searchProductsPost} from "@/app/api/search-products/route"
 
 const req = new NextRequest("http://internal/api/search-products", {

@@ -4,8 +4,10 @@ AI 이미지 기반 패션 스타일 분석 & 크로스플랫폼 상품 추천. 
 
 ## 활성 진입점
 
-- `/` — Instagram 포스트 URL → 슬라이드 Vision → 브랜드 매칭 → 상품 추천 (메인)
-- `/admin` — 어드민 대시보드 (승인 게이트)
+- `/admin` — 어드민 대시보드 (승인 게이트). **현재 유일 활성 표면.**
+- `/` — `/admin` 으로 redirect (공개 IG "snitch" 플로우는 2026-05-22 제거 — admin 전용 전환).
+
+> **2026-05-22 admin 전용 전환**: 공개 IG 플로우(`page.tsx`/`_components`/`api/find`/`api/instagram`/`api/analyze`/`api/feedback` + `domains/{vision,search,instagram}` + 관련 lib) 일괄 제거. 봇(ai 리포)은 app 미호출(Postgres 직결)이라 영향 없음. 검색/Vision 엔진은 ai 리포 + 어드민 search-debugger 자체 모듈에 잔존.
 
 ## 작업 규칙
 
