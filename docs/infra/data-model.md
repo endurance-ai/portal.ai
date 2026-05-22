@@ -8,33 +8,34 @@
 
 | 영역 | 테이블 | 마이그 | 역할 |
 |---|---|---|---|
-| **분석 로그** | `analyses` | 001 | 분석 1건 = 1행. AI raw 응답 + 검색 결과 전체 + `is_pinned` |
-| | `analysis_sessions` | 021 | 세션 단위 묶음 (user_voice 분석용) |
+| **분석 로그** | ~~`analyses`~~ | ~~001~~→**089 드롭** | **migration 089 DROP (2026-05-22)** — /admin/eval 제거 + writer(/api/analyze) 제거로 dead. |
+| | ~~`analysis_items`~~ | ~~002~~→**089 드롭** | **migration 089 DROP** — eval 상세 전용이었음 |
+| | ~~`analysis_sessions`~~ | ~~021~~→**087 드롭** | **migration 087 DROP (2026-05-22)** — 레거시 refine 세션. /api/analyze + user-voice 제거에 동반 |
 | **상품** | `products` | 004 + 005 + 006 + 011 + 027 + **070** | 크롤로 들어온 모든 SKU. 임베딩 컬럼 추가됨 (027). **070: id uuid→bigserial 전환 (2026-05-18)** |
 | | `product_embeddings` | **071** | FashionSigLIP(768) product image embeddings — `products` 에서 분리. halfvec(768) + HNSW halfvec_cosine_ops. `brand_multimodal_embeddings` (063) 와 대칭. v6 ranking 기반. **product_id bigint PK + FK → products.id ON DELETE CASCADE** |
 | | `product_reviews` | 019 | 상품 리뷰. **070 에서 product_id uuid→bigint swap** |
 | | ~~`product_ai_analysis`~~ | ~~012~~→**069 드랍** | **migration 069 (2026-05-18) 에서 CASCADE DROP. v6 embedding-first 는 PAI 비의존 (REQ-V6-031)** |
 | **브랜드** | `brand_nodes` | 002 + 007 + 037 + 040 + 041 + 042 + **055** + **056** + **067** + **084** | Fashion Genome v2 슬림화. **067 (2026-05-15)**: 037 BGE-m3 텍스트 임베딩 자산(embedding/x_umap/y_umap 등) + 옛 LLM 메타(sensitivity_tags/brand_keywords/aliases/category_type/representative_image_urls/price_band) 13 컬럼 DROP. price_min_usd / price_max_usd (numeric, USD) 신규 + products 기준 backfill. **id bigserial** (056). primary/secondary_node_id FK + node_confidence (055). **084 (2026-05-21)**: `wiki jsonb` 컬럼 추가 (SPEC-BRAND-WIKI-001) — 브랜드 위키 메타 (instagram_handle / homepage_url / description_ko / founder / founded_year / origin_country / status 등). 인덱스 3종 (country / ig_handle / status). |
 | | `brand_attributes` | 010 | 어드민에서 채우는 브랜드 속성 |
-| | `brand_similar` | 038 + **056** | 브랜드 간 유사도 그래프 (top-20 edges per brand, cosine similarity). brand_id bigint 전환 (056) |
+| | ~~`brand_similar`~~ | ~~038 + 056~~→**080 드롭** | **migration 080 DROP** — BGE-m3 텍스트 임베딩 기반 42k edge 그래프. `brand_multimodal_embeddings` + `find_similar_brands` RPC (063~066) 로 대체 |
 | | `brand_attribute_proposals` | 039 + **056** | LLM 추론 브랜드 속성 검수큐 (confidence ≥ 0.85 자동/0.7~0.85 pending/< 0.7 폐기). brand_id bigint 전환 (056) |
 | | `brand_node_review_queue` | **055** + **056** | Brand-VLM 분류 실패/저신뢰/충돌/image 부족 admin 수동 검수 큐. open 1건 per brand (partial unique). reason: insufficient_images/low_confidence/multi_node_conflict/vlm_failed/alias_candidate |
-| | `brand_sku_counts` | 043 | 브랜드별 SKU 카운트 MATERIALIZED VIEW (perf 캐시) |
-| **검색 품질** | `search_quality_logs` | 014 | 검색 호출당 score breakdown (어드민 디버거 시각화) |
-| **평가** | `eval_reviews` | 013 + 015 | 평가 대기열 리뷰 핀 (유일하게 유지) |
+| | ~~`brand_sku_counts`~~ | ~~043~~→**085 드롭** | **migration 085 (2026-05-22) DROP** — 0참조 perf 캐시. 크롤모니터는 `admin_crawl_platform_stats()` 가 직접 집계 |
+| **검색 품질** | ~~`search_quality_logs`~~ | ~~014~~→**087 드롭** | **migration 087 DROP** — analytics/pipeline-health 전용이었고 둘 다 제거. 2026-05-10 이후 write 중단 stale |
+| **평가** | ~~`eval_reviews`~~ | ~~013 + 015~~→**089 드롭** | **migration 089 DROP** — /admin/eval 제거 동반 |
 | | ~~`eval_golden_set`~~ | ~~013~~→**048 드랍** | migration 048 (2026-05-13) 에서 삭제됨 |
 | | ~~`eval_golden_queries`~~ | ~~033~~→**048 드랍** | migration 048 에서 삭제됨 |
 | | ~~`eval_judgments`~~ | ~~033~~→**048 드랍** | migration 048 에서 삭제됨 |
 | | ~~`eval_runs`~~ | ~~033~~→**048 드랍** | migration 048 에서 삭제됨 |
-| **유저 피드백** | `user_feedbacks` | 021 | rating + tag + comment + email |
+| **유저 피드백** | ~~`user_feedbacks`~~ | ~~021~~→**087 드롭** | **migration 087 DROP** — user-voice(read) + /api/feedback(write) 제거에 동반 |
 | **어드민 인증** | `admin_profiles` | 022 + 023 + 024 | `status: pending/approved/rejected` 승인 게이트 |
-| **Instagram** | `instagram_post_scrapes` | 028 | 메인 플로우 스크랩 결과 (shortcode unique, raw_data jsonb) |
-| | `instagram_post_scrape_images` | 028 | 슬라이드별 R2 URL + tagged_users + is_video |
+| **Instagram** | ~~`instagram_post_scrapes`~~ | ~~028~~→**087 드롭** | **migration 087 DROP** — 공개 IG 메인플로우 제거에 동반 (admin 미사용) |
+| | ~~`instagram_post_scrape_images`~~ | ~~028~~→**087 드롭** | **migration 087 DROP** — 동일 |
 | **카테고리** | `category_canonical` | **073** | raw `products.category` (752 distinct) → 20 canonical family 매핑 테이블. v6 FILTER 2 family 게이트 + Vision-normalize 공유 계약. `raw_category` PK, `family` (tops/bottoms/…/other). |
 | **스타일 노드** | `style_nodes` | 049 + 050 | Fashion Genome taxonomy DB 관리 (20 nodes A~T, admin CRUD). `src/lib/style-nodes-db.ts` 로 fetch (5 min cache). `fashion-genome.ts` 의 hardcoded 15-node 대체 |
 | | `style_node_adjacency` | 051 | 스타일 노드 간 관계 그래프 (빈 테이블 — SPEC-BRAND-EMBED-001 이 채울 예정) |
 | **프롬프트 레지스트리** | `prompts` | 052 + 053 + **059** | VLM/Text prompt DB 관리. situation 별 active 1개 유지 (partial unique index). `src/lib/prompts/registry.ts` 로 fetch (5 min cache + in-flight dedup). Admin 편집 가능 (/admin/prompts). 059: brand-vlm v1 row 추가 (gpt-4o-mini, 5-image multimodal, NODES_BLOCK/NODE_CODES/BRAND_NAME placeholders) |
-| **API 로깅** | `api_access_logs` | — | 외부 API 호출 추적 |
+| **API 로깅** | ~~`api_access_logs`~~ | —→**089 드롭** | **migration 089 DROP** — writer(/api/analyze) 제거로 dead (코드 0참조) |
 | **검색 디버거** | `search_debug_runs` | **083** | 어드민 v6 search-debugger Run 스냅샷. mode/query/image_url/filters/steps/response(jsonb) + rating(1-5)/notes/tags. 어드민 간 공유 (RLS 없음, requireApprovedAdmin 게이트). |
 | **크롤 통계** | `crawl_platform_stats` | **078** | 플랫폼별 SKU 카운트 + 최근 크롤 타임스탬프 집계 뷰. `/admin/crawl` 페이지가 소비. |
 
@@ -50,12 +51,9 @@ CREATE INDEX idx_product_embeddings_hnsw
   ON product_embeddings USING hnsw (embedding halfvec_cosine_ops)
   WITH (m = 16, ef_construction = 200);
 
--- products.embedding 컬럼 + 관련 인덱스는 cutover 후 별 마이그서 DROP 예정 (SPEC §7b)
--- (products에 embedding/embedding_model/embedded_at 컬럼 잔존 — 배치용)
--- idx_products_embedding_pending (배치 anti-join 보조 부분 인덱스) — 071 에서 재작성
-CREATE INDEX idx_products_embedding_pending
-  ON products (id)
-  WHERE embedding IS NULL AND images IS NOT NULL AND array_length(images, 1) > 0;
+-- ⚠️ products.embedding / embedding_model / embedded_at + idx_products_embedding_pending
+--    은 migration 086 (2026-05-22) 에서 DROP됨. 임베딩 단일 출처 = product_embeddings (071).
+--    배치 pending 판별도 products.embedding IS NULL → product_embeddings anti-join 으로 전환.
 ```
 
 > **069 DROP:** `idx_products_embedding_hnsw` (027 products HNSW), `idx_products_embedding_pending` (027 부분인덱스), `product_embedding_coverage` VIEW — 모두 071 에서 `product_embeddings` 기준으로 재작성됨.
@@ -93,8 +91,10 @@ CREATE INDEX idx_products_tags_gin ON products USING gin (tags);
 
 ### 모니터링 뷰
 
+> ⚠️ **`product_embedding_coverage` VIEW + `brand_sku_counts` MATVIEW + `node_centroids` 테이블은 migration 085 (2026-05-22) 에서 DROP됨** (코드 0참조). 아래 정의는 이력 참고용. 임베딩 진척 확인은 `SELECT count(*) FROM product_embeddings` vs `products` 로 대체.
+
 ```sql
--- 071 rework: product_embeddings LEFT JOIN 기준 (027/031 products.embedding 카운트 대체)
+-- [DROPPED 085] 071 rework: product_embeddings LEFT JOIN 기준
 CREATE VIEW product_embedding_coverage AS
 SELECT p.platform,
        count(*)                                                AS total,
@@ -191,6 +191,11 @@ SELECT p.platform,
 | **082** | **`search_products_v6` category JOIN verbatim 정정** — 3 곳의 `lower(trim(cc.raw_category)) = lower(trim(p.category))` → `cc.raw_category = p.category`. category_canonical seed 가 verbatim 1:1 매핑이므로 정규화 불필요. 동일 normalize 값 N개 매칭 → N배 fanout 버그 수정 (중복 product_id 반환 증상). |
 | **083** | **`search_debug_runs` 테이블** — 어드민 v6 search-debugger Run 히스토리. mode(text/image/fused)/query_text/image_url/source_url/filters/steps(jsonb)/response(jsonb)/rating(1-5)/notes/tags(text[]). 인덱스: created_at DESC + rating + tags GIN. |
 | **084** | **`brand_nodes.wiki jsonb` 컬럼 추가 (SPEC-BRAND-WIKI-001 P1)** — 브랜드 위키 메타데이터를 단일 jsonb 컬럼에 namespace 묶음. 기존 `attributes`(VLM 결과)와 완전 분리. 신규 컬럼만 추가 — 기존 데이터 무변경. 인덱스 3종: `idx_brand_nodes_wiki_country` (origin_country 클러스터링), `idx_brand_nodes_wiki_ig` (instagram_handle lookup), `idx_brand_nodes_wiki_status` (admin 검수 필터). |
+| **085** | **안 쓰는 객체 정리 (2026-05-22)** — 코드 0참조 + 라이브 DB 교차검증 후 DROP: `analyses.sensitivity_tags` 컬럼(v4 잔재), `brand_sku_counts` MATERIALIZED VIEW(0참조, 크롤모니터는 `admin_crawl_platform_stats()` 사용), `product_embedding_coverage` VIEW(모니터링 dead view), `node_centroids` 테이블(8행, dormant 인접그래프 파생값). `style_node_adjacency`는 유지(SPEC-BRAND-EMBED-001 대기). 외부 의존 0. |
+| **086** | **`products` 레거시 임베딩 컬럼 DROP (2026-05-22)** — `embedding` / `embedding_model` / `embedded_at` + `idx_products_embedding_pending` 제거 (~109MB stale). 071에서 `product_embeddings`로 이전 완료된 잔존 자산. ⚠️ aws-infra 임베딩 배치(`batch_embed_full.py` / `embed_batch_devapp.py`) pending 판별을 `products.embedding IS NULL` → `product_embeddings` anti-join으로 동시 전환(부수효과: stale sentinel 발 ~47k 중복 재임베딩 해소). |
+| **087** | **admin 전용 전환 — 공개플로우 테이블 DROP (2026-05-22)** — `instagram_post_scrape_images` / `instagram_post_scrapes` / `search_quality_logs` / `user_feedbacks` / `analysis_sessions` DROP. 공개 IG 메인플로우 + analytics/user-voice 어드민 코드 제거에 동반. FK 없음 확인. `analyses`/`analysis_items`는 `/admin/eval` 가 읽어 유지(신규 write 없음). |
+| **088** | **`analyses` 레거시 세션 컬럼 DROP (2026-05-22)** — 087 follow-up. `session_id` / `parent_analysis_id` / `refinement_prompt` / `sequence_number` 제거 (analysis_sessions 제거 후 dangling, 코드 0참조). |
+| **089** | **/admin/eval 제거 — analyses 클러스터 DROP (2026-05-22)** — `api_access_logs` / `analysis_items` / `eval_reviews` / `analyses` DROP. writer(/api/analyze) 제거로 신규 데이터 0 → eval dead-end. eval 페이지/API/컴포넌트 전부 제거 동반. FK 순서: incoming 3개 → analyses. |
 
 ---
 
@@ -224,16 +229,18 @@ SELECT p.platform,
 | ~~representative_image_urls~~ | ~~text[]~~ | **067 DROP** — `products.is_brand_representative` 가 source of truth |
 | ~~category_type~~ | ~~text~~ | **067 DROP** |
 | ~~price_band~~ | ~~text~~ | **067 DROP** — price_min_usd / price_max_usd 로 대체 |
-| primary_node_id | bigint | FK → style_nodes.id. brand 1차 감도 (055, VLM 배정) |
-| secondary_node_id | bigint | FK → style_nodes.id. brand 2차 감도 (055) |
-| node_confidence | numeric(3,2) | VLM 출력 confidence 0-1 (< 0.7 이면 review queue 자동 분기) (055) |
-| node_assigned_at | timestamptz | VLM 배정 시각 (055) |
-| node_assigned_model | text | VLM 모델 ID 추적 (055) |
+| primary_style_node_id | bigint | FK → style_nodes.id. brand 1차 감도 (055, VLM 배정. 062에서 `primary_node_id`→현재명 리네임) |
+| secondary_style_node_id | bigint | FK → style_nodes.id. brand 2차 감도 (055) |
+| style_node_confidence | numeric(3,2) | VLM 출력 confidence 0-1 (< 0.7 이면 review queue 자동 분기) (055) |
+| style_node_assigned_at | timestamptz | VLM 배정 시각 (055) |
+| style_node_assigned_model | text | VLM 모델 ID 추적 (055) |
 | price_min_usd | numeric | USD 환산 최저가 (067 신규). products 기준 backfill 또는 어드민 수동 입력 |
 | price_max_usd | numeric | USD 환산 최고가 (067 신규) |
 | wiki | jsonb | 브랜드 위키 메타 (084 신규, SPEC-BRAND-WIKI-001). 필드: `instagram_handle`, `instagram_url`, `homepage_url`, `description_ko`, `description_original`, `founder text[]`, `founded_year smallint`, `origin_country char(2)`, `sources jsonb[]`, `confidence`, `status` (ok/review/no_data), `review_reasons`, `enriched_at`, `schema_version`. attributes(VLM 결과)와 분리. 인덱스: `idx_brand_nodes_wiki_country` (origin_country) / `idx_brand_nodes_wiki_ig` (instagram_handle) / `idx_brand_nodes_wiki_status` (status). |
 
-### brand_similar
+### brand_similar ⚠️ DROPPED (migration 080)
+
+> **migration 080 (2026-05-21) 에서 DROP됨.** BGE-m3 텍스트 임베딩 기반이었으나 067에서 `brand_nodes.embedding` 삭제 후 재계산 불가. `brand_multimodal_embeddings` + `find_similar_brands` RPC (065) 로 대체. 아래는 이력 참고용.
 
 | 컬럼 | 타입 | 설명 |
 |---|---|---|
@@ -299,7 +306,11 @@ open(resolved_at NULL) 1건 한도 per brand (partial unique). resolved row 는 
 
 ---
 
-## eval_golden_queries (2026-05-04, migration 033)
+## eval_golden_queries / eval_judgments / eval_runs ⚠️ ALL DROPPED (migration 048)
+
+> **이 3개 테이블(+`eval_golden_set`)은 migration 048 (2026-05-13) 에서 전부 DROP됨.** v4 NDCG/P@5 평가 시스템 폐기. 유지된 평가 테이블은 `eval_reviews` 뿐. 아래 3개 섹션은 모두 이력 참고용 — 현존하지 않음.
+
+## eval_golden_queries (2026-05-04, migration 033) — DROPPED 048
 
 검색 v6 평가용 골든셋 쿼리 카탈로그.
 

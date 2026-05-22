@@ -1,5 +1,15 @@
-# 메인 플로우 — Instagram 포스트 → 상품 추천
+# 메인 플로우 — Instagram 포스트 → 상품 추천 ⚠️ 제거됨 (2026-05-22)
 
+> 🛑 **이 플로우는 2026-05-22 admin 전용 전환에서 통째로 제거되었습니다.** 아래는 전부 이력 참고용 — 더 이상 존재하지 않는 코드/라우트를 설명합니다.
+> - 제거 코드: `src/app/page.tsx`(→`/admin` redirect)·`_components/`·`api/{find,instagram,analyze,feedback}`·`domains/{vision,search,instagram}` 등
+> - 제거 테이블(마이그 087): `instagram_post_scrapes`·`instagram_post_scrape_images`·`analysis_sessions`
+> - 사유: 공개 IG 서비스 중단, app 을 어드민 운영 도구로 축소. 봇(ai 리포)은 app 미의존이라 무관.
+> - Vision/검색 로직은 ai 리포(자체 포팅) + 어드민 `search-debugger`(자체 모듈)에 잔존.
+
+---
+
+> _(이하 이력 — 제거 전 플로우 설명)_
+>
 > 활성 진입점 `/` 의 단일 플로우. 입력 = IG 포스트 URL (`?img_index=N` 옵션), 출력 = strongMatches(브랜드 일치) + general(일반) 2섹션 카드.
 >
 > v2 머지: 2026-04-26 (PR #31). 구 oEmbed → web_profile_info 체인 폐기, Apify 스크래퍼 + 단일 슬라이드/아이템 정밀 매칭으로 전환.

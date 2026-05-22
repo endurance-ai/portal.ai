@@ -15,18 +15,12 @@
 
 | 경로 | 역할 | 입력 |
 |---|---|---|
-| `/` | 메인 플로우 — IG 포스트 → 슬라이드 picker → 아이템 picker → 상품 추천. 상세는 [features/main-flow.md](features/main-flow.md) | IG 포스트 URL (`?img_index=N` 옵션) |
-| `/admin` | 운영 대시보드 (Genome, Analytics, Eval, Search Debugger, Products, User Voice 등) | — |
+| `/admin` | **유일 활성 표면** — 운영 대시보드 (Style/Brand Genome, Search Debugger, Products, Brand 검수, 메타 검수, AI Insights, Crawl, Prompts) | — |
+| `/` | `/admin` 으로 redirect | — |
 
-**메인 플로우 v2 핵심 (PR #31, 2026-04-26)**:
-- 임의 IG post URL fetch (Apify 스크래퍼 사용 — 기존 `web_profile_info` 의 TOO_OLD 한계 제거)
-- URL 의 `?img_index=N` 파싱 → 캐러셀 직접 점프
-- img_index 없으면 슬라이드 picker UI 노출 → 사용자가 1장 선택
-- 단일 슬라이드 Vision 분석 → 다중 아이템 검출 → 사용자가 1개 선택
-- 선택된 1개 + 그 포스트의 tagged_users로 brandFilter 빌드 → strongMatches + general 검색
-- `instagram_post_scrapes.shortcode` 로 캐시 (재요청 시 Apify 호출 스킵)
+> ⚠️ **2026-05-22 admin 전용 전환**: 공개 IG "snitch" 메인플로우가 통째로 제거됨. 제거 대상 = `src/app/page.tsx`(→redirect)·`_components/`·`api/{find,instagram,analyze,feedback}`·`domains/{vision,search,instagram}`·`domains/brand-resolution/resolve-brands`·관련 `lib/{analyze,find,instagram,i18n,r2,...}`. 어드민 `analytics`·`user-voice`·`eval` 페이지도 함께 제거(eval 은 writer 제거로 dead-end). 봇(ai 리포)은 app 을 호출하지 않고 Postgres 직결이므로 영향 없음. 검색·Vision 로직은 ai 리포(자체 포팅) + 어드민 search-debugger 자체 모듈(`domains/admin-tools/search-debug/*`)에 잔존. 마이그레이션 087~089 로 관련 테이블(instagram_post_scrapes·scrape_images·search_quality_logs·user_feedbacks·analysis_sessions·analyses·analysis_items·eval_reviews·api_access_logs) + analyses 레거시 세션 컬럼 DROP.
 
-> 구 `/` (Q&A 6단계 에이전트)는 `src/app/_archive-qa/` 로 이동(PR #30, 2026-04-26) 후 **SPEC-ARCH-APP-001 step 8 에서 최종 삭제됨(2026-05-17)**. PR #30 에서 `/dna`, `/about`, `/archive` 도 제거됨.
+> 아래 "시스템 토폴로지"·"메인 플로우" 관련 섹션과 [features/main-flow.md](features/main-flow.md) 는 제거된 플로우를 설명 — ⚠️ stale, 이력 참고용.
 
 ---
 
@@ -118,7 +112,7 @@ graph TB
 | Cloudflare R2 | 이미지 저장 (단일 버킷, prefix 분리) | [infra/deployment.md](infra/deployment.md#cloudflare-r2--이미지-저장) |
 | **Apify** (`instagram-post-scraper`) | Instagram 포스트 단발 스크래핑 — `run-sync-get-dataset-items`, ~5-10s, $0.0023/post | [features/main-flow.md](features/main-flow.md#step-1--instagram-포스트-스크래핑) |
 | OpenAI | GPT-4o-mini Vision (단일 슬라이드 분석) + 브랜드 메타 추론 (`fill_brand_meta.py` via LiteLLM) + **brand-VLM 분류** (`/api/internal/classify-brand`, 5-image multimodal, LiteLLM 토글 가능 — `LITELLM_DISABLED !== "true"` 가드) | [features/main-flow.md](features/main-flow.md#step-2--슬라이드별-vision-분석) |
-| **AI Server** ([endurance-ai/ai-server](https://github.com/endurance-ai/ai-server)) | v6 검색 오케스트레이션 (Modal `/embed` + `/embed/text` 텍스트 타워 + dev-app `search_products_v6` RPC). `/api/find/search` 가 호출 | [features/search-engine.md](features/search-engine.md) |
+| **AI Server** ([endurance-ai/ai-server](https://github.com/endurance-ai/ai-server)) | v6 검색 오케스트레이션 (Modal `/embed` + `/embed/text` 텍스트 타워 + dev-app `search_products_v6` RPC). 어드민 **search-debugger**(`/api/admin/search-v6-debug` → `search-debug/ai-client.ts`)가 호출 (구 `/api/find/search` 는 2026-05-22 제거) | [features/search-engine.md](features/search-engine.md) |
 | **Modal serverless** | FashionSigLIP `/embed` (이미지 임베딩) + `/embed/text` (텍스트 임베딩, FashionSigLIP 텍스트 타워, T4 GPU, scale-to-zero) — AI 서버가 호출 | (ai-server repo) |
 | LiteLLM proxy | LLM 라우팅 + Langfuse callback (AI 서버 EC2 컨테이너, `54.116.116.225:4000`). 브랜드 메타 추론 배치에서도 사용 | [infra/deployment.md](infra/deployment.md) |
 | Langfuse self-host | 관측성 (LLM/embed/파이프라인 trace) — AI 서버 EC2 컨테이너 | (ai-server repo) |
@@ -152,9 +146,9 @@ graph TB
 2. `src/app/admin/layout.tsx` — RSC에서 `requireApprovedAdmin()` 재확인
 3. `/api/admin/*` 라우트 핸들러 — 동일 헬퍼로 한번 더 검증
 
-대시보드 (4섹션 카테고리화 — 2026-05-15 reskin, 2026-05-20 리그룹): **분류 체계** (스타일 노드 / 브랜드 노드 / 프롬프트) / **검수 대기** (브랜드 노드 검수 / 브랜드 검수큐) / **시각화·분석** (브랜드 클러스터 / 분석 로그 / **검색 디버거 v2** / **크롤 모니터**) / **운영** (상품 DB / AI 인사이트 / 품질 평가 / 유저 보이스). 브라우저 탭·사이드바 타이틀 "portal.ai Admin" → **"kiko.ai Admin"** 변경.
+대시보드 (2026-05-22 admin 전용 전환 후): **분류 체계** (스타일 노드 / 브랜드 노드 / 프롬프트) / **검수 대기** (브랜드 노드 검수 / 메타 검수) / **인사이트** (브랜드 클러스터 / AI 인사이트) / **시스템** (상품 DB / 크롤 모니터 / 검색 디버거). 사이드바 타이틀 **"kiko.ai Admin"**.
 
-Eval 모듈: migration 048 (2026-05-13) 로 eval_golden_queries / eval_golden_set / eval_judgments / eval_runs 4 테이블 + 관련 API 7개 드랍. `/admin/eval` 은 queue-only 단일 탭으로 단순화. `eval_reviews` 만 유지. 상세: `docs/features/search-engine.md` 의 "Evaluation Infrastructure" 섹션.
+> ⚠️ **2026-05-22 제거**: 분석 로그(analytics) / 유저 보이스(user-voice) / 품질 평가(eval) 3개 어드민 페이지 + 관련 테이블(analyses·analysis_items·eval_reviews·api_access_logs·search_quality_logs·user_feedbacks·analysis_sessions) DROP (마이그 087~089). 사유: 공개 IG 플로우 제거로 분석 데이터 writer 소멸 → 해당 페이지 dead-end.
 
 인증 모델 (P3 — Auth.js v5 Credentials Provider):
 - 로그인: `signIn("credentials", {email, password})` → bcryptjs hash 검증 → JWT 발급
@@ -278,9 +272,9 @@ stack-internal 아키텍처 재설계. **언어·동작·화면 불변**, 레이
 | `src/shared/{enums,utils}/` | 순수 enum·유틸 (korean-vocab / color·style-adjacency / locked-filter / currency / format / utils) |
 | `src/repositories/clients/` | 단일 DB 접근층 — `postgrest.ts` / `pg-pool.ts` (옛 `src/lib/{supabase,db}.ts`) |
 | ~~`src/domains/search-v4/`~~ | **feature/redesign-admin에서 전체 삭제** — v6 search-debugger 전환으로 v4 어드민 소비자 제거됨. `api/search-products/route.ts` 도 삭제. |
-| `src/domains/search/` | **SearchEngine port** (SPEC-SEARCH-V6-001) — `engine-port.ts` / `registry.ts`(`selectEngine`) / `adapters/v6-adapter.ts`. `find/search` 가 이 port 호출. v6 단일 엔진. v5/v4-fallback 어댑터·circuit-breaker 제거 |
-| `src/domains/instagram/` · `src/domains/vision/` | IG 스크래퍼 · Vision 분석 (analyze-post 는 라우트 유지) |
-| `src/domains/brand-resolution/` | resolve-brands / brand-normalize / brand-embed |
+| ~~`src/domains/search/`~~ | **2026-05-22 삭제** — 공개 `find/search` 제거에 동반. v6 검색 로직은 어드민 `search-debug/*` 자체 모듈 + ai 리포에 잔존 |
+| ~~`src/domains/instagram/` · `src/domains/vision/`~~ | **2026-05-22 삭제** — 공개 IG 플로우 제거 |
+| `src/domains/brand-resolution/` | `brand-normalize.ts` 만 잔존 (스크립트 `register_unmatched_brands` 사용). `resolve-brands.ts` 는 2026-05-22 삭제 |
 | `src/domains/admin-tools/{brand-management,style-taxonomy,products,prompts,eval,analytics}/` | 28개 admin 라우트 본문. `api/admin/*/route.ts` 는 전부 `export *` thin shim |
 
 > 옛 경로 import 는 shim 으로 전부 유효 — 본 문서 내 다른 `src/lib/...` / `api/admin/...` 표기는 호환 경로이며 실체는 위 신규 위치다. 신규 코드는 신규 위치를 직접 참조.

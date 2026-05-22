@@ -1,13 +1,11 @@
 import type {Metadata} from "next"
 import {Analytics} from "@vercel/analytics/next"
-import {LocaleProvider} from "@/lib/i18n"
 import {Toaster} from "@/components/ui/sonner"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "PORTAL — The look you love, piece by piece.",
-  description:
-    "Upload a photograph or describe a mood. We return every piece that could belong.",
+  title: "kiko.ai Admin",
+  description: "kiko.ai 운영 어드민",
 }
 
 export default function RootLayout({
@@ -24,9 +22,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
-        <LocaleProvider>
-          {children}
-        </LocaleProvider>
+        {children}
         <Toaster richColors position="bottom-right" />
         <Analytics />
       </body>

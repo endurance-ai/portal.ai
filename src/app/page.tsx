@@ -1,25 +1,6 @@
-import type {Metadata} from "next"
-import {Wordmark} from "@/components/ui/wordmark"
-import {FindClient} from "./_components/find-client"
+import {redirect} from "next/navigation"
 
-export const metadata: Metadata = {
-  title: "PORTAL — Paste any Instagram post. We'll tell you where to buy the fit.",
-  description: "Paste any Instagram post. We'll tell you where to buy the fit.",
-}
-
-export default function HomePage() {
-  return (
-    <main className="min-h-screen bg-cream text-ink flex flex-col">
-      <header className="px-6 md:px-14 py-5 flex items-center justify-between border-b border-line">
-        <Wordmark />
-      </header>
-
-      <FindClient />
-
-      <footer className="px-6 md:px-14 py-6 flex items-center justify-between text-[10px] tracking-[0.14em] uppercase text-ink-quiet border-t border-line">
-        <span>PORTAL</span>
-        <span>POC</span>
-      </footer>
-    </main>
-  )
+// 공개 IG 플로우 제거 (admin 전용 전환). 루트는 어드민으로 리다이렉트.
+export default function RootPage() {
+  redirect("/admin")
 }
