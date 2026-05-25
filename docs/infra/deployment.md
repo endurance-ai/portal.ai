@@ -8,7 +8,6 @@
 |---|---|---|
 | **dev-app EC2** | Next.js 16 호스팅 (App Router, Turbopack, `output: standalone`). dev/prod 모두 EC2 + GitHub Actions (Vercel pause 2026-05-10) | EC2 비용 (~$50/월) |
 | **dev-app Postgres 16** (자체호스팅) | 전 영속 데이터 + RLS + pgvector + pgroonga + PostgREST nginx shim. SPEC-INFRA-MIGRATE-001 P2/P4/P6. (이전: Supabase Pro — 2026-05-10 pause) | EC2 비용에 포함 |
-| **Cloudflare R2** | 이미지 저장 (분석 원본 + IG 슬라이드) | 무료 한도 + zero egress |
 | **OpenAI** | GPT-4o-mini Vision/Text | 호출당 ~$0.003 (Vision, slide 1장) |
 | **AWS EC2 g5.xlarge Spot** | FashionSigLIP 임베딩 배치 (단발) | $950 Activate 크레딧 활용 |
 | **LiteLLM proxy (EC2, 현재 OFF)** | OpenAI 호출 라우팅·로깅·비용 통제 | EC2 인스턴스 비용 (가동 시) |
@@ -117,18 +116,6 @@ const useLiteLLM =
 ```
 
 켜지면 OpenAI SDK base URL을 `${LITELLM_BASE_URL}/v1` 로 덮어씀. 프록시 죽으면 `LITELLM_DISABLED=true` 한 줄로 OpenAI direct 폴백.
-
----
-
-## Cloudflare R2 — 이미지 저장
-
-- `@aws-sdk/client-s3` 로 S3 API 호환 접근
-- **단일 버킷**, 폴더(prefix)로 분리:
-  - `analyses/<timestamp>-<uuid>-<safeName>` — `uploadImage()` 자동 prefix
-  - 그 외 (예: IG 슬라이드) — 호출자가 `uploadBufferAtKey()` 로 직접 지정
-- 공개 URL은 `R2_PUBLIC_URL` 한 호스트
-- `next.config.ts` `remotePatterns` 에 등록 필수
-- /find Vision 분석은 이미지 URL이 `R2_PUBLIC_URL` prefix인 것만 허용 (SSRF)
 
 ---
 

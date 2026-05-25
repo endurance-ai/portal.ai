@@ -31,7 +31,6 @@ updated: 2026-05-04
 | 서비스 | 역할 | 비용 추정 | 토글 여부 |
 |---|---|---|---|
 | Supabase Postgres | 주 DB + Auth + pgvector + pgroonga | Pro 플랜 | 항상 ON |
-| Cloudflare R2 | 이미지 오브젝트 스토리지 (analyses/, instagram-posts/) — 이그레스 무료 | 스토리지 기준 | 항상 ON |
 | OpenAI GPT-4o-mini | Vision 단일 슬라이드 분석 | ~$0.003/슬라이드 | 항상 ON |
 | Apify instagram-post-scraper | Instagram 포스트 run-sync 스크래핑 | ~$0.0023/포스트 | 항상 ON |
 | AI Server (Python FastAPI) | v5 검색 오케스트레이션 (Modal embed + Supabase RPC) | 별도 EC2 | ON (5xx → v4 폴백) |
@@ -61,7 +60,6 @@ AI 서버는 별도 Python 레포(`endurance-ai/ai-server`). `AI_SERVER_URL` 미
 |---|---|
 | @supabase/ssr 0.10 | SSR 쿠키 인증 |
 | @supabase/supabase-js 2.100 | DB 클라이언트 + pgvector + pgroonga |
-| @aws-sdk/client-s3 | Cloudflare R2 접근 (S3-compatible) |
 
 ### AI
 
@@ -97,7 +95,6 @@ AI 서버는 별도 Python 레포(`endurance-ai/ai-server`). `AI_SERVER_URL` 미
 |---|---|---|
 | 메인 앱 | Vercel | `dev` 브랜치 → preview, `main` 브랜치 → prod |
 | 임베딩 배치 | AWS EC2 g5.xlarge Spot | Deep Learning AMI, FashionSigLIP 실행 후 단발 종료 |
-| 이미지 스토리지 | Cloudflare R2 | 단일 버킷, prefix 분리 (analyses/, instagram-posts/) |
 
 Git 워크플로: `dev → feature → PR → squash merge`. 브랜치 상세 및 EC2 Spot 운영: `docs/infra/deployment.md` 참조.
 

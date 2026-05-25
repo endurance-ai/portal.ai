@@ -24,7 +24,6 @@ updated: 2026-05-04
 |---|---|---|
 | @supabase/ssr | 0.10 | SSR 쿠키 인증 |
 | @supabase/supabase-js | 2.100 | DB 클라이언트 + pgvector + pgroonga |
-| @aws-sdk/client-s3 | — | Cloudflare R2 접근 (S3 호환) |
 
 ### AI
 
@@ -70,13 +69,11 @@ graph TD
         L5["enums/\n색상·스타일 열거형"]
         L6["prompts.ts\nVision 프롬프트"]
         L7["supabase-server.ts\nSSR 클라이언트"]
-        L8["r2.ts\nR2 스토리지"]
         L9["admin-auth.ts\n어드민 인증"]
     end
 
     A1 --> L1
     A1 --> L7
-    A1 --> L8
 
     A2 --> L2
     A2 --> L6
@@ -112,7 +109,6 @@ graph TD
     C1 --> A3
     C2 --> B1
 
-    style L8 fill:#c62828,color:#fff
     style L9 fill:#c62828,color:#fff
     style L7 fill:#f57f17,color:#fff
 ```
@@ -125,7 +121,6 @@ graph TD
 
 | 모듈 | 격리 이유 |
 |---|---|
-| `src/lib/r2.ts` | R2 API 키 (AWS_ACCESS_KEY_ID 등) 서버 전용 환경변수 사용 |
 | `src/lib/supabase-server.ts` | service-role 키 + 쿠키 기반 세션 — 브라우저 노출 금지 |
 | `src/lib/admin-auth.ts` | 어드민 검증 로직 + service-role DB 접근 포함 |
 

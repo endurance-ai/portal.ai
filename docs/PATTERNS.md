@@ -223,27 +223,6 @@ export async function requireApprovedAdmin() {
 
 ---
 
-## R2 이미지 업로드 (서버 전용)
-
-```ts
-// src/lib/r2.ts
-import "server-only"
-
-// 분석 원본 — 자동 prefix("analyses/")
-export async function uploadImage(buffer, filename, contentType): Promise<string> { ... }
-
-// 그 외 (예: IG 슬라이드) — 호출자가 prefix 직접 지정
-export async function uploadBufferAtKey(buffer, key, contentType): Promise<string> { ... }
-```
-
-규칙:
-- 같은 버킷 1개 (`R2_BUCKET_NAME`), prefix 로 구분 (`analyses/`, IG는 호출자가 지정)
-- 반환되는 URL은 항상 `R2_PUBLIC_URL` prefix → `next.config.ts` `remotePatterns` 등록 필수
-- /find Vision은 이미지 URL 검증 시 `R2_PUBLIC_URL` 시작 여부로 SSRF 차단
-- 업로드 키 합성 시 `crypto.randomUUID()` + 파일명 sanitize (`[^a-zA-Z0-9._-]` 제거 + 100자 cap)
-
----
-
 ## 검색 — Hard Filter 패턴
 
 `/api/search-products` 가 채택하는 **점수 X / 통과·탈락 O** 패턴. 메인 플로우의 `brandFilter`(brand 이름 배열)가 대표. archived flow의 `passesLockedFilter` 도 같은 형태로 잔존:
@@ -396,7 +375,7 @@ pnpm test:watch   # watch
 | 컴포넌트 | PascalCase, named export. `export default` 는 page/layout만 |
 | 경로 별칭 | `@/*` → `src/*` |
 | 클라이언트/서버 | RSC 기본, `"use client"` 는 인터랙션 시만 |
-| 서버 모듈 | `src/lib/r2.ts`, `src/lib/supabase.ts`, `admin-auth.ts` 등은 `import "server-only"` 로 누출 차단 |
+| 서버 모듈 | `src/lib/supabase.ts`, `admin-auth.ts` 등은 `import "server-only"` 로 누출 차단 |
 | UI 텍스트 | 메인 영어, 어드민 한글 (영어 고유명사 유지) |
 | 디자인 시스템 | M3 토큰 + B&W Minimal — 색은 유저 이미지에서만 |
 | 입력 검증 | 외부 입력 = UUID/email regex + 길이 cap + allowlist set |

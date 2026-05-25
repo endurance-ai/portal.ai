@@ -48,12 +48,6 @@ updated: 2026-05-04
 | `src/lib/supabase-server.ts` | SSR 쿠키 기반 Supabase 클라이언트, service-role 세션 | `createServerClient`, `createServiceRoleClient` | server-only |
 | `src/lib/supabase-client.ts` | 브라우저 Supabase 클라이언트 (Auth 상태 구독용) | `createBrowserClient` | 클라이언트 허용 |
 
-### R2 스토리지 (r2.ts)
-
-| 파일 | 책임 | 주요 export | 접근 범위 |
-|---|---|---|---|
-| `src/lib/r2.ts` | Cloudflare R2 업로드, 서명 URL 생성 (`@aws-sdk/client-s3` S3 호환) | `uploadToR2`, `getSignedUrl` | server-only |
-
 ### 어드민 인증 (admin-auth.ts)
 
 | 파일 | 책임 | 주요 export | 접근 범위 |
@@ -68,7 +62,7 @@ updated: 2026-05-04
 
 | 경로 | 책임 |
 |---|---|
-| `/api/instagram/fetch-post` | shortcode 캐시 조회 → MISS 시 Apify 스크래핑 + R2 이미지 복사 |
+| `/api/instagram/fetch-post` | shortcode 캐시 조회 → MISS 시 Apify 스크래핑 |
 | `/api/find/analyze-post` | 단일 슬라이드 GPT-4o-mini Vision 분석 → items[] 반환 |
 | `/api/find/search` | AI Server /recommend 호출 → 5xx 시 v4 폴백, 다양성 캡 적용 |
 | `/api/search-products` | v4 10-dim 가중합 검색 엔진 (strongMatches + general) |
