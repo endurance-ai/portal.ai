@@ -13,11 +13,6 @@
 | `AUTH_SECRET` | Auth.js JWT 서명 비밀키 (`openssl rand -hex 32`) | 서버 전용 |
 | `INTERNAL_API_KEY` | `/api/internal/*` 보호 키 (크롤러 → kiko.ai 호출용). 양쪽 동일 값 (`openssl rand -hex 32`). 최소 16자 | 서버 전용 |
 | `NEXTAUTH_URL` | Auth.js 콜백 베이스 URL (dev: `http://localhost:3400`, prod: 도메인) | 서버 전용 |
-| `R2_ACCOUNT_ID` | Cloudflare R2 endpoint 합성용 | 서버 전용 |
-| `R2_ACCESS_KEY_ID` | R2 S3-compat key | 서버 전용 |
-| `R2_SECRET_ACCESS_KEY` | R2 S3-compat secret | 서버 전용 |
-| `R2_BUCKET_NAME` | 단일 버킷 이름 | 서버 전용 |
-| `R2_PUBLIC_URL` | R2 public CDN prefix | 서버 전용 (Vision SSRF 가드 기준) |
 
 ## 선택 (opt-in)
 
@@ -72,6 +67,6 @@
 ## 시크릿 노출 체크
 
 - 서비스 롤 키 / OpenAI 키 / `AUTH_SECRET` / `DATABASE_URL` 는 절대 클라이언트 노출 금지
-- `src/lib/supabase.ts`, `src/lib/r2.ts`, `src/lib/admin-auth.ts`, `src/lib/db.ts` 모두 `import "server-only"` 로 가드
+- `src/lib/supabase.ts`, `src/lib/admin-auth.ts`, `src/lib/db.ts` 모두 `import "server-only"` 로 가드
 - `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` — 제거됨 (P8 SUPABASE_* → DB_* 리네임 시점). Auth.js 전환(P3) 후 어드민 Auth 용도 미사용 + PostgREST shim 도 service role 만 사용 → 클라이언트 PostgREST 직접 호출 없음. 코드 잔존 0건 확인.
 - 로컬 `.env.local` 은 `.gitignore` — 절대 커밋 금지

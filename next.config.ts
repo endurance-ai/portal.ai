@@ -41,8 +41,6 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "roughside.co.kr" },
       { protocol: "https", hostname: "sienneboutique.com" },
       { protocol: "https", hostname: "takeastreet.com" },
-      // R2 CDN
-      { protocol: "https", hostname: "pub-dddeb1e14cdf428caa5cfbad8e1f98da.r2.dev" },
     ],
   },
 }
